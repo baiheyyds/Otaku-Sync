@@ -1,7 +1,7 @@
 # 项目版本更新记录（Changelog）
 
 ## v2.3.2（2025-07-17）
-
+修改分支
 -  增加品牌补全优先用 bangumi，dlsite/getchu 作为补充
 -  bangumi 抓取的字段如有不同名称分别在 field_aliases.json 统一管理
 

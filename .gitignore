@@ -1,0 +1,8 @@
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 缓存目录（你用来保存抓取的临时信息）
+cache/
+
+config/

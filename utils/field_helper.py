@@ -1,3 +1,5 @@
+# utils/field_helper.py
+# 该模块用于处理字段相关的辅助函数
 import os
 import json
 

@@ -1,4 +1,5 @@
 # clients/bangumi_client.py
+# 该模块用于与 Bangumi API 交互，获取游戏和角色信息
 from utils.field_helper import extract_aliases, extract_link_map, extract_first_valid
 import re
 import time

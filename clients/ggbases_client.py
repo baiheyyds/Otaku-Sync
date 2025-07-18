@@ -1,4 +1,5 @@
 # clients/ggbases_client.py
+# 该模块用于与 GGBases 网站交互，获取游戏信息和标签
 import os
 import sys
 import time

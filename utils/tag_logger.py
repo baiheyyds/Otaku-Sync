@@ -1,4 +1,5 @@
 # utils/tag_logger.py
+# 该模块用于记录和管理标签映射
 import os
 import json
 

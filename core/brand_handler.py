@@ -1,4 +1,5 @@
 # core/brand_handler.py
+# 该模块用于处理品牌信息的获取和存储
 import json
 import os
 

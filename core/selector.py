@@ -1,4 +1,5 @@
-#core/selector.py
+# core/selector.py
+# 该模块用于选择游戏
 def select_game(dlsite_client, getchu_client, main_keyword: str, original_keyword: str):
     # 优先 DLsite 搜索
     results = dlsite_client.search(original_keyword)

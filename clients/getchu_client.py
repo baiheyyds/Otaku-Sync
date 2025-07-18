@@ -1,5 +1,4 @@
 # clients/getchu_client.py
-
 import re
 import time
 import requests

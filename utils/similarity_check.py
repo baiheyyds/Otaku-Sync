@@ -1,4 +1,5 @@
 # utils/similarity_check.py
+# 该模块用于检查游戏标题的相似性，避免重复创建游戏条目
 import difflib
 import unicodedata
 import re

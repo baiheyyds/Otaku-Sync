@@ -1,4 +1,5 @@
 # clients/notion_client.py
+# 该模块用于与 Notion API 交互，处理游戏和品牌数据的
 import requests
 import re
 import difflib

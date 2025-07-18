@@ -1,4 +1,5 @@
 # clients/brand_cache.py
+# 该模块用于处理品牌信息的缓存
 import json
 import os
 import shutil

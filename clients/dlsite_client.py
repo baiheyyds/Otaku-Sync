@@ -1,4 +1,5 @@
 # clients/dlsite_client.py
+# 该模块用于与 Dlsite 网站交互，获取游戏信息和品牌数据
 import os
 import sys
 import contextlib

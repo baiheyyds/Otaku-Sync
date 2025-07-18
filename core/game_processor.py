@@ -1,4 +1,5 @@
 # core/game_processor.py
+# 该模块用于处理游戏数据的同步和处理逻辑
 import re
 from utils.tag_mapping import map_and_translate_tags
 from config.config_fields import FIELDS

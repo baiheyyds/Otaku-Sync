@@ -1,3 +1,4 @@
+#scripts/extract_brands.py
 import requests
 import time
 import sys

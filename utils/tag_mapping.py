@@ -1,4 +1,5 @@
 # utils/tag_mapping.py
+# 该模块用于处理标签映射和翻译
 import os
 import json
 

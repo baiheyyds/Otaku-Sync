@@ -1,7 +1,7 @@
 # utils/tag_mapping.py
 # 该模块用于处理标签映射和翻译
-import os
 import json
+import os
 
 # 🔧 JSON 文件路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -11,8 +11,9 @@ TAG_MAPPING_PATH = os.path.join(BASE_DIR, "mapping", "tag_mapping_dict.json")
 
 
 def load_json(path):
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def map_and_translate_tags(raw_tags, source="dlsite"):
     """翻译标签并统一映射"""
@@ -30,6 +31,7 @@ def map_and_translate_tags(raw_tags, source="dlsite"):
         translated = raw_tags
 
     return sorted(set(map_tags(translated)))
+
 
 def map_tags(raw_tags):
     """标签归一化映射"""

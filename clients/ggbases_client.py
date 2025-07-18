@@ -1,26 +1,29 @@
 # clients/ggbases_client.py
 # 该模块用于与 GGBases 网站交互，获取游戏信息和标签
+import contextlib
 import os
 import sys
 import time
-import contextlib
 import urllib.parse
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
 from utils.tag_logger import append_new_tags
 from utils.tag_mapping import map_and_translate_tags
 
 TAG_GGBASE_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_ggbase.json")
 
+
 @contextlib.contextmanager
 def suppress_stdout_stderr():
     """重定向stdout和stderr到null，屏蔽浏览器启动时日志。"""
-    with open(os.devnull, 'w') as devnull:
+    with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         sys.stdout = devnull
@@ -30,6 +33,7 @@ def suppress_stdout_stderr():
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+
 
 def create_silent_chrome_driver():
     options = Options()
@@ -42,10 +46,10 @@ def create_silent_chrome_driver():
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-logging", "enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
-    options.page_load_strategy = 'eager'
+    options.add_experimental_option("useAutomationExtension", False)
+    options.page_load_strategy = "eager"
 
-    log_path = "NUL" if os.name == 'nt' else "/dev/null"
+    log_path = "NUL" if os.name == "nt" else "/dev/null"
     service = Service(log_path=log_path)
 
     with suppress_stdout_stderr():
@@ -74,9 +78,7 @@ class GGBasesClient:
             self.driver.set_page_load_timeout(timeout)
             self.driver.get(url)
             if wait_selector:
-                WebDriverWait(self.driver, timeout).until(
-                    EC.presence_of_element_located(wait_selector)
-                )
+                WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located(wait_selector))
             time.sleep(1.5)
             return self.driver.page_source
         except Exception as e:
@@ -115,9 +117,7 @@ class GGBasesClient:
                 return None
             try:
                 self.driver.get(search_url)
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "tr.dtr"))
-                )
+                WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "tr.dtr")))
                 time.sleep(1.5)
                 html = self.driver.page_source
             except Exception as e:
@@ -154,11 +154,7 @@ class GGBasesClient:
             except Exception as e:
                 print(f"⚠️ 热度提取异常: {e}")
 
-            candidates.append({
-                "title": title,
-                "url": url,
-                "popularity": popularity
-            })
+            candidates.append({"title": title, "url": url, "popularity": popularity})
 
         if not candidates:
             print("⚠️ GGBases 没有找到有效结果")
@@ -228,16 +224,14 @@ class GGBasesClient:
         return None
 
     def _extract_cover_url(self, soup):
-        img = soup.select_one('div[markdown-text] img, #img00')
+        img = soup.select_one("div[markdown-text] img, #img00")
         if img and img.get("src"):
             return self._normalize_url(img["src"])
-        a_tag = soup.select_one('div[markdown-text] a[href]')
+        a_tag = soup.select_one("div[markdown-text] a[href]")
         if a_tag:
             return self._normalize_url(a_tag["href"])
         try:
-            img = WebDriverWait(self.driver, 2).until(
-                EC.presence_of_element_located((By.ID, "img00"))
-            )
+            img = WebDriverWait(self.driver, 2).until(EC.presence_of_element_located((By.ID, "img00")))
             return self._normalize_url(img.get_attribute("src"))
         except:
             return None
@@ -280,5 +274,7 @@ class GGBasesClient:
                 print(f"🏷️ 标签已补全: {' '.join(mapped_tags)}")
             else:
                 print("❌ 标签补全失败")
+        except Exception as e:
+            print(f"❌ 标签补全异常: {e}")
         except Exception as e:
             print(f"❌ 标签补全异常: {e}")

@@ -1,11 +1,14 @@
 # clients/notion_client.py
 # 该模块用于与 Notion API 交互，处理游戏和品牌数据的
-import requests
-import re
 import difflib
+import re
 from datetime import datetime
-from utils.utils import convert_date_jp_to_iso
+
+import requests
+
 from config.config_fields import FIELDS
+from utils.utils import convert_date_jp_to_iso
+
 
 class NotionClient:
     def __init__(self, token, game_db_id, brand_db_id):
@@ -15,7 +18,7 @@ class NotionClient:
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
     def _request(self, method, url, json_data=None):
@@ -40,7 +43,12 @@ class NotionClient:
 
     def search_brand(self, brand_name):
         url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"
-        payload = {"filter": {"property": FIELDS["brand_name"], "title": {"equals": brand_name}}}
+        payload = {
+            "filter": {
+                "property": FIELDS["brand_name"],
+                "title": {"equals": brand_name},
+            }
+        }
         resp = self._request("POST", url, payload)
         return resp.get("results", []) if resp else []
 
@@ -56,7 +64,13 @@ class NotionClient:
 
             if icon_url and not current_props.get(FIELDS["brand_icon"], {}).get("files"):
                 props[FIELDS["brand_icon"]] = {
-                    "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]
+                    "files": [
+                        {
+                            "type": "external",
+                            "name": "icon",
+                            "external": {"url": icon_url},
+                        }
+                    ]
                 }
 
             if len(props) == 1:
@@ -71,7 +85,13 @@ class NotionClient:
                 props[FIELDS["brand_official_url"]] = {"url": official_url}
             if icon_url:
                 props[FIELDS["brand_icon"]] = {
-                    "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]
+                    "files": [
+                        {
+                            "type": "external",
+                            "name": "icon",
+                            "external": {"url": icon_url},
+                        }
+                    ]
                 }
             url = "https://api.notion.com/v1/pages"
             payload = {"parent": {"database_id": self.brand_db_id}, "properties": props}
@@ -132,7 +152,12 @@ class NotionClient:
         if iso_date:
             props[FIELDS["release_date"]] = {"date": {"start": iso_date}}
 
-        for key, field_key in [("剧本", "script"), ("原画", "illustrator"), ("声优", "voice_actor"), ("音乐", "music")]:
+        for key, field_key in [
+            ("剧本", "script"),
+            ("原画", "illustrator"),
+            ("声优", "voice_actor"),
+            ("音乐", "music"),
+        ]:
             val = info.get(key)
             if val:
                 props[FIELDS[field_key]] = {"multi_select": [{"name": v} for v in val if v.strip()]}
@@ -155,11 +180,13 @@ class NotionClient:
 
         if info.get("封面图链接"):
             props[FIELDS["cover_image"]] = {
-                "files": [{
-                    "type": "external",
-                    "name": "cover",
-                    "external": {"url": info["封面图链接"]}
-                }]
+                "files": [
+                    {
+                        "type": "external",
+                        "name": "cover",
+                        "external": {"url": info["封面图链接"]},
+                    }
+                ]
             }
 
         if brand_relation_id:
@@ -180,7 +207,18 @@ class NotionClient:
         else:
             print(f"❌ 提交游戏失败: {title}")
 
-    def create_or_update_brand(self, brand_name, official_url=None, icon_url=None, summary=None, bangumi_url=None, company_address=None, birthday=None, alias=None, twitter=None):
+    def create_or_update_brand(
+        self,
+        brand_name,
+        official_url=None,
+        icon_url=None,
+        summary=None,
+        bangumi_url=None,
+        company_address=None,
+        birthday=None,
+        alias=None,
+        twitter=None,
+    ):
         existing = self.search_brand(brand_name)
         props = {FIELDS["brand_name"]: {"title": [{"text": {"content": brand_name}}]}}
 

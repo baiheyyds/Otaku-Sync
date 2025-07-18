@@ -7,9 +7,20 @@ mapping_path = os.path.join(os.path.dirname(__file__), "../mapping/brand_mapping
 with open(mapping_path, "r", encoding="utf-8") as f:
     brand_mapping = json.load(f)
 
-def handle_brand_info(source, dlsite_client, notion_client, brand_name, brand_page_url, cache,
-                      brand_homepage=None, brand_icon=None,
-                      bangumi_client=None, getchu_client=None, getchu_brand_page_url=None):
+
+def handle_brand_info(
+    source,
+    dlsite_client,
+    notion_client,
+    brand_name,
+    brand_page_url,
+    cache,
+    brand_homepage=None,
+    brand_icon=None,
+    bangumi_client=None,
+    getchu_client=None,
+    getchu_brand_page_url=None,
+):
     if not brand_name:
         print("⚠️ 品牌名为空，跳过品牌处理")
         return None
@@ -71,40 +82,24 @@ def handle_brand_info(source, dlsite_client, notion_client, brand_name, brand_pa
             bangumi_info.get("homepage"),
             extra.get("官网"),
             getchu_extra.get("官网"),
-            brand_homepage
+            brand_homepage,
         ),
         "icon_url": combine_field(
             bangumi_info.get("icon"),
             extra.get("图标"),
             getchu_extra.get("图标"),
-            brand_icon
+            brand_icon,
         ),
-        "summary": combine_field(
-            bangumi_info.get("summary"),
-            extra.get("简介"),
-            getchu_extra.get("简介")
-        ),
+        "summary": combine_field(bangumi_info.get("summary"), extra.get("简介"), getchu_extra.get("简介")),
         "bangumi_url": bangumi_info.get("bangumi_url"),
         "company_address": combine_field(
             bangumi_info.get("company_address"),
             extra.get("公司地址"),
-            getchu_extra.get("公司地址")
+            getchu_extra.get("公司地址"),
         ),
-        "birthday": combine_field(
-            bangumi_info.get("birthday"),
-            extra.get("生日"),
-            getchu_extra.get("生日")
-        ),
-        "alias": combine_field(
-            bangumi_info.get("alias"),
-            extra.get("别名"),
-            getchu_extra.get("别名")
-        ),
-        "twitter": combine_field(
-            bangumi_info.get("twitter"),
-            extra.get("推特"),
-            getchu_extra.get("推特")
-        ),
+        "birthday": combine_field(bangumi_info.get("birthday"), extra.get("生日"), getchu_extra.get("生日")),
+        "alias": combine_field(bangumi_info.get("alias"), extra.get("别名"), getchu_extra.get("别名")),
+        "twitter": combine_field(bangumi_info.get("twitter"), extra.get("推特"), getchu_extra.get("推特")),
     }
 
     return notion_client.create_or_update_brand(brand_name, **combined_info)

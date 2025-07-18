@@ -1,11 +1,12 @@
 # utils/similarity_check.py
 # 该模块用于检查游戏标题的相似性，避免重复创建游戏条目
 import difflib
-import unicodedata
-import re
-from pathlib import Path
 import json
+import re
 import sys
+import unicodedata
+from pathlib import Path
+
 
 def normalize(text):
     if not text:
@@ -15,12 +16,14 @@ def normalize(text):
     text = re.sub(r"\s+", "", text)
     return text
 
+
 def get_cache_path():
     # 取当前执行脚本（main.py）所在目录，保证缓存在 main.py 同目录下的 cache 文件夹
     base_dir = Path(sys.argv[0]).resolve().parent
     cache_dir = base_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir / "game_titles_cache.json"
+
 
 def load_cache():
     path = get_cache_path()
@@ -32,11 +35,13 @@ def load_cache():
             return []
     return []
 
+
 def save_cache(titles):
     valid_titles = [t for t in titles if t.get("title") and t.get("id")]
     path = get_cache_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(valid_titles, f, ensure_ascii=False, indent=2)
+
 
 def check_existing_similar_games(notion_client, new_title, cached_titles=None, threshold=0.78):
     print("🔍 正在检查是否有可能重复的游戏...")
@@ -85,4 +90,5 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
             return True, all_game_data, "create", None
     else:
         print("✅ 没有发现重复游戏")
+        return True, all_game_data, "create", None
         return True, all_game_data, "create", None

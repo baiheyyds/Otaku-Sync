@@ -1,13 +1,14 @@
 # utils/field_helper.py
 # 该模块用于处理字段相关的辅助函数
-import os
 import json
+import os
 
 alias_path = os.path.join(os.path.dirname(__file__), "../config/field_aliases.json")
 with open(alias_path, "r", encoding="utf-8") as f:
     FIELD_ALIASES = json.load(f)
 
 import re
+
 
 def extract_aliases(infobox):
     aliases = []
@@ -24,13 +25,14 @@ def extract_aliases(infobox):
                     aliases.append(alias_obj)
     return aliases
 
+
 def extract_link_map(infobox):
     link_keys_map = {
         "官网": FIELD_ALIASES.get("brand_official_url", []),
         "Ci-en": FIELD_ALIASES.get("brand_cien", []),
         "Twitter": FIELD_ALIASES.get("brand_twitter", []),
         "Facebook": FIELD_ALIASES.get("brand_facebook", []),
-        "DLsite": FIELD_ALIASES.get("brand_dlsite", [])
+        "DLsite": FIELD_ALIASES.get("brand_dlsite", []),
     }
     links = {}
     for item in infobox:
@@ -57,6 +59,7 @@ def extract_link_map(infobox):
             links["Twitter"] = f"https://twitter.com/{tw[1:]}"
     return links
 
+
 def extract_first_valid(infobox, keys):
     for key in keys:
         for item in infobox:
@@ -76,4 +79,5 @@ def extract_first_valid(infobox, keys):
                     val_str = val.strip()
                     if val_str:
                         return val_str
+    return None
     return None

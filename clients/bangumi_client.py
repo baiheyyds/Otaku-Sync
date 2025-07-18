@@ -1,24 +1,25 @@
 # clients/bangumi_client.py
 # 该模块用于与 Bangumi API 交互，获取游戏和角色信息
-from utils.field_helper import extract_aliases, extract_link_map, extract_first_valid
+import difflib
+import json
+import logging
+import os
 import re
 import time
-import difflib
 import unicodedata
-import requests
-import logging
-import json
-import os
-from clients.notion_client import NotionClient
-from config.config_token import CHARACTER_DB_ID,BANGUMI_TOKEN
-from config.config_fields import FIELDS
 
+import requests
+
+from clients.notion_client import NotionClient
+from config.config_fields import FIELDS
+from config.config_token import BANGUMI_TOKEN, CHARACTER_DB_ID
+from utils.field_helper import extract_aliases, extract_first_valid, extract_link_map
 
 API_TOKEN = BANGUMI_TOKEN
 HEADERS_API = {
     "Authorization": f"Bearer {API_TOKEN}",
     "User-Agent": "BangumiSync/1.0",
-    "Accept": "application/json"
+    "Accept": "application/json",
 }
 
 # 加载字段别名配置
@@ -27,6 +28,7 @@ with open(alias_path, "r", encoding="utf-8") as f:
     FIELD_ALIASES = json.load(f)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
 
 def normalize_title(title: str) -> str:
     if not title:
@@ -39,13 +41,21 @@ def normalize_title(title: str) -> str:
     title = re.sub(r"\s+", "", title)
     return title.lower().strip()
 
+
 def clean_title(title: str) -> str:
     title = re.sub(r"^【.*?】", "", title)
-    title = re.sub(r"(通常版|体験版|豪華版|完全版|初回限定|限定版|特装版|Remake|HD Remaster|新装版|Premium|豪華絢爛版|デモ)", "", title, flags=re.IGNORECASE)
+    title = re.sub(
+        r"(通常版|体験版|豪華版|完全版|初回限定|限定版|特装版|Remake|HD Remaster|新装版|Premium|豪華絢爛版|デモ)",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    )
     return title.strip()
+
 
 def simplify_title(title: str) -> str:
     return re.split(r"[-–~〜—―]", title)[0].strip()
+
 
 class BangumiClient:
     def __init__(self, notion: NotionClient):
@@ -53,13 +63,12 @@ class BangumiClient:
         self.headers = HEADERS_API
         self.similarity_threshold = 0.85
 
-    
     def _search(self, keyword: str):
         url = "https://api.bgm.tv/v0/search/subjects"
         payload = {
             "keyword": keyword,
             "sort": "rank",
-            "filter": {"type": [4], "nsfw": True}
+            "filter": {"type": [4], "nsfw": True},
         }
         resp = requests.post(url, headers=self.headers, json=payload)
         if resp.status_code != 200:
@@ -82,7 +91,7 @@ class BangumiClient:
             name_cn = normalize_title(item.get("name_cn", ""))
             ratio = max(
                 difflib.SequenceMatcher(None, norm_kw, name).ratio(),
-                difflib.SequenceMatcher(None, norm_kw, name_cn).ratio()
+                difflib.SequenceMatcher(None, norm_kw, name_cn).ratio(),
             )
             candidates.append((ratio, item))
 
@@ -118,7 +127,7 @@ class BangumiClient:
             "title_cn": d.get("name_cn"),
             "release_date": d.get("date"),
             "summary": d.get("summary", ""),
-            "url": f"https://bangumi.tv/subject/{subject_id}"
+            "url": f"https://bangumi.tv/subject/{subject_id}",
         }
 
     def fetch_characters(self, subject_id: str) -> list:
@@ -160,19 +169,21 @@ class BangumiClient:
                     val = item.strip() if isinstance(item, str) else item.get("v", "").strip()
                     aliases.add(val)
 
-            characters.append({
-                "name": detail["name"],
-                "cv": ch["actors"][0]["name"] if ch.get("actors") else "",
-                "avatar": detail.get("images", {}).get("large", ""),
-                "summary": detail.get("summary", "").strip(),
-                "bwh": stats.get("character_bwh", ""),
-                "height": stats.get("character_height", ""),
-                "gender": stats.get("character_gender", ""),
-                "birthday": stats.get("character_birthday", ""),
-                "blood_type": stats.get("character_blood_type", ""),
-                "url": f"https://bangumi.tv/character/{char_id}",
-                "aliases": list(aliases)
-            })
+            characters.append(
+                {
+                    "name": detail["name"],
+                    "cv": ch["actors"][0]["name"] if ch.get("actors") else "",
+                    "avatar": detail.get("images", {}).get("large", ""),
+                    "summary": detail.get("summary", "").strip(),
+                    "bwh": stats.get("character_bwh", ""),
+                    "height": stats.get("character_height", ""),
+                    "gender": stats.get("character_gender", ""),
+                    "birthday": stats.get("character_birthday", ""),
+                    "blood_type": stats.get("character_blood_type", ""),
+                    "url": f"https://bangumi.tv/character/{char_id}",
+                    "aliases": list(aliases),
+                }
+            )
         return characters
 
     def _character_exists(self, url: str) -> str | None:
@@ -208,7 +219,13 @@ class BangumiClient:
             props["简介"] = {"rich_text": [{"text": {"content": char["summary"]}}]}
         if char.get("avatar"):
             props["头像"] = {
-                "files": [{"type": "external", "name": "avatar", "external": {"url": char["avatar"]}}]
+                "files": [
+                    {
+                        "type": "external",
+                        "name": "avatar",
+                        "external": {"url": char["avatar"]},
+                    }
+                ]
             }
         if char.get("aliases"):
             alias_text = "、".join(char["aliases"][:20])
@@ -235,10 +252,12 @@ class BangumiClient:
             FIELDS["game_characters"]: {"relation": character_relations},
         }
         if all_cvs:
-            patch[FIELDS["voice_actor"]] = {
-                "multi_select": [{"name": name} for name in sorted(all_cvs)]
-            }
-        self.notion._request("PATCH", f"https://api.notion.com/v1/pages/{game_page_id}", {"properties": patch})
+            patch[FIELDS["voice_actor"]] = {"multi_select": [{"name": name} for name in sorted(all_cvs)]}
+        self.notion._request(
+            "PATCH",
+            f"https://api.notion.com/v1/pages/{game_page_id}",
+            {"properties": patch},
+        )
         logging.info("Bangumi角色信息同步完成")
 
     def fetch_brand_info_from_bangumi(self, brand_name: str) -> dict | None:
@@ -246,13 +265,11 @@ class BangumiClient:
         headers = {
             "Authorization": f"Bearer {BANGUMI_TOKEN}",
             "Content-Type": "application/json",
-            "User-Agent": "OtakuNotionSync/1.0"
+            "User-Agent": "OtakuNotionSync/1.0",
         }
         data = {
             "keyword": brand_name,
-            "filter": {
-                "career": ["artist", "director", "producer"]
-            }
+            "filter": {"career": ["artist", "director", "producer"]},
         }
         resp = requests.post(url, headers=headers, json=data)
         if resp.status_code != 200:
@@ -285,7 +302,7 @@ class BangumiClient:
         twitter = links.get("brand_twitter") or links.get("Twitter") or ""
         if twitter.startswith("@"):
             twitter = f"https://twitter.com/{twitter[1:]}"
-        
+
         return {
             "summary": summary,
             "icon": icon_url,
@@ -294,5 +311,5 @@ class BangumiClient:
             "homepage": links.get("brand_official_url") or links.get("官网"),
             "twitter": twitter,
             "bangumi_url": bangumi_url,
-            "alias": aliases
+            "alias": aliases,
         }

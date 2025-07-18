@@ -1,26 +1,29 @@
 # clients/dlsite_client.py
 # 该模块用于与 Dlsite 网站交互，获取游戏信息和品牌数据
-import os
-import sys
 import contextlib
+import os
 import re
-import requests
+import sys
 import urllib.parse
-from bs4 import BeautifulSoup
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from utils.tag_logger import append_new_tags
+
+import requests
 import undetected_chromedriver as uc
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from utils.tag_logger import append_new_tags
 
 TAG_JP_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_jp_to_cn.json")
+
 
 @contextlib.contextmanager
 def suppress_stdout_stderr():
     """
     重定向stdout和stderr到null，屏蔽浏览器启动时日志。
     """
-    with open(os.devnull, 'w') as devnull:
+    with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         sys.stdout = devnull
@@ -30,6 +33,7 @@ def suppress_stdout_stderr():
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+
 
 def create_silent_uc_driver():
     # 降低tensorflow、CUDA等库的日志
@@ -63,7 +67,7 @@ class DlsiteClient:
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
             ),
-            "Referer": "https://www.dlsite.com/maniax/"
+            "Referer": "https://www.dlsite.com/maniax/",
         }
         self.driver = driver
         self.external_driver = driver is not None
@@ -114,19 +118,29 @@ class DlsiteClient:
             work_type = work_type_tag.get_text(strip=True) if work_type_tag else None
 
             if title and full_url and full_url not in seen:
-                results.append({
-                    "title": title,
-                    "url": full_url,
-                    "price": price,
-                    "类型": work_type  # ✅ 新增字段
-                })
+                results.append(
+                    {
+                        "title": title,
+                        "url": full_url,
+                        "price": price,
+                        "类型": work_type,  # ✅ 新增字段
+                    }
+                )
                 seen.add(full_url)
 
             if len(results) >= limit:
                 break
-        
+
         # === 只排除非游戏类别，保留其余 ===
-        exclude_keywords = ["単行本", "マンガ", "小説", "書籍", "雑誌/アンソロ", "ボイス・ASMR", "音楽"]
+        exclude_keywords = [
+            "単行本",
+            "マンガ",
+            "小説",
+            "書籍",
+            "雑誌/アンソロ",
+            "ボイス・ASMR",
+            "音楽",
+        ]
 
         filtered_results = []
         for item in results:
@@ -148,7 +162,15 @@ class DlsiteClient:
         if brand_page_url and not brand_page_url.startswith("http"):
             brand_page_url = self.BASE_URL + brand_page_url
 
-        sale_date, scenario, illustrator, voice_actor, music, genres, work_type = None, [], [], [], [], [], []
+        sale_date, scenario, illustrator, voice_actor, music, genres, work_type = (
+            None,
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
         table = soup.find("table", id="work_outline")
         if table:
             for tr in table.find_all("tr"):
@@ -181,7 +203,8 @@ class DlsiteClient:
                     }
                     work_type = [
                         mapping.get(s.get("title", "").strip(), s.get("title", "").strip())
-                        for s in td.find_all("span") if s.has_attr("title")
+                        for s in td.find_all("span")
+                        if s.has_attr("title")
                     ]
         cover = soup.find("meta", property="og:image")
         cover = cover["content"] if cover and cover.has_attr("content") else None
@@ -194,7 +217,7 @@ class DlsiteClient:
             if td:
                 text = td.get_text(strip=True)
                 # 提取像 "3.46GB" 或 "356.59MB" 的容量数值
-                match = re.search(r'([\d.]+(?:MB|GB))', text)
+                match = re.search(r"([\d.]+(?:MB|GB))", text)
                 if match:
                     capacity = match.group(1)
 
@@ -300,5 +323,7 @@ class DlsiteClient:
             return {"官网": None, "图标": None}
         finally:
             if driver_created:
+                driver.quit()
+                print(f"🧹 [Dlsite] 关闭内部浏览器驱动（单次）")
                 driver.quit()
                 print(f"🧹 [Dlsite] 关闭内部浏览器驱动（单次）")

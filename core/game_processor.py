@@ -1,25 +1,38 @@
 # core/game_processor.py
 # 该模块用于处理游戏数据的同步和处理逻辑
 import re
-from utils.tag_mapping import map_and_translate_tags
-from config.config_fields import FIELDS
 
-def process_and_sync_game(game, detail, size, notion_client, brand_id, ggbases_client, user_keyword,
-                         interactive=False, ggbases_detail_url=None, ggbases_info=None, source=None,
-                         selected_similar_page_id=None):
+from config.config_fields import FIELDS
+from utils.tag_mapping import map_and_translate_tags
+
+
+def process_and_sync_game(
+    game,
+    detail,
+    size,
+    notion_client,
+    brand_id,
+    ggbases_client,
+    user_keyword,
+    interactive=False,
+    ggbases_detail_url=None,
+    ggbases_info=None,
+    source=None,
+    selected_similar_page_id=None,
+):
     def split_to_list(text):
         if not text:
             return []
         if isinstance(text, list):
             return text
-        return [s.strip() for s in re.split(r'[、/\n]', text) if s.strip()]
+        return [s.strip() for s in re.split(r"[、/\n]", text) if s.strip()]
 
     def split_work_types(text):
         if not text:
             return []
         if isinstance(text, list):
             return text
-        return [s.strip() for s in re.split(r'[、/・|｜,，\n]', text) if s.strip()]
+        return [s.strip() for s in re.split(r"[、/・|｜,，\n]", text) if s.strip()]
 
     # 优先用传入的 source 参数，如果没有则从 game 中取
     if source is None:
@@ -87,8 +100,4 @@ def process_and_sync_game(game, detail, size, notion_client, brand_id, ggbases_c
         "标签": mapped_tags,
     }
 
-    notion_client.create_or_update_game(
-        merged,
-        brand_relation_id=brand_id,
-        page_id=selected_similar_page_id
-    )
+    notion_client.create_or_update_game(merged, brand_relation_id=brand_id, page_id=selected_similar_page_id)

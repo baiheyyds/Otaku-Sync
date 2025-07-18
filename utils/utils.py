@@ -3,12 +3,14 @@
 import re
 from datetime import datetime
 
+
 def extract_main_keyword(raw_keyword):
-    pattern = re.compile(r'[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FFA-Za-z0-9\-〜～]+')
+    pattern = re.compile(r"[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FFA-Za-z0-9\-〜～]+")
     matches = pattern.findall(raw_keyword)
     if matches:
         return matches[0]
     return raw_keyword.strip()
+
 
 def convert_date_jp_to_iso(date_str):
     if not date_str:
@@ -24,7 +26,7 @@ def convert_date_jp_to_iso(date_str):
             return dt.date().isoformat()
         except:
             return None
-    
+
     # 尝试 YYYY/MM/DD 或 YYYY-MM-DD 格式
     for fmt in ("%Y/%m/%d", "%Y-%m-%d"):
         try:
@@ -33,4 +35,5 @@ def convert_date_jp_to_iso(date_str):
         except:
             continue
 
+    return None
     return None

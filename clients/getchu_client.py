@@ -1,16 +1,17 @@
 # clients/getchu_client.py
+import random
 import re
 import time
+from urllib.parse import quote, urljoin
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, quote
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import random
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class GetchuClient:
@@ -40,11 +41,13 @@ class GetchuClient:
 
     def _get_headers(self):
         headers = {
-            "User-Agent": random.choice([
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/91.0.864.67 Safari/537.36"
-            ]),
+            "User-Agent": random.choice(
+                [
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/91.0.864.67 Safari/537.36",
+                ]
+            ),
             "Referer": "https://www.getchu.com/",
         }
         return headers
@@ -53,7 +56,7 @@ class GetchuClient:
         print("🔍 [Getchu] 开始搜索...")
         try:
             safe_keyword = keyword.replace("～", "〜")
-            encoded_keyword = quote(safe_keyword.encode('shift_jis'))
+            encoded_keyword = quote(safe_keyword.encode("shift_jis"))
             url = f"{self.SEARCH_URL}?genre=all&search_keyword={encoded_keyword}&check_key_dtl=1&submit="
             retries = 5
             while retries > 0:
@@ -69,7 +72,7 @@ class GetchuClient:
                 print(f"❌ 搜索失败，状态码: {resp.status_code}")
                 return []
 
-            resp.encoding = 'euc_jp'
+            resp.encoding = "euc_jp"
             soup = BeautifulSoup(resp.text, "html.parser")
             result_ul = soup.find("ul", class_="display")
             if not result_ul:
@@ -83,7 +86,7 @@ class GetchuClient:
                     continue
 
                 title_tag = block.select_one("a.blueb[href*='soft.phtml?id=']")
-                
+
                 # 提取类型
                 type_tag = block.select_one("span.orangeb")
                 item_type = type_tag.get_text(strip=True) if type_tag else "未知"
@@ -103,22 +106,24 @@ class GetchuClient:
                                 break
 
                 if title_tag:
-                    game_id = re.search(r'id=(\d+)', title_tag["href"])
+                    game_id = re.search(r"id=(\d+)", title_tag["href"])
                     if not game_id:
                         continue
-                    items.append({
-                        "title": title_tag.get_text(strip=True),
-                        "url": f"{self.BASE_URL}/soft.phtml?id={game_id.group(1)}",
-                        "价格": price,
-                        "类型": item_type  # ✅ 新增字段
-                    })
+                    items.append(
+                        {
+                            "title": title_tag.get_text(strip=True),
+                            "url": f"{self.BASE_URL}/soft.phtml?id={game_id.group(1)}",
+                            "价格": price,
+                            "类型": item_type,  # ✅ 新增字段
+                        }
+                    )
 
             # 新增：过滤只保留游戏类型
             items = [item for item in items if "ゲーム" in item.get("类型", "")]
-            
+
             exclude_keywords = ["グッズ", "BOOKS", "CD", "音楽"]
             items = [item for item in items if not any(ex_kw in item.get("类型", "") for ex_kw in exclude_keywords)]
-            
+
             print(f"✅ 找到 {len(items)} 个搜索结果。")
             return items
 
@@ -172,7 +177,6 @@ class GetchuClient:
                         brand_site = a_tags[0]["href"]
                     break
 
-
             title_tag = soup.select_one("title")
             title = title_tag.text.strip().split(" (")[0] if title_tag else None
 
@@ -186,7 +190,7 @@ class GetchuClient:
                 "发售日": extract_info("発売日"),
                 "价格": extract_info("定価"),
                 "原画": extract_info("原画"),
-                "剧本": extract_info("シナリオ")
+                "剧本": extract_info("シナリオ"),
             }
 
             print("\n🎯 抓取结果:")
@@ -213,8 +217,8 @@ class GetchuClient:
                 print(f"❌ 品牌页请求失败，状态码: {resp.status_code}")
                 return {}
 
-            resp.encoding = 'euc_jp'
-            soup = BeautifulSoup(resp.text, 'html.parser')
+            resp.encoding = "euc_jp"
+            soup = BeautifulSoup(resp.text, "html.parser")
 
             homepage = None
             trs = soup.find_all("tr")
@@ -227,13 +231,12 @@ class GetchuClient:
                         break
 
             print(f"✅ 抓取到官网: {homepage}")
-            return {
-                "官网": homepage
-            }
+            return {"官网": homepage}
 
         except Exception as e:
             print(f"❌ 抓取品牌额外信息失败: {e}")
             return {}
+
 
 if __name__ == "__main__":
     client = GetchuClient(headless=True)
@@ -252,4 +255,5 @@ if __name__ == "__main__":
             if idx.isdigit() and 0 <= int(idx) < len(results):
                 client.get_game_detail(results[int(idx)]["url"])
     finally:
+        client.close()
         client.close()

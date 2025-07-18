@@ -37,7 +37,7 @@ class BrandCache:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 backup_file = os.path.join(
                     os.path.dirname(self.cache_file),
-                    f"{CACHE_FILE_NAME}.bak_{timestamp}"
+                    f"{CACHE_FILE_NAME}.bak_{timestamp}",
                 )
                 shutil.copy2(self.cache_file, backup_file)
                 print(f"📦 已备份旧缓存为: {backup_file}")
@@ -62,10 +62,7 @@ class BrandCache:
         """仅保留最近 N 个备份，自动清理旧的"""
         dir_path = os.path.dirname(self.cache_file)
         prefix = f"{CACHE_FILE_NAME}.bak_"
-        backup_files = sorted(
-            [f for f in os.listdir(dir_path) if f.startswith(prefix)],
-            reverse=True
-        )
+        backup_files = sorted([f for f in os.listdir(dir_path) if f.startswith(prefix)], reverse=True)
         for old_file in backup_files[keep_last_n:]:
             try:
                 os.remove(os.path.join(dir_path, old_file))

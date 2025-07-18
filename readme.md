@@ -1,4 +1,4 @@
-# 🌸 Otaku-Notion-Sync 使用说明
+# 🌸 Otaku-Notion-Sync 使用指南
 
 ## 一、项目简介
 

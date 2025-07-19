@@ -64,55 +64,6 @@ class NotionClient:
         resp = self._request("POST", url, payload)
         return resp.get("results", []) if resp else []
 
-    def create_or_update_brand(self, brand_name, official_url=None, icon_url=None):
-        existing = self.search_brand(brand_name)
-        props = {FIELDS["brand_name"]: {"title": [{"text": {"content": brand_name}}]}}
-        if existing:
-            page_id = existing[0]["id"]
-            current_props = existing[0]["properties"]
-
-            if official_url and not current_props.get(FIELDS["brand_official_url"], {}).get("url"):
-                props[FIELDS["brand_official_url"]] = {"url": official_url}
-
-            if icon_url and not current_props.get(FIELDS["brand_icon"], {}).get("files"):
-                props[FIELDS["brand_icon"]] = {
-                    "files": [
-                        {
-                            "type": "external",
-                            "name": "icon",
-                            "external": {"url": icon_url},
-                        }
-                    ]
-                }
-
-            if len(props) == 1:
-                return page_id
-
-            url = f"https://api.notion.com/v1/pages/{page_id}"
-            self._request("PATCH", url, {"properties": props})
-            print(f"🛠️ 已更新品牌页面: {brand_name}")
-            return page_id
-        else:
-            if official_url:
-                props[FIELDS["brand_official_url"]] = {"url": official_url}
-            if icon_url:
-                props[FIELDS["brand_icon"]] = {
-                    "files": [
-                        {
-                            "type": "external",
-                            "name": "icon",
-                            "external": {"url": icon_url},
-                        }
-                    ]
-                }
-            url = "https://api.notion.com/v1/pages"
-            payload = {"parent": {"database_id": self.brand_db_id}, "properties": props}
-            resp = self._request("POST", url, payload)
-            if resp:
-                print(f"✅ 新建品牌: {brand_name}")
-                return resp.get("id")
-        return None
-
     def get_all_game_titles(self):
         url = f"https://api.notion.com/v1/databases/{self.game_db_id}/query"
         all_games = []
@@ -244,9 +195,7 @@ class NotionClient:
 
         def add_files_field(field_key, url):
             if url:
-                props[field_key] = {
-                    "files": [{"type": "external", "name": "icon", "external": {"url": url}}]
-                }
+                props[field_key] = {"files": [{"type": "external", "name": "icon", "external": {"url": url}}]}
 
         add_url_field(FIELDS["brand_official_url"], official_url)
         add_files_field(FIELDS["brand_icon"], icon_url)

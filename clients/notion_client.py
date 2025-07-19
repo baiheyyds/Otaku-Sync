@@ -35,11 +35,23 @@ class NotionClient:
             print(f"Notion API request failed: {e}")
             return None
 
+    def get_page_title(self, page):
+        try:
+            title_prop = page["properties"]["Name"]["title"]
+            return "".join([part["text"]["content"] for part in title_prop])
+        except Exception:
+            return "[无法获取标题]"
+
     def search_game(self, title):
         url = f"https://api.notion.com/v1/databases/{self.game_db_id}/query"
         payload = {"filter": {"property": FIELDS["game_name"], "title": {"equals": title}}}
         resp = self._request("POST", url, payload)
         return resp.get("results", []) if resp else []
+
+    def check_page_exists(self, page_id):
+        url = f"https://api.notion.com/v1/pages/{page_id}"
+        response = requests.get(url, headers=self.headers)
+        return response.status_code == 200
 
     def search_brand(self, brand_name):
         url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"

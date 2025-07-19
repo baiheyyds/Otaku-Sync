@@ -59,7 +59,7 @@ def main():
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
 
-    cached_titles = load_cache()
+    cached_titles = load_cache(notion_client=notion)
     print(f"🗂️ 已加载缓存游戏条目数: {len(cached_titles)}")
 
     try:

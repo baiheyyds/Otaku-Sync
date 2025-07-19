@@ -59,7 +59,7 @@ def create_silent_chrome_driver():
 
 
 class GGBasesClient:
-    BASE_URL = "https://www.ggbases.com"
+    BASE_URL = "https://ggb.dlgal.com"
 
     def __init__(self, driver=None):
         self.driver = driver or create_silent_chrome_driver()

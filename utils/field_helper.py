@@ -7,8 +7,6 @@ alias_path = os.path.join(os.path.dirname(__file__), "../config/field_aliases.js
 with open(alias_path, "r", encoding="utf-8") as f:
     FIELD_ALIASES = json.load(f)
 
-import re
-
 
 def extract_aliases(infobox):
     aliases = []

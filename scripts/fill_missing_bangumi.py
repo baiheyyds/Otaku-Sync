@@ -1,25 +1,23 @@
-import os
-import sys
-import re
-import time
 import difflib
-import unicodedata
-import requests
 import logging
+import os
+import re
+import sys
+import time
+import unicodedata
+
+import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from clients.notion_client import NotionClient
-from config.config_token import NOTION_TOKEN, GAME_DB_ID, CHARACTER_DB_ID
 from config.config_fields import FIELDS
+from config.config_token import BANGUMI_TOKEN as API_TOKEN
+from config.config_token import CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
 
-API_TOKEN = "xJhYNZW0SPGYpjpG7hZq874GQLppDIc7I22eWvPv"
-HEADERS_API = {
-    "Authorization": f"Bearer {API_TOKEN}",
-    "User-Agent": "BangumiSync/1.0",
-    "Accept": "application/json"
-}
+HEADERS_API = {"Authorization": f"Bearer {API_TOKEN}", "User-Agent": "BangumiSync/1.0", "Accept": "application/json"}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
 
 def normalize_title(title: str) -> str:
     if not title:
@@ -32,22 +30,26 @@ def normalize_title(title: str) -> str:
     title = re.sub(r"\s+", "", title)
     return title.lower().strip()
 
+
 def clean_title(title: str) -> str:
     title = re.sub(r"^【.*?】", "", title)
-    title = re.sub(r"(通常版|体験版|豪華版|完全版|初回限定|限定版|特装版|Remake|HD Remaster|新装版|Premium|豪華絢爛版|デモ)", "", title, flags=re.IGNORECASE)
+    title = re.sub(
+        r"(通常版|体験版|豪華版|完全版|初回限定|限定版|特装版|Remake|HD Remaster|新装版|Premium|豪華絢爛版|デモ)",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    )
     return title.strip()
+
 
 def simplify_title(title: str) -> str:
     return re.split(r"[-–~〜—―]", title)[0].strip()
 
+
 def search_bangumi_id(keyword: str, try_simplify=True, similarity_threshold=0.75):
     def _search(key):
         url = "https://api.bgm.tv/v0/search/subjects"
-        payload = {
-            "keyword": key,
-            "sort": "rank",
-            "filter": {"type": [4], "nsfw": True}
-        }
+        payload = {"keyword": key, "sort": "rank", "filter": {"type": [4], "nsfw": True}}
         resp = requests.post(url, headers=HEADERS_API, json=payload)
         if resp.status_code != 200:
             return None
@@ -73,7 +75,7 @@ def search_bangumi_id(keyword: str, try_simplify=True, similarity_threshold=0.75
 
         ratio = max(
             difflib.SequenceMatcher(None, norm_kw, name).ratio(),
-            difflib.SequenceMatcher(None, norm_kw, name_cn).ratio()
+            difflib.SequenceMatcher(None, norm_kw, name_cn).ratio(),
         )
         if ratio > best_ratio:
             best_match = item
@@ -84,6 +86,7 @@ def search_bangumi_id(keyword: str, try_simplify=True, similarity_threshold=0.75
         return str(best_match["id"])
 
     return None
+
 
 def fetch_game(subject_id):
     url = f"https://api.bgm.tv/v0/subjects/{subject_id}"
@@ -96,8 +99,9 @@ def fetch_game(subject_id):
         "title_cn": d.get("name_cn"),
         "release_date": d.get("date"),
         "summary": d.get("summary", ""),
-        "url": f"https://bangumi.tv/subject/{subject_id}"
+        "url": f"https://bangumi.tv/subject/{subject_id}",
     }
+
 
 def fetch_characters(subject_id):
     url = f"https://api.bgm.tv/v0/subjects/{subject_id}/characters"
@@ -124,17 +128,20 @@ def fetch_characters(subject_id):
                 val = item["v"].strip() if isinstance(item, dict) else item.strip()
                 aliases.add(val)
 
-        characters.append({
-            "name": detail["name"],
-            "cv": ch["actors"][0]["name"] if ch.get("actors") else "",
-            "avatar": detail.get("images", {}).get("large", ""),
-            "summary": detail.get("summary", "").strip(),
-            "bwh": stats.get("三围", ""),
-            "gender": stats.get("性别", ""),
-            "url": f"https://bangumi.tv/character/{char_id}",
-            "aliases": list(aliases)
-        })
+        characters.append(
+            {
+                "name": detail["name"],
+                "cv": ch["actors"][0]["name"] if ch.get("actors") else "",
+                "avatar": detail.get("images", {}).get("large", ""),
+                "summary": detail.get("summary", "").strip(),
+                "bwh": stats.get("三围", ""),
+                "gender": stats.get("性别", ""),
+                "url": f"https://bangumi.tv/character/{char_id}",
+                "aliases": list(aliases),
+            }
+        )
     return characters
+
 
 def is_character_existing(notion: NotionClient, url: str) -> str | None:
     query_url = f"https://api.notion.com/v1/databases/{CHARACTER_DB_ID}/query"
@@ -142,6 +149,7 @@ def is_character_existing(notion: NotionClient, url: str) -> str | None:
     resp = notion._request("POST", query_url, payload)
     results = resp.get("results", []) if resp else []
     return results[0]["id"] if results else None
+
 
 def create_character_page(notion: NotionClient, char: dict):
     existing_id = is_character_existing(notion, char["url"])
@@ -163,9 +171,7 @@ def create_character_page(notion: NotionClient, char: dict):
     if char.get("summary"):
         props["简介"] = {"rich_text": [{"text": {"content": char["summary"]}}]}
     if char.get("avatar"):
-        props["头像"] = {
-            "files": [{"type": "external", "name": "avatar", "external": {"url": char["avatar"]}}]
-        }
+        props["头像"] = {"files": [{"type": "external", "name": "avatar", "external": {"url": char["avatar"]}}]}
     if char.get("aliases"):
         alias_text = "、".join(char["aliases"][:20])
         props["别名"] = {"rich_text": [{"text": {"content": alias_text}}]}
@@ -174,12 +180,10 @@ def create_character_page(notion: NotionClient, char: dict):
     r = requests.post("https://api.notion.com/v1/pages", headers=notion.headers, json=payload)
     return r.json()["id"] if r.status_code == 200 else None
 
+
 def get_games_missing_bangumi(notion: NotionClient):
     url = f"https://api.notion.com/v1/databases/{notion.game_db_id}/query"
-    payload = {
-        "filter": {"property": FIELDS["bangumi_url"], "url": {"is_empty": True}},
-        "page_size": 100
-    }
+    payload = {"filter": {"property": FIELDS["bangumi_url"], "url": {"is_empty": True}}, "page_size": 100}
     all_games = []
     next_cursor = None
 
@@ -195,15 +199,17 @@ def get_games_missing_bangumi(notion: NotionClient):
 
     return all_games
 
+
 def clear_old_bangumi_data(notion: NotionClient, game_id: str):
     patch_payload = {
         "properties": {
             FIELDS["bangumi_url"]: {"url": None},
             FIELDS["game_characters"]: {"relation": []},
-            FIELDS["voice_actor"]: {"multi_select": []}
+            FIELDS["voice_actor"]: {"multi_select": []},
         }
     }
     notion._request("PATCH", f"https://api.notion.com/v1/pages/{game_id}", patch_payload)
+
 
 def run():
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, CHARACTER_DB_ID)
@@ -241,12 +247,10 @@ def run():
 
             patch = {
                 FIELDS["bangumi_url"]: {"url": detail["url"]},
-                FIELDS["game_characters"]: {"relation": character_relations}
+                FIELDS["game_characters"]: {"relation": character_relations},
             }
             if all_cvs:
-                patch[FIELDS["voice_actor"]] = {
-                    "multi_select": [{"name": name} for name in sorted(all_cvs)]
-                }
+                patch[FIELDS["voice_actor"]] = {"multi_select": [{"name": name} for name in sorted(all_cvs)]}
 
             notion._request("PATCH", f"https://api.notion.com/v1/pages/{game['id']}", {"properties": patch})
             logging.info(f"✅ 更新完成：{title_raw}")
@@ -262,6 +266,7 @@ def run():
         logging.warning(f"⚠️ 共 {len(unmatched_titles)} 个游戏未匹配，已写入 unmatched_games.txt")
     else:
         logging.info("🎉 所有游戏已成功匹配 Bangumi")
+
 
 if __name__ == "__main__":
     run()

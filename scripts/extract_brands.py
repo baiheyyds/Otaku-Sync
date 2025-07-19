@@ -1,16 +1,19 @@
-#scripts/extract_brands.py
-import requests
-import time
-import sys
+# scripts/extract_brands.py
 import os
+import sys
+import time
+
+import requests
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.config_token import NOTION_TOKEN, BRAND_DB_ID
+from config.config_token import BRAND_DB_ID, NOTION_TOKEN
 
 headers = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
     "Notion-Version": "2022-06-28",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
+
 
 def query_all_brand_names():
     url = f"https://api.notion.com/v1/databases/{BRAND_DB_ID}/query"
@@ -45,6 +48,7 @@ def query_all_brand_names():
 
     return sorted(all_names)
 
+
 def main():
     brand_names = query_all_brand_names()
     with open("brand_names.txt", "w", encoding="utf-8") as f:
@@ -52,6 +56,7 @@ def main():
             f.write(name + "\n")
 
     print(f"✅ 已写入 {len(brand_names)} 个品牌名到 brand_names.txt")
+
 
 if __name__ == "__main__":
     main()

@@ -1,12 +1,18 @@
-import sys
 import os
-import requests
+import sys
 import time
-import json
+
+import requests
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from config.config_token import NOTION_TOKEN, BRAND_DB_ID, BANGUMI_TOKEN
 from config.config_fields import FIELDS
-from utils.field_helper import extract_aliases, extract_link_map, extract_first_valid, FIELD_ALIASES
+from config.config_token import BANGUMI_TOKEN, BRAND_DB_ID, NOTION_TOKEN
+from utils.field_helper import (
+    FIELD_ALIASES,
+    extract_aliases,
+    extract_first_valid,
+    extract_link_map,
+)
 
 NOTION_API_URL = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
@@ -14,8 +20,9 @@ NOTION_VERSION = "2022-06-28"
 HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
     "Notion-Version": NOTION_VERSION,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
+
 
 def query_all_brands():
     url = f"{NOTION_API_URL}/databases/{BRAND_DB_ID}/query"
@@ -31,30 +38,32 @@ def query_all_brands():
             break
     return results
 
+
 def extract_brand_name(notion_page):
     title_obj = notion_page["properties"][FIELDS["brand_name"]]["title"]
     return "".join(t["plain_text"] for t in title_obj).strip()
+
 
 def bangumi_search_brand(keyword):
     url = "https://api.bgm.tv/v0/search/persons"
     headers = {
         "Authorization": f"Bearer {BANGUMI_TOKEN}",
         "Content-Type": "application/json",
-        "User-Agent": "OtakuNotionSync/1.0"
+        "User-Agent": "OtakuNotionSync/1.0",
     }
-    data = {
-        "keyword": keyword,
-        "filter": {"career": ["artist", "director", "producer"]}
-    }
+    data = {"keyword": keyword, "filter": {"career": ["artist", "director", "producer"]}}
     resp = requests.post(url, headers=headers, json=data)
     if resp.status_code == 200:
         return resp.json().get("data", [])
     print(f"请求失败，状态码: {resp.status_code}")
     return []
 
+
 def similarity_ratio(s1, s2):
     import difflib
+
     return difflib.SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+
 
 def extract_birthday(best_match):
     # 生日优先用字段，fallback用infobox
@@ -68,10 +77,12 @@ def extract_birthday(best_match):
     birthday_keys = FIELD_ALIASES.get("brand_birthday", [])
     return extract_first_valid(best_match.get("infobox", []), birthday_keys)
 
+
 def update_notion_brand(page_id, update_props):
     url = f"{NOTION_API_URL}/pages/{page_id}"
     resp = requests.patch(url, headers=HEADERS, json={"properties": update_props})
     return resp.status_code == 200
+
 
 def main():
     print("🔍 获取品牌列表中...")
@@ -114,9 +125,7 @@ def main():
         update_payload = {}
 
         if aliases:
-            update_payload[FIELDS["brand_alias"]] = {
-                "rich_text": [{"text": {"content": ", ".join(aliases)}}]
-            }
+            update_payload[FIELDS["brand_alias"]] = {"rich_text": [{"text": {"content": ", ".join(aliases)}}]}
         if links.get("官网"):
             update_payload[FIELDS["brand_official_url"]] = {"url": links["官网"]}
         if links.get("Ci-en"):
@@ -145,6 +154,7 @@ def main():
             print("⚠️ 无需更新信息")
 
         time.sleep(1.2)
+
 
 if __name__ == "__main__":
     main()

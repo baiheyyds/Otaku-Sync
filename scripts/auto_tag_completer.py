@@ -1,32 +1,36 @@
-#scripts/auto_tag_completer.py
+# scripts/auto_tag_completer.py
 import warnings
-import contextlib
 
 warnings.filterwarnings("ignore")
-import sys, os
-sys.stderr = open(os.devnull, 'w')
-
 import os
 import sys
+
+sys.stderr = open(os.devnull, "w")
+
 import json
+import os
 import re
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.config_token import NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID
-from config.config_fields import FIELDS
 from clients.dlsite_client import DlsiteClient
 from clients.ggbases_client import GGBasesClient
 from clients.notion_client import NotionClient
-from utils.tag_mapping import map_and_translate_tags
+from config.config_fields import FIELDS
+from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from utils.tag_logger import append_new_tags
+from utils.tag_mapping import map_and_translate_tags
 
 TAG_JP_PATH = "mapping/tag_jp_to_cn.json"  # 路径统一处理
+
 
 def load_tag_jp_to_cn():
     if not os.path.exists(TAG_JP_PATH):
         return {}
-    with open(TAG_JP_PATH, 'r', encoding='utf-8') as f:
+    with open(TAG_JP_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def get_tags_from_dlsite(url):
     client = DlsiteClient()
@@ -38,6 +42,7 @@ def get_tags_from_dlsite(url):
         print(f"❌ 获取 DLsite 标签失败: {e}")
         return []
 
+
 def get_tags_from_ggbase(url):
     client = GGBasesClient()
     try:
@@ -48,8 +53,10 @@ def get_tags_from_ggbase(url):
         print(f"❌ 获取 GGBases 标签失败: {e}")
         return []
 
+
 def check_missing_mappings(tags, mapping_dict):
     return [tag for tag in tags if tag not in mapping_dict]
+
 
 def main():
     print("🛠️ 开始批量补全标签...")
@@ -58,14 +65,7 @@ def main():
     ggbases_client = GGBasesClient()
 
     query_url = f"https://api.notion.com/v1/databases/{GAME_DB_ID}/query"
-    payload = {
-        "filter": {
-            "property": FIELDS["tags"],
-            "multi_select": {
-                "is_empty": True
-            }
-        }
-    }
+    payload = {"filter": {"property": FIELDS["tags"], "multi_select": {"is_empty": True}}}
 
     results = notion._request("POST", query_url, payload)
     if not results:
@@ -125,15 +125,10 @@ def main():
 
         # 提交到 Notion
         update_url = f"https://api.notion.com/v1/pages/{page['id']}"
-        payload = {
-            "properties": {
-                FIELDS["tags"]: {
-                    "multi_select": [{"name": tag} for tag in final_tags]
-                }
-            }
-        }
+        payload = {"properties": {FIELDS["tags"]: {"multi_select": [{"name": tag} for tag in final_tags]}}}
 
         notion._request("PATCH", update_url, payload)
+
 
 if __name__ == "__main__":
     main()

@@ -1,14 +1,16 @@
-#scripts/export_all_tags.py
-import sys
+# scripts/export_all_tags.py
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 添加项目根目录到模块路径
 from notion_client import Client
-from config.config_token import NOTION_TOKEN, GAME_DB_ID
-from config.config_fields import FIELDS  # 包含标签字段名
 
+from config.config_fields import FIELDS  # 包含标签字段名
+from config.config_token import GAME_DB_ID, NOTION_TOKEN
 
 # 初始化 Notion 客户端
 notion = Client(auth=NOTION_TOKEN)
+
 
 def get_all_games(database_id):
     all_results = []
@@ -28,6 +30,7 @@ def get_all_games(database_id):
             break
     return all_results
 
+
 def extract_all_tags(pages, tag_field_name):
     tag_set = set()
     for page in pages:
@@ -38,11 +41,13 @@ def extract_all_tags(pages, tag_field_name):
             continue  # 跳过无法解析的条目
     return sorted(tag_set)
 
+
 def save_tags_to_txt(tags, filename="all_tags.txt"):
     with open(filename, "w", encoding="utf-8") as f:
         for tag in tags:
             f.write(tag + "\n")
     print(f"✅ 成功写入 {len(tags)} 个标签到 {filename}")
+
 
 if __name__ == "__main__":
     print("📥 正在从 Notion 获取所有游戏记录...")

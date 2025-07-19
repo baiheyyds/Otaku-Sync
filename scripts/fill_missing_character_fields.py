@@ -1,20 +1,23 @@
-import requests
-import time
 import re
-from config.config_token import NOTION_TOKEN, CHARACTER_DB_ID, BANGUMI_TOKEN
+import time
+
+import requests
+
 from config.config_fields import FIELDS
+from config.config_token import BANGUMI_TOKEN, CHARACTER_DB_ID, NOTION_TOKEN
 
 HEADERS_NOTION = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
     "Notion-Version": "2022-06-28",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 HEADERS_BANGUMI = {
     "Authorization": f"Bearer {BANGUMI_TOKEN}",
     "User-Agent": "BangumiSync/1.0",
-    "Accept": "application/json"
+    "Accept": "application/json",
 }
+
 
 def query_all_characters():
     url = f"https://api.notion.com/v1/databases/{CHARACTER_DB_ID}/query"
@@ -35,11 +38,13 @@ def query_all_characters():
 
     return results
 
+
 def extract_bangumi_char_id(url):
     if not url:
         return None
     m = re.search(r"/character/(\d+)", url)
     return m.group(1) if m else None
+
 
 def fetch_bangumi_character_detail(char_id):
     url = f"https://api.bgm.tv/v0/characters/{char_id}"
@@ -48,6 +53,7 @@ def fetch_bangumi_character_detail(char_id):
         print(f"⚠️ 无法获取角色详情，ID={char_id}")
         return None
     return resp.json()
+
 
 def parse_bwh_and_height(infobox):
     bwh = ""
@@ -61,6 +67,7 @@ def parse_bwh_and_height(infobox):
             height = val
     return bwh, height
 
+
 def parse_birthday_and_bloodtype(infobox):
     birthday = ""
     blood_type = ""
@@ -72,6 +79,7 @@ def parse_birthday_and_bloodtype(infobox):
         elif key == "血型":
             blood_type = val
     return birthday, blood_type
+
 
 def update_character_props(page_id, bwh, height, birthday, blood_type):
     props = {}
@@ -95,6 +103,7 @@ def update_character_props(page_id, bwh, height, birthday, blood_type):
         print(f"✅ 更新成功：{page_id} BWH={bwh}, 身高={height}, 生日={birthday}, 血型={blood_type}")
     else:
         print(f"❌ 更新失败：{page_id} 状态码={resp.status_code} 内容={resp.text}")
+
 
 def main():
     print("开始扫描角色数据库补充 BWH、身高、生日和血型字段...")
@@ -144,10 +153,12 @@ def main():
             birthday_new, blood_type_new = parse_birthday_and_bloodtype(detail_json.get("infobox", []))
 
             # ✅ 仅当字段有变动时才 update
-            if (bwh_new and bwh_new != bwh_val) or \
-               (height_new and height_new != height_val) or \
-               (birthday_new and birthday_new != birthday_val) or \
-               (blood_type_new and blood_type_new != blood_type_val):
+            if (
+                (bwh_new and bwh_new != bwh_val)
+                or (height_new and height_new != height_val)
+                or (birthday_new and birthday_new != birthday_val)
+                or (blood_type_new and blood_type_new != blood_type_val)
+            ):
                 update_character_props(page_id, bwh_new, height_new, birthday_new, blood_type_new)
                 updated += 1
 
@@ -158,6 +169,7 @@ def main():
     print(f"\n扫描完成，共处理 {len(characters)} 个角色：")
     print(f"✅ 已更新: {updated}")
     print(f"⏩ 跳过无需更新的: {skipped}")
+
 
 if __name__ == "__main__":
     main()

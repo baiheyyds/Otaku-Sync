@@ -1,24 +1,23 @@
+from os.path import abspath, dirname
 from sys import path
-from os.path import dirname, abspath
+
 path.append(dirname(dirname(abspath(__file__))))
 
-from notion_client import Client
-from config.config_token import NOTION_TOKEN, GAME_DB_ID
-from config.config_fields import FIELDS
-from mapping.tag_replace_map import tag_replace_map
 from collections import Counter
+
+from notion_client import Client
+
+from config.config_fields import FIELDS
+from config.config_token import GAME_DB_ID, NOTION_TOKEN
+from mapping.tag_replace_map import tag_replace_map
 
 
 def fetch_all_games(notion):
     results = []
     next_cursor = None
     while True:
-        response = notion.databases.query(
-            database_id=GAME_DB_ID,
-            start_cursor=next_cursor,
-            page_size=100
-        )
-        results.extend(response['results'])
+        response = notion.databases.query(database_id=GAME_DB_ID, start_cursor=next_cursor, page_size=100)
+        results.extend(response["results"])
         next_cursor = response.get("next_cursor")
         if not next_cursor:
             break
@@ -95,11 +94,7 @@ def main(dry_run=True):
             if not dry_run:
                 notion.pages.update(
                     page_id=page["id"],
-                    properties={
-                        tag_prop['id']: {
-                            "multi_select": [{"name": name} for name in new_tags]
-                        }
-                    }
+                    properties={tag_prop["id"]: {"multi_select": [{"name": name} for name in new_tags]}},
                 )
                 print("✅ 已更新\n")
             else:
@@ -115,11 +110,7 @@ def main(dry_run=True):
             print(f"   - {tag}：{count} 次")
 
     delete_unused_tags(
-        notion=notion,
-        database_id=GAME_DB_ID,
-        tag_field_name=tag_field,
-        used_tags=used_tags,
-        dry_run=dry_run
+        notion=notion, database_id=GAME_DB_ID, tag_field_name=tag_field, used_tags=used_tags, dry_run=dry_run
     )
 
 

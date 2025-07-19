@@ -1,8 +1,12 @@
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
+
 from notion_client import Client
-from config.config_token import NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, STATS_DB_ID
+
+from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN, STATS_DB_ID
 
 # ✅ 添加 cache 文件夹路径
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "cache")
@@ -11,6 +15,7 @@ CACHE_FILE = os.path.join(CACHE_DIR, "brand_latest_cache.json")
 
 notion = Client(auth=NOTION_TOKEN)
 
+
 # ========== 基础工具 ==========
 def load_cache():
     if os.path.exists(CACHE_FILE):
@@ -18,9 +23,11 @@ def load_cache():
             return json.load(f)
     return {}
 
+
 def save_cache(data):
     with open(CACHE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
 
 # ========== 获取游戏数据 ==========
 def get_all_games():
@@ -29,9 +36,7 @@ def get_all_games():
     start_cursor = None
     while True:
         response = notion.databases.query(
-            database_id=GAME_DB_ID,
-            page_size=100,
-            **({"start_cursor": start_cursor} if start_cursor else {})
+            database_id=GAME_DB_ID, page_size=100, **({"start_cursor": start_cursor} if start_cursor else {})
         )
         results.extend(response["results"])
         if not response.get("has_more"):
@@ -40,6 +45,7 @@ def get_all_games():
     print(f"✅ 获取 {len(results)} 条游戏记录")
     return results
 
+
 def get_safe_date(prop):
     if not isinstance(prop, dict):
         return None
@@ -47,6 +53,7 @@ def get_safe_date(prop):
     if isinstance(date_obj, dict):
         return date_obj.get("start")
     return None
+
 
 def get_latest_game_data(games):
     brand_latest = {}
@@ -80,20 +87,14 @@ def get_latest_game_data(games):
                 continue
             existing = brand_latest.get(brand_id)
             if not existing or clear_date > (existing.get("通关时间") or ""):
-                brand_latest[brand_id] = {
-                    "title": title,
-                    "通关时间": clear_date
-                }
+                brand_latest[brand_id] = {"title": title, "通关时间": clear_date}
 
     return brand_latest, latest_clear, latest_release, duration_map
 
+
 # ========== 品牌信息更新 ==========
 def update_brands(brand_map, cache):
-    to_update = {
-        brand_id: info
-        for brand_id, info in brand_map.items()
-        if cache.get(brand_id) != info["title"]
-    }
+    to_update = {brand_id: info for brand_id, info in brand_map.items() if cache.get(brand_id) != info["title"]}
 
     if not to_update:
         print("⚡ 所有厂商通关记录均为最新，无需更新")
@@ -112,14 +113,7 @@ def update_brands(brand_map, cache):
 
             notion.pages.update(
                 page_id=brand_id,
-                properties={
-                    "最近通关作品": {
-                        "rich_text": [{
-                            "type": "text",
-                            "text": {"content": info["title"]}
-                        }]
-                    }
-                }
+                properties={"最近通关作品": {"rich_text": [{"type": "text", "text": {"content": info["title"]}}]}},
             )
             print(f"✅ 更新：{info['title']} → 厂商 {brand_id}")
             cache[brand_id] = info["title"]
@@ -130,17 +124,17 @@ def update_brands(brand_map, cache):
     print(f"✨ 本次共更新了 {updated} 个品牌记录")
     return cache
 
+
 def print_cache_hit_rate(brand_map, cache):
     total = len(brand_map)
     unchanged = sum(1 for k in brand_map if cache.get(k) == brand_map[k]["title"])
     print(f"📊 品牌缓存命中率：{unchanged}/{total}（{round(unchanged/total*100, 2)}%）")
 
+
 def update_statistics_page(clear, release, all_games, duration_map):
     try:
         response = notion.databases.query(
-            database_id=STATS_DB_ID,
-            filter={"property": "类型", "select": {"equals": "通关统计"}},
-            page_size=1
+            database_id=STATS_DB_ID, filter={"property": "类型", "select": {"equals": "通关统计"}}, page_size=1
         )
         if not response["results"]:
             print("⚠️ 未找到名称为「通关统计」的统计页面")
@@ -150,35 +144,23 @@ def update_statistics_page(clear, release, all_games, duration_map):
         properties = {}
 
         if clear:
-            properties["最新通关游戏"] = {
-                "rich_text": [{
-                    "type": "text",
-                    "text": {"content": clear["title"]}
-                }]
-            }
+            properties["最新通关游戏"] = {"rich_text": [{"type": "text", "text": {"content": clear["title"]}}]}
             duration = duration_map.get(clear["title"])
             if duration is not None:
-                properties["最新通关用时"] = {
-                    "rich_text": [{
-                        "type": "text",
-                        "text": {"content": f"{duration} 小时"}
-                    }]
-                }
+                properties["最新通关用时"] = {"rich_text": [{"type": "text", "text": {"content": f"{duration} 小时"}}]}
 
         if release:
-            properties["最新发售作品"] = {
-                "rich_text": [{
-                    "type": "text",
-                    "text": {"content": release["title"]}
-                }]
-            }
+            properties["最新发售作品"] = {"rich_text": [{"type": "text", "text": {"content": release["title"]}}]}
 
         notion.pages.update(page_id=page_id, properties=properties)
-        print(f"📊 更新统计页成功：「最新通关游戏」= {clear['title'] if clear else '无'}，"
-              f"「最新发售作品」= {release['title'] if release else '无'}，"
-              f"「最新通关用时」= {f'{duration} 小时' if clear and duration_map.get(clear['title']) else '无'}")
+        print(
+            f"📊 更新统计页成功：「最新通关游戏」= {clear['title'] if clear else '无'}，"
+            f"「最新发售作品」= {release['title'] if release else '无'}，"
+            f"「最新通关用时」= {f'{duration} 小时' if clear and duration_map.get(clear['title']) else '无'}"
+        )
     except Exception as e:
         print(f"❌ 更新统计页失败：{e}")
+
 
 # ========== 主程序 ==========
 if __name__ == "__main__":

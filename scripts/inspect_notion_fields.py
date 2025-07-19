@@ -1,9 +1,12 @@
-import sys
 import os
+import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import requests
+
 import config.config_token as config
+
 
 # 从 config 中提取所有以 _DB_ID 结尾的变量
 def list_database_ids():
@@ -13,12 +16,13 @@ def list_database_ids():
             db_ids[key] = getattr(config, key)
     return db_ids
 
+
 def get_database_properties(database_id):
     url = f"https://api.notion.com/v1/databases/{database_id}"
     headers = {
         "Authorization": f"Bearer {config.NOTION_TOKEN}",
         "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     resp = requests.get(url, headers=headers)
@@ -35,6 +39,7 @@ def get_database_properties(database_id):
         print(f"🔹 字段名: {name}")
         print(f"   类型: {prop_type}")
         print("-" * 40)
+
 
 if __name__ == "__main__":
     db_map = list_database_ids()

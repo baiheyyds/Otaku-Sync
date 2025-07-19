@@ -122,13 +122,17 @@ class BangumiClient:
         if r.status_code != 200:
             return {}
         d = r.json()
+        # 从 images 字段优先取 large，fallback用 image
+        cover_url = d.get("images", {}).get("large") or d.get("image") or ""
         return {
             "title": d.get("name"),
             "title_cn": d.get("name_cn"),
             "release_date": d.get("date"),
             "summary": d.get("summary", ""),
             "url": f"https://bangumi.tv/subject/{subject_id}",
+            "封面图链接": cover_url,
         }
+
 
     def fetch_characters(self, subject_id: str) -> list:
         url = f"https://api.bgm.tv/v0/subjects/{subject_id}/characters"

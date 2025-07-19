@@ -59,7 +59,7 @@ def create_silent_chrome_driver():
 
 
 class GGBasesClient:
-    BASE_URL = "https://ggb.dlgal.com"
+    BASE_URL = "https://ggbases.dlgal.com"
 
     def __init__(self, driver=None):
         self.driver = driver or create_silent_chrome_driver()
@@ -274,7 +274,5 @@ class GGBasesClient:
                 print(f"🏷️ 标签已补全: {' '.join(mapped_tags)}")
             else:
                 print("❌ 标签补全失败")
-        except Exception as e:
-            print(f"❌ 标签补全异常: {e}")
         except Exception as e:
             print(f"❌ 标签补全异常: {e}")

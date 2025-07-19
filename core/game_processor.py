@@ -17,6 +17,7 @@ def process_and_sync_game(
     interactive=False,
     ggbases_detail_url=None,
     ggbases_info=None,
+    bangumi_info=None,  # 新增参数
     source=None,
     selected_similar_page_id=None,
 ):
@@ -59,22 +60,29 @@ def process_and_sync_game(
                 print(f"⚠️ 获取 GGBases 信息失败: {e}")
                 ggbases_info = {}
 
-    # 封面图选择逻辑
-    if source == "dlsite":
+    # 封面图选择逻辑，优先 Bangumi > GGBases > Getchu
+    cover_url = None
+    if bangumi_info:
+        # bangumi_info 里封面字段名可能是“封面图链接”，也可能别的，按你 bangumi fetch_game 返回结构改
+        # 假设是 "封面图链接" 或 "image"
+        cover_url = bangumi_info.get("封面图链接") or bangumi_info.get("image")
+
+    if not cover_url:
+        cover_url = ggbases_info.get("封面图链接") if ggbases_info else None
+
+    if not cover_url:
         cover_url = detail.get("封面图链接") or detail.get("封面图")
-    elif source == "getchu":
-        cover_url = ggbases_info.get("封面图链接") or detail.get("封面图链接") or detail.get("封面图")
-        if cover_url and not cover_url.startswith("http"):
-            cover_url = "https://www.getchu.com" + cover_url
-    else:
-        cover_url = ggbases_info.get("封面图链接") or detail.get("封面图链接") or detail.get("封面图")
+
+    # getchu 图如果有且开头没 http，加前缀
+    if cover_url and source == "getchu" and not cover_url.startswith("http"):
+        cover_url = "https://www.getchu.com" + cover_url
 
     # 标签处理
     dlsite_tags_raw = detail.get("标签", [])
     if not isinstance(dlsite_tags_raw, list):
         dlsite_tags_raw = [dlsite_tags_raw]
 
-    ggbases_tags_raw = ggbases_info.get("标签", [])
+    ggbases_tags_raw = ggbases_info.get("标签", []) if ggbases_info else []
     if not isinstance(ggbases_tags_raw, list):
         ggbases_tags_raw = [ggbases_tags_raw]
 

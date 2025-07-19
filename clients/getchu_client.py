@@ -1,4 +1,5 @@
 # clients/getchu_client.py
+# GetchuClient 类用于抓取 Getchu 网站的游戏信息
 import random
 import re
 import time

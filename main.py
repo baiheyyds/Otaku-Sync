@@ -82,6 +82,18 @@ def main():
 
             selected_game["source"] = source
             print(f"✅ 选中游戏: {selected_game.get('title')} (来源: {source})")
+            
+            # 加入以下代码调用 bangumi 搜索和获取游戏详情
+            bangumi_info = {}
+            try:
+                subject_id = bangumi.search_and_select_bangumi_id(selected_game.get("title") or keyword)
+                if subject_id:
+                    bangumi_info = bangumi.fetch_game(subject_id)
+                    print(f"🎯 Bangumi 游戏封面图抓取成功: {bangumi_info.get('封面图链接')}")
+                else:
+                    print("⚠️ Bangumi 未匹配到对应游戏")
+            except Exception as e:
+                print(f"⚠️ Bangumi 游戏信息抓取异常: {e}")
 
             proceed, cached_titles, action, existing_page_id = check_existing_similar_games(
                 notion, selected_game.get("title"), cached_titles=cached_titles
@@ -187,6 +199,7 @@ def main():
                 interactive=interactive_mode,
                 ggbases_detail_url=detail_url,
                 ggbases_info=ggbases_info,
+                bangumi_info=bangumi_info,  # 传入 bangumi_info
                 source=source,
                 selected_similar_page_id=page_id_for_update,
             )
@@ -198,9 +211,12 @@ def main():
                     game_page_id = (
                         existing_page_id
                         if action == "update"
-                        else notion.search_game(selected_game.get("title"))[0]["id"]
+                        else notion.search_game(selected_game.get("title"))[0].get("id")
                     )
-                    bangumi.create_or_link_characters(game_page_id, subject_id)
+                    if game_page_id:  # 🔒 确保非 None
+                        bangumi.create_or_link_characters(game_page_id, subject_id)
+                    else:
+                        print("⚠️ 未能确定游戏页面ID，跳过角色同步")
                 else:
                     print("⚠️ Bangumi匹配失败，跳过角色补全")
             except Exception as e:

@@ -234,29 +234,33 @@ class NotionClient:
         existing = self.search_brand(brand_name)
         props = {FIELDS["brand_name"]: {"title": [{"text": {"content": brand_name}}]}}
 
-        if official_url:
-            props[FIELDS["brand_official_url"]] = {"url": official_url}
-        if icon_url:
-            props[FIELDS["brand_icon"]] = {
-                "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]
-            }
-        if summary:
-            props[FIELDS["brand_summary"]] = {"rich_text": [{"text": {"content": summary}}]}
-        if bangumi_url:
-            props[FIELDS["brand_bangumi_url"]] = {"url": bangumi_url}
-        if company_address:
-            props[FIELDS["brand_company_address"]] = {"rich_text": [{"text": {"content": company_address}}]}
-        if birthday:
-            props[FIELDS["brand_birthday"]] = {"rich_text": [{"text": {"content": birthday}}]}
+        def add_url_field(field_key, value):
+            if value:
+                props[field_key] = {"url": value}
+
+        def add_rich_text_field(field_key, value):
+            if value:
+                props[field_key] = {"rich_text": [{"text": {"content": value}}]}
+
+        def add_files_field(field_key, url):
+            if url:
+                props[field_key] = {
+                    "files": [{"type": "external", "name": "icon", "external": {"url": url}}]
+                }
+
+        add_url_field(FIELDS["brand_official_url"], official_url)
+        add_files_field(FIELDS["brand_icon"], icon_url)
+        add_rich_text_field(FIELDS["brand_summary"], summary)
+        add_url_field(FIELDS["brand_bangumi_url"], bangumi_url)
+        add_rich_text_field(FIELDS["brand_company_address"], company_address)
+        add_rich_text_field(FIELDS["brand_birthday"], birthday)
         if alias:
-            # 如果是列表，合并成字符串
             if isinstance(alias, (list, set)):
                 alias_text = "、".join(alias)
             else:
                 alias_text = str(alias)
-            props[FIELDS["brand_alias"]] = {"rich_text": [{"text": {"content": alias_text}}]}
-        if twitter:
-            props[FIELDS["brand_twitter"]] = {"url": twitter}
+            add_rich_text_field(FIELDS["brand_alias"], alias_text)
+        add_url_field(FIELDS["brand_twitter"], twitter)
 
         if existing:
             page_id = existing[0]["id"]

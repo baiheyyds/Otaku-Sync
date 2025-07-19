@@ -170,19 +170,29 @@ def main():
             elif source == "getchu":
                 getchu_brand_url = detail.get("品牌页链接")
 
+            # 处理 brand_homepage（优先 bangumi，否则兜底 getchu）
+            brand_homepage = detail.get("品牌官网")  # 默认来源
+
+            # 如果是 getchu 来源，且 bangumi 没有官网信息
+            if source == "getchu":
+                bangumi_brand_info = bangumi.fetch_brand_info_from_bangumi(brand_name) or {}
+                if not bangumi_brand_info.get("homepage") and getchu_brand_url:
+                    brand_homepage = getchu_brand_url  # ✅ 用 getchu 的品牌页兜底
+
             brand_id = handle_brand_info(
-                source=source,  # 加入来源判断
+                source=source,
                 dlsite_client=dlsite,
                 notion_client=notion,
                 brand_name=brand_name,
                 brand_page_url=brand_url,
                 cache=brand_extra_info_cache,
-                brand_homepage=detail.get("品牌官网"),
-                brand_icon=detail.get("品牌图标"),  # 如果你有这字段
+                brand_homepage=brand_homepage,  # ✅ 替换为上面处理过的
+                brand_icon=detail.get("品牌图标"),
                 bangumi_client=bangumi,
                 getchu_client=getchu,
                 getchu_brand_page_url=getchu_brand_url,
             )
+
             print(f"✅ 品牌信息同步完成，品牌ID: {brand_id}")
 
             page_id_for_update = existing_page_id if action == "update" else None

@@ -210,34 +210,6 @@ class GetchuClient:
             self.driver.quit()
             self.driver = None
 
-    def get_brand_extra_info(self, brand_page_url):
-        try:
-            print(f"🔍 抓取 Getchu 品牌页额外信息: {brand_page_url}")
-            resp = self.session.get(brand_page_url, headers=self._get_headers(), timeout=10)
-            if resp.status_code != 200:
-                print(f"❌ 品牌页请求失败，状态码: {resp.status_code}")
-                return {}
-
-            resp.encoding = "euc_jp"
-            soup = BeautifulSoup(resp.text, "html.parser")
-
-            homepage = None
-            trs = soup.find_all("tr")
-            for tr in trs:
-                tds = tr.find_all("td")
-                if len(tds) >= 2 and "ブランド" in tds[0].get_text(strip=True):
-                    a_tag = tds[1].find("a")
-                    if a_tag and a_tag.has_attr("href"):
-                        homepage = a_tag["href"]
-                        break
-
-            print(f"✅ 抓取到官网: {homepage}")
-            return {"官网": homepage}
-
-        except Exception as e:
-            print(f"❌ 抓取品牌额外信息失败: {e}")
-            return {}
-
 
 if __name__ == "__main__":
     client = GetchuClient(headless=True)

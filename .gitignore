@@ -2,7 +2,22 @@
 __pycache__/
 *.pyc
 
-# 缓存目录（你用来保存抓取的临时信息）
+# 缓存目录
 cache/
 
-config/
+# 配置文件（防止敏感信息泄露）
+config/config_token.py
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+
+# Jupyter Notebook 检查点
+.ipynb_checkpoints/
+
+# 系统文件
+.DS_Store
+Thumbs.db

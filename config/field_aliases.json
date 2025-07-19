@@ -1,0 +1,76 @@
+{
+  "brand_alias": [
+    "别名"
+  ],
+  "brand_official_url": [
+    "官网",
+    "官方网站",
+    "主页",
+    "网站"
+  ],
+  "brand_cien": [
+    "Ci-en",
+    "Cien",
+    "Ci en"
+  ],
+  "brand_twitter": [
+    "推特",
+    "Twitter",
+    "twitter"
+  ],
+  "brand_facebook": [
+    "Facebook",
+    "facebook"
+  ],
+  "brand_dlsite": [
+    "DLsite"
+  ],
+  "brand_company_address": [
+    "公司地址",
+    "地址",
+    "所在地",
+    "所在地地址"
+  ],
+  "brand_birthday": [
+    "生日",
+    "设立",
+    "成立日期",
+    "成立",
+    "创立"
+  ],
+  "brand_summary": [
+    "简介",
+    "介绍"
+  ],
+  "character_name": [
+    "姓名",
+    "名称",
+    "名字"
+  ],
+  "character_alias": [
+    "别名",
+    "别称"
+  ],
+  "character_bwh": [
+    "三围",
+    "BWH"
+  ],
+  "character_height": [
+    "身高"
+  ],
+  "character_gender": [
+    "性别"
+  ],
+  "character_birthday": [
+    "生日",
+    "诞生日"
+  ],
+  "character_blood_type": [
+    "血型"
+  ],
+  "character_cv": [
+    "声优",
+    "CV",
+    "配音"
+  ]
+}

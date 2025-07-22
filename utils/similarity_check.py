@@ -89,7 +89,8 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
     if not valid_candidates:
         notion_results = notion_client.search_game(new_title)
         if notion_results:
-            print("⚠️ Notion 实时查询发现已有同名游戏：", notion_client.get_page_title(notion_results[0]))
+            print("⚠️ Notion 实时查询发现已有同名游戏：", notion_client.get_page_title(notion_results[0]) or "[无法获取标题]")
+
 
             valid_candidates.append((notion_results[0], 1.0))  # 强制相似度 1.0
 
@@ -97,7 +98,9 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
     if valid_candidates:
         print("⚠️ 检测到可能重复的游戏：")
         for item, score in sorted(valid_candidates, key=lambda x: x[1], reverse=True):
-            print(f"  - {item.get('title')}（相似度：{score:.2f}）")
+            title_str = notion_client.get_page_title(item) if hasattr(notion_client, "get_page_title") else item.get('title', '未知标题')
+            print(f"  - {title_str}（相似度：{score:.2f}）")
+
 
         print("请选择操作：")
         print("1. ✅ 创建为新游戏")

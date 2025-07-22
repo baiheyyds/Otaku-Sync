@@ -91,7 +91,8 @@ def main():
             subject_id = None
             bangumi_info = {}
             try:
-                subject_id = bangumi.search_and_select_bangumi_id(selected_game.get("title") or keyword)
+                # ✅ 使用用户原始输入的关键词进行搜索，而不是 selected_game["title"]
+                subject_id = bangumi.search_and_select_bangumi_id(keyword_raw.replace("-m", "").strip())
                 if subject_id:
                     bangumi_info = bangumi.fetch_game(subject_id)
                     print(f"🎯 Bangumi 游戏封面图抓取成功: {bangumi_info.get('封面图链接')}")
@@ -99,6 +100,7 @@ def main():
                     print("⚠️ Bangumi 未匹配到对应游戏")
             except Exception as e:
                 print(f"⚠️ Bangumi 游戏信息抓取异常: {e}")
+
 
             proceed, cached_titles, action, existing_page_id = check_existing_similar_games(
                 notion, selected_game.get("title"), cached_titles=cached_titles

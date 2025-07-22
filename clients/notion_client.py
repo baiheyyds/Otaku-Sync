@@ -37,9 +37,13 @@ class NotionClient:
 
     def get_page_title(self, page):
         try:
-            title_prop = page["properties"]["Name"]["title"]
+            key = FIELDS["game_name"]
+            title_prop = page["properties"][key]["title"]
             return "".join([part["text"]["content"] for part in title_prop])
-        except Exception:
+        except Exception as e:
+            print("DEBUG get_page_title input keys:", list(page.keys()))
+            print("DEBUG get_page_title properties keys:", list(page.get("properties", {}).keys()))
+            print(f"get_page_title error: {e}")
             return "[无法获取标题]"
 
     def search_game(self, title):

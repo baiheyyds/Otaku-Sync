@@ -1,7 +1,11 @@
 # main.py
 import os
 import time
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", message=".*iCCP: known incorrect sRGB profile.*")
+
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -82,8 +86,9 @@ def main():
 
             selected_game["source"] = source
             print(f"✅ 选中游戏: {selected_game.get('title')} (来源: {source})")
-            
-            # 加入以下代码调用 bangumi 搜索和获取游戏详情
+
+            # 只调用一次 Bangumi 搜索
+            subject_id = None
             bangumi_info = {}
             try:
                 subject_id = bangumi.search_and_select_bangumi_id(selected_game.get("title") or keyword)
@@ -214,8 +219,8 @@ def main():
                 selected_similar_page_id=page_id_for_update,
             )
 
+            # 复用之前得到的 subject_id，避免重复搜索
             try:
-                subject_id = bangumi.search_and_select_bangumi_id(keyword)
                 if subject_id:
                     print(f"🎭 抓取Bangumi角色数据...")
                     game_page_id = (

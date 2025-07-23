@@ -256,6 +256,7 @@ def main():
     except KeyboardInterrupt:
         print("\n👋 用户中断，程序退出")
     finally:
+        save_cache(cached_titles)  # ✅ 保存游戏标题缓存
         brand_cache.save_cache(brand_extra_info_cache)
         print("♻️ 品牌缓存已保存")
         driver.quit()

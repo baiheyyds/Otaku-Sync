@@ -101,7 +101,6 @@ def main():
             except Exception as e:
                 print(f"⚠️ Bangumi 游戏信息抓取异常: {e}")
 
-
             proceed, cached_titles, action, existing_page_id = check_existing_similar_games(
                 notion, selected_game.get("title"), cached_titles=cached_titles
             )
@@ -177,14 +176,7 @@ def main():
             elif source == "getchu":
                 getchu_brand_url = detail.get("品牌页链接")
 
-            # 处理 brand_homepage（优先 bangumi，否则兜底 getchu）
-            brand_homepage = detail.get("品牌官网")  # 默认来源
-
-            # 如果是 getchu 来源，且 bangumi 没有官网信息
-            if source == "getchu":
-                bangumi_brand_info = bangumi.fetch_brand_info_from_bangumi(brand_name) or {}
-                if not bangumi_brand_info.get("homepage") and getchu_brand_url:
-                    brand_homepage = getchu_brand_url  # ✅ 用 getchu 的品牌页兜底
+            brand_homepage = None  # 不直接赋值，交给 handle_brand_info 判断
 
             brand_id = handle_brand_info(
                 source=source,
@@ -205,11 +197,7 @@ def main():
             page_id_for_update = existing_page_id if action == "update" else None
 
             print(f"📤 开始同步游戏数据到 Notion...")
-            notion_game_title = (
-                bangumi_info.get("title") or
-                bangumi_info.get("title_cn") or
-                selected_game.get("title")
-            )
+            notion_game_title = bangumi_info.get("title") or bangumi_info.get("title_cn") or selected_game.get("title")
             selected_game["notion_title"] = notion_game_title
             process_and_sync_game(
                 selected_game,
@@ -231,17 +219,22 @@ def main():
             try:
                 if subject_id:
                     print(f"🎭 抓取Bangumi角色数据...")
-                    game_page_id = (
-                        existing_page_id
-                        if action == "update"
-                        else notion.search_game(selected_game.get("title"))[0].get("id")
-                    )
-                    if game_page_id:  # 🔒 确保非 None
+                    if action == "update":
+                        game_page_id = existing_page_id
+                    else:
+                        search_results = notion.search_game(selected_game.get("title"))
+                        if search_results:
+                            game_page_id = search_results[0].get("id")
+                        else:
+                            game_page_id = None
+
+                    if game_page_id:
                         bangumi.create_or_link_characters(game_page_id, subject_id)
                     else:
                         print("⚠️ 未能确定游戏页面ID，跳过角色同步")
                 else:
                     print("⚠️ Bangumi匹配失败，跳过角色补全")
+
             except Exception as e:
                 print(f"⚠️ Bangumi角色补全异常: {e}")
 

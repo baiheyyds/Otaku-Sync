@@ -41,6 +41,17 @@ def normalize_title(title: str) -> str:
     title = re.sub(r"\s+", "", title)
     return title.lower().strip()
 
+def extract_primary_brand_name(name: str) -> str:
+    """
+    提取品牌名中的主干部分，忽略括号中的读音/注音。
+    如：'SUKARADOG（スカラドギ）' → 'SUKARADOG'
+    """
+    if not name:
+        return name
+    # 删除中文或英文括号中的内容
+    name = re.sub(r"[（(].*?[）)]", "", name)
+    return name.strip()
+
 
 def clean_title(title: str) -> str:
     title = re.sub(r"^【.*?】", "", title)
@@ -294,36 +305,55 @@ class BangumiClient:
         logging.info("Bangumi角色信息同步完成")
 
     def fetch_brand_info_from_bangumi(self, brand_name: str) -> dict | None:
-        url = "https://api.bgm.tv/v0/search/persons"
-        headers = {
-            "Authorization": f"Bearer {BANGUMI_TOKEN}",
-            "Content-Type": "application/json",
-            "User-Agent": "OtakuNotionSync/1.0",
-        }
-        data = {
-            "keyword": brand_name,
-            "filter": {"career": ["artist", "director", "producer"]},
-        }
-        resp = requests.post(url, headers=headers, json=data)
-        if resp.status_code != 200:
-            return None
-        results = resp.json().get("data", [])
+        def search_brand(keyword: str):
+            print(f"🔍 正在搜索 Bangumi 品牌关键词: {keyword}")
+            url = "https://api.bgm.tv/v0/search/persons"
+            headers = {
+                "Authorization": f"Bearer {BANGUMI_TOKEN}",
+                "Content-Type": "application/json",
+                "User-Agent": "OtakuNotionSync/1.0",
+            }
+            data = {
+                "keyword": keyword,
+                "filter": {"career": ["artist", "director", "producer"]},
+            }
+            resp = requests.post(url, headers=headers, json=data)
+            if resp.status_code != 200:
+                print(f"❌ Bangumi 搜索失败，状态码: {resp.status_code}，响应: {resp.text}")
+                return []
+            results = resp.json().get("data", [])
+            print(f"✅ 搜索结果数: {len(results)}")
+            return results
+
+        primary_name = extract_primary_brand_name(brand_name)
+        print(f"🎯 提取主品牌名: {primary_name}")
+
+        # 只用主品牌名作为搜索关键词，避免重复搜索带括号的名字
+        search_keywords = [primary_name] if primary_name else [brand_name]
 
         best_match, best_score = None, 0
-        for r in results:
-            # 构造候选名字集合，包括别名
-            names = [r.get("name", "")]
-            infobox = r.get("infobox", [])
-            names += extract_aliases(infobox)  # 复用提取别名函数
-            score = max(difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio() for n in names)
-            if score > best_score:
-                best_score, best_match = score, r
+        for keyword in search_keywords:
+            results = search_brand(keyword)
+            for r in results:
+                candidate_name = r.get("name", "")
+                infobox = r.get("infobox", [])
+                aliases = extract_aliases(infobox)
+                names = [candidate_name] + aliases
+                score = max(difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio() for n in names)
+                print(f"🧪 候选: {candidate_name} | 相似度: {score:.2f} | 别名: {aliases}")
+                if score > best_score:
+                    best_score = score
+                    best_match = r
+            if best_score >= 0.85:
+                print(f"✅ 提前匹配成功: {best_match.get('name')} (得分: {best_score:.2f})")
+                break
 
-        if not best_match or best_score < 0.85:
+        if not best_match or best_score < 0.7:
+            print(f"⚠️ 未找到相似度高于阈值的品牌（最高: {best_score:.2f}）")
             return None
 
         infobox = best_match.get("infobox", [])
-        links = extract_link_map(infobox)  # 复用提取链接函数
+        links = extract_link_map(infobox)
         summary = best_match.get("summary", "")
         icon_url = best_match.get("img")
         birthday = extract_first_valid(infobox, FIELD_ALIASES.get("brand_birthday", []))
@@ -331,10 +361,11 @@ class BangumiClient:
         bangumi_url = f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
         aliases = extract_aliases(infobox)
 
-        # 处理 Twitter 链接格式，兼容 @ 开头的账号名
         twitter = links.get("brand_twitter") or links.get("Twitter") or ""
         if twitter.startswith("@"):
             twitter = f"https://twitter.com/{twitter[1:]}"
+
+        print(f"✅ 最终匹配品牌: {best_match.get('name')} (ID: {best_match.get('id')})")
 
         return {
             "summary": summary,

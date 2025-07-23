@@ -60,22 +60,39 @@ def process_and_sync_game(
                 print(f"⚠️ 获取 GGBases 信息失败: {e}")
                 ggbases_info = {}
 
-    # 封面图选择逻辑，优先 Bangumi > GGBases > Getchu
-    cover_url = None
-    if bangumi_info:
-        # bangumi_info 里封面字段名可能是“封面图链接”，也可能别的，按你 bangumi fetch_game 返回结构改
-        # 假设是 "封面图链接" 或 "image"
-        cover_url = bangumi_info.get("封面图链接") or bangumi_info.get("image")
+    def choose_cover_url(source: str, detail: dict, bangumi_info: dict = None, ggbases_info: dict = None) -> str:
+        cover_url = None
 
-    if not cover_url:
-        cover_url = ggbases_info.get("封面图链接") if ggbases_info else None
+        # 来源为 dlsite，优先使用 Dlsite 原图
+        if source == "dlsite":
+            cover_url = detail.get("封面图链接") or detail.get("封面图")
+            if not cover_url and ggbases_info:
+                cover_url = ggbases_info.get("封面图链接")
+            if not cover_url and bangumi_info:
+                cover_url = bangumi_info.get("封面图链接") or bangumi_info.get("image")
 
-    if not cover_url:
-        cover_url = detail.get("封面图链接") or detail.get("封面图")
+        # 来源为 getchu，优先 Bangumi，其次 GGBases，再 Fallback 本体，并补上 getchu 前缀
+        elif source == "getchu":
+            if bangumi_info:
+                cover_url = bangumi_info.get("封面图链接") or bangumi_info.get("image")
+            if not cover_url and ggbases_info:
+                cover_url = ggbases_info.get("封面图链接")
+            if not cover_url:
+                cover_url = detail.get("封面图链接") or detail.get("封面图")
+            if cover_url and not cover_url.startswith("http"):
+                cover_url = "https://www.getchu.com" + cover_url
 
-    # getchu 图如果有且开头没 http，加前缀
-    if cover_url and source == "getchu" and not cover_url.startswith("http"):
-        cover_url = "https://www.getchu.com" + cover_url
+        # 其它来源（默认行为）：Bangumi > GGBases > detail
+        else:
+            if bangumi_info:
+                cover_url = bangumi_info.get("封面图链接") or bangumi_info.get("image")
+            if not cover_url and ggbases_info:
+                cover_url = ggbases_info.get("封面图链接")
+            if not cover_url:
+                cover_url = detail.get("封面图链接") or detail.get("封面图")
+
+        return cover_url
+
 
     # 标签处理
     dlsite_tags_raw = detail.get("标签", [])
@@ -89,6 +106,9 @@ def process_and_sync_game(
     mapped_dlsite_tags = map_and_translate_tags(dlsite_tags_raw, source="dlsite")
     mapped_ggbases_tags = map_and_translate_tags(ggbases_tags_raw, source="ggbase")
     mapped_tags = sorted(set(mapped_dlsite_tags + mapped_ggbases_tags))
+
+    # 先确定封面图链接
+    cover_url = choose_cover_url(source, detail, bangumi_info, ggbases_info)
 
     merged = {
         "title": game.get("title"),

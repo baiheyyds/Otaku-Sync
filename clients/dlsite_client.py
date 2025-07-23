@@ -140,6 +140,7 @@ class DlsiteClient:
             "雑誌/アンソロ",
             "ボイス・ASMR",
             "音楽",
+            "動画"
         ]
 
         filtered_results = []

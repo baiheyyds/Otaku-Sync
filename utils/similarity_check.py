@@ -72,49 +72,32 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
         norm_title = normalize(title)
         ratio = difflib.SequenceMatcher(None, norm_title, new_norm).ratio()
 
-        # 标准相似度判断
-        if ratio >= threshold:
-            candidates.append((item, ratio))
-        # ✅ 新增：包含关系判断
-        elif new_norm in norm_title or norm_title in new_norm:
-            candidates.append((item, 0.95))  # 人工设定较高相似度
+        if ratio >= threshold or new_norm in norm_title or norm_title in new_norm:
+            candidates.append((item, ratio if ratio >= threshold else 0.95))
 
-
-    # 2. 过滤掉缓存中已被删除的项（防止误判）
+    # 过滤缓存中已删除页面
     valid_candidates = []
     for item, ratio in candidates:
         page_id = item.get("id")
-        if page_id:
-            if notion_client.check_page_exists(page_id):
-                valid_candidates.append((item, ratio))
-            else:
-                print(f"🗑️ 缓存中已删除页面：{item.get('title')}，移除...")
-                cached_titles = [x for x in cached_titles if x.get("id") != page_id]
-                save_cache(cached_titles)
+        if page_id and notion_client.check_page_exists(page_id):
+            valid_candidates.append((item, ratio))
+        else:
+            print(f"🗑️ 缓存中已删除页面：{item.get('title')}，移除...")
+            cached_titles = [x for x in cached_titles if x.get("id") != page_id]
+            save_cache(cached_titles)
 
-    # 3. 如果缓存中没有重复，但 Notion 实时查到了，那也算重复
-    if not valid_candidates:
-        notion_results = notion_client.search_game(new_title)
-        if notion_results:
-            print("⚠️ Notion 实时查询发现已有同名游戏：", notion_client.get_page_title(notion_results[0]) or "[无法获取标题]")
+    # **实时 Notion 搜索最终确认是否存在游戏**
+    notion_results = notion_client.search_game(new_title)
+    if notion_results:
+        print("⚠️ Notion 实时查询发现已有同名游戏：", notion_client.get_page_title(notion_results[0]) or "[无法获取标题]")
+        # 以 Notion 搜索结果为准覆盖缓存结果
+        valid_candidates = [(notion_results[0], 1.0)]
 
-
-            valid_candidates.append((notion_results[0], 1.0))  # 强制相似度 1.0
-
-    # 4. 用户交互选择处理方式
     if valid_candidates:
         print("⚠️ 检测到可能重复的游戏：")
         for item, score in sorted(valid_candidates, key=lambda x: x[1], reverse=True):
-            # 优先直接用 item 字典里的 title 字段，避免调用 get_page_title 导致错误
-            if isinstance(item, dict) and "title" in item:
-                title_str = item["title"]
-            else:
-                try:
-                    title_str = notion_client.get_page_title(item)
-                except Exception:
-                    title_str = "[无法获取标题]"
+            title_str = item.get("title") if isinstance(item, dict) and "title" in item else notion_client.get_page_title(item)
             print(f"  - {title_str}（相似度：{score:.2f}）")
-
 
         print("请选择操作：")
         print("1. ✅ 创建为新游戏")
@@ -129,13 +112,13 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
         if choice == "3":
             return False, cached_titles, None, None
         elif choice == "2":
-            return True, cached_titles, "update", valid_candidates[0][0]["id"]
+            return True, cached_titles, "update", valid_candidates[0][0].get("id")
         else:
-            # 二次验证创建是否真的不存在（防止用户选了 1 但 Notion 仍存在）
+            # 再确认一次避免误判
             confirm_check = notion_client.search_game(new_title)
             if confirm_check:
                 print(f"⚠️ 注意：你选择了新建，但 Notion 中仍存在相同标题，自动转为更新")
-                return True, cached_titles, "update", confirm_check[0]["id"]
+                return True, cached_titles, "update", confirm_check[0].get("id")
             else:
                 return True, cached_titles, "create", None
     else:

@@ -91,7 +91,7 @@ def main():
             subject_id = None
             bangumi_info = {}
             try:
-                # ✅ 使用用户原始输入的关键词进行搜索，而不是 selected_game["title"]
+                # 使用用户原始输入的关键词进行搜索，而不是 selected_game["title"]
                 subject_id = bangumi.search_and_select_bangumi_id(keyword_raw.replace("-m", "").strip())
                 if subject_id:
                     bangumi_info = bangumi.fetch_game(subject_id)
@@ -106,16 +106,6 @@ def main():
             )
             if not proceed or action == "skip":
                 continue
-
-            if action == "create":
-                cached_titles.append(
-                    {
-                        "title": selected_game.get("title"),
-                        "id": None,
-                        "url": selected_game.get("url"),
-                    }
-                )
-                save_cache(cached_titles)
 
             if source == "dlsite":
                 detail = dlsite.get_game_detail(selected_game["url"])
@@ -185,7 +175,7 @@ def main():
                 brand_name=brand_name,
                 brand_page_url=brand_url,
                 cache=brand_extra_info_cache,
-                brand_homepage=brand_homepage,  # ✅ 替换为上面处理过的
+                brand_homepage=brand_homepage,
                 brand_icon=detail.get("品牌图标"),
                 bangumi_client=bangumi,
                 getchu_client=getchu,
@@ -199,7 +189,9 @@ def main():
             print(f"📤 开始同步游戏数据到 Notion...")
             notion_game_title = bangumi_info.get("title") or bangumi_info.get("title_cn") or selected_game.get("title")
             selected_game["notion_title"] = notion_game_title
-            process_and_sync_game(
+
+            # 调用游戏处理函数，获得创建或更新的页面ID
+            page_id = process_and_sync_game(
                 selected_game,
                 detail,
                 game_size,
@@ -210,23 +202,30 @@ def main():
                 interactive=interactive_mode,
                 ggbases_detail_url=detail_url,
                 ggbases_info=ggbases_info,
-                bangumi_info=bangumi_info,  # 传入 bangumi_info
+                bangumi_info=bangumi_info,
                 source=source,
                 selected_similar_page_id=page_id_for_update,
             )
 
-            # 复用之前得到的 subject_id，避免重复搜索
+            # 新建时更新缓存
+            if page_id and action == "create":
+                cached_titles.append({
+                    "title": selected_game.get("title"),
+                    "id": page_id,
+                    "url": selected_game.get("url"),
+                })
+                save_cache(cached_titles)
+
+            # Bangumi角色同步
             try:
                 if subject_id:
                     print(f"🎭 抓取Bangumi角色数据...")
-                    if action == "update":
-                        game_page_id = existing_page_id
-                    else:
-                        search_results = notion.search_game(selected_game.get("title"))
+                    game_page_id = existing_page_id if action == "update" else None
+
+                    if not game_page_id:
+                        search_results = notion.search_game(selected_game.get("notion_title"))
                         if search_results:
                             game_page_id = search_results[0].get("id")
-                        else:
-                            game_page_id = None
 
                     if game_page_id:
                         bangumi.create_or_link_characters(game_page_id, subject_id)
@@ -249,7 +248,7 @@ def main():
     except KeyboardInterrupt:
         print("\n👋 用户中断，程序退出")
     finally:
-        save_cache(cached_titles)  # ✅ 保存游戏标题缓存
+        save_cache(cached_titles)  # 保存游戏标题缓存
         brand_cache.save_cache(brand_extra_info_cache)
         print("♻️ 品牌缓存已保存")
         driver.quit()

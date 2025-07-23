@@ -187,6 +187,7 @@ class NotionClient:
         resp = self._request(method, url, payload)
         if resp:
             print(f"✅ {'已更新' if page_id else '已创建'}游戏: {title}")
+            return resp.get("id")  # 返回页面ID
         else:
             print(f"❌ 提交游戏失败: {title}")
 

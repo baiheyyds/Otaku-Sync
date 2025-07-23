@@ -133,4 +133,5 @@ def process_and_sync_game(
         "标签": mapped_tags,
     }
 
-    notion_client.create_or_update_game(merged, brand_relation_id=brand_id, page_id=selected_similar_page_id)
+    page_id = notion_client.create_or_update_game(merged, brand_relation_id=brand_id, page_id=selected_similar_page_id)
+    return page_id

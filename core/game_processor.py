@@ -111,7 +111,12 @@ def process_and_sync_game(
     cover_url = choose_cover_url(source, detail, bangumi_info, ggbases_info)
 
     merged = {
-        "title": game.get("title"),
+        "title": (
+            bangumi_info.get("title")
+            or bangumi_info.get("title_cn")
+            or game.get("notion_title")  # 你在 main.py 中设置了这个
+            or game.get("title")
+        ),
         "url": game.get("url"),
         "价格": game.get("价格") or game.get("price"),
         "品牌": detail.get("品牌"),

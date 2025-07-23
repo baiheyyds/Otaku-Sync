@@ -205,6 +205,12 @@ def main():
             page_id_for_update = existing_page_id if action == "update" else None
 
             print(f"📤 开始同步游戏数据到 Notion...")
+            notion_game_title = (
+                bangumi_info.get("title") or
+                bangumi_info.get("title_cn") or
+                selected_game.get("title")
+            )
+            selected_game["notion_title"] = notion_game_title
             process_and_sync_game(
                 selected_game,
                 detail,

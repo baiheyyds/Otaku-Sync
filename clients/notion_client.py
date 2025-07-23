@@ -2,6 +2,7 @@
 # 该模块用于与 Notion API 交互，处理游戏和品牌数据的
 import difflib
 import re
+import time
 from datetime import datetime
 
 import requests
@@ -21,7 +22,7 @@ class NotionClient:
             "Content-Type": "application/json",
         }
 
-    def _request(self, method, url, json_data=None):
+    def _raw_request(self, method, url, json_data=None):
         try:
             if method == "POST":
                 r = requests.post(url, headers=self.headers, json=json_data, timeout=10)
@@ -35,8 +36,22 @@ class NotionClient:
             print(f"Notion API request failed: {e}")
             return None
 
+    def _request(self, method, url, json_data=None, retries=3, delay=2):
+        for attempt in range(retries):
+            resp = self._raw_request(method, url, json_data)
+            if resp is not None:
+                return resp
+            if attempt < retries - 1:
+                print(f"🔁 重试 Notion API ({attempt + 1}/{retries})...")
+                time.sleep(delay)
+        print("⛔ 最终重试失败，跳过该请求")
+        return None
+
     def get_page_title(self, page):
         try:
+            if "properties" not in page:
+                print(f"DEBUG get_page_title page missing properties: {page.keys()}")
+                return "[无法获取标题]"
             key = FIELDS["game_name"]
             title_prop = page["properties"][key]["title"]
             return "".join([part["text"]["content"] for part in title_prop])
@@ -45,6 +60,7 @@ class NotionClient:
             print("DEBUG get_page_title properties keys:", list(page.get("properties", {}).keys()))
             print(f"get_page_title error: {e}")
             return "[无法获取标题]"
+
 
     def search_game(self, title):
         url = f"https://api.notion.com/v1/databases/{self.game_db_id}/query"

@@ -98,7 +98,14 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
     if valid_candidates:
         print("⚠️ 检测到可能重复的游戏：")
         for item, score in sorted(valid_candidates, key=lambda x: x[1], reverse=True):
-            title_str = notion_client.get_page_title(item) if hasattr(notion_client, "get_page_title") else item.get('title', '未知标题')
+            # 优先直接用 item 字典里的 title 字段，避免调用 get_page_title 导致错误
+            if isinstance(item, dict) and "title" in item:
+                title_str = item["title"]
+            else:
+                try:
+                    title_str = notion_client.get_page_title(item)
+                except Exception:
+                    title_str = "[无法获取标题]"
             print(f"  - {title_str}（相似度：{score:.2f}）")
 
 

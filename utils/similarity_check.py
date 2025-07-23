@@ -69,9 +69,16 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
     candidates = []
     for item in cached_titles:
         title = item.get("title") if isinstance(item, dict) else str(item)
-        ratio = difflib.SequenceMatcher(None, normalize(title), new_norm).ratio()
+        norm_title = normalize(title)
+        ratio = difflib.SequenceMatcher(None, norm_title, new_norm).ratio()
+
+        # 标准相似度判断
         if ratio >= threshold:
             candidates.append((item, ratio))
+        # ✅ 新增：包含关系判断
+        elif new_norm in norm_title or norm_title in new_norm:
+            candidates.append((item, 0.95))  # 人工设定较高相似度
+
 
     # 2. 过滤掉缓存中已被删除的项（防止误判）
     valid_candidates = []

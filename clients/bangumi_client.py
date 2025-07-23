@@ -119,13 +119,15 @@ class BangumiClient:
 
         candidates.sort(key=lambda x: x[0], reverse=True)
 
-        # ✅ 子串匹配机制（不计相似度，只要标题彼此包含即可）
+        # 子串匹配（更严格，只允许候选标题包含关键词）
         for _, item in candidates:
             item_clean = clean_title(item.get("name", ""))
             keyword_clean = clean_title(keyword)
-            if item_clean and (keyword_clean in item_clean or item_clean in keyword_clean):
+            # 只允许关键词是子串，候选标题包含关键词才匹配
+            if item_clean and (keyword_clean in item_clean):
                 logging.info(f"子串匹配成功：{item['name']}，视为同一作品")
                 return str(item["id"])
+
 
         # ✅ 相似度 ≥ 阈值
         if candidates and candidates[0][0] >= self.similarity_threshold:

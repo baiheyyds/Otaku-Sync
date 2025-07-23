@@ -240,7 +240,7 @@ def main():
             if action == "update":
                 print(f"🔁 已覆盖更新原条目")
             else:
-                print(f"✅ 游戏同步完成: {selected_game.get('title')} 🎉")
+                print(f"✅ 游戏同步完成: {notion_game_title} 🎉")
 
             print("-" * 40)
             time.sleep(1)

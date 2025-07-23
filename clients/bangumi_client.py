@@ -84,25 +84,54 @@ class BangumiClient:
             if not raw_results:
                 return None
 
+        # 预处理关键词
         norm_kw = normalize_title(keyword)
+        clean_kw = normalize_title(clean_title(keyword))
+        simp_kw = normalize_title(simplify_title(keyword))
+
         candidates = []
         for item in raw_results:
-            name = normalize_title(item.get("name", ""))
-            name_cn = normalize_title(item.get("name_cn", ""))
-            ratio = max(
-                difflib.SequenceMatcher(None, norm_kw, name).ratio(),
-                difflib.SequenceMatcher(None, norm_kw, name_cn).ratio(),
-            )
-            candidates.append((ratio, item))
+            name = item.get("name", "")
+            name_cn = item.get("name_cn", "")
+            norm_name = normalize_title(name)
+            norm_cn = normalize_title(name_cn)
+
+            # 计算多个方式的最大相似度
+            ratios = [
+                difflib.SequenceMatcher(None, norm_kw, norm_name).ratio(),
+                difflib.SequenceMatcher(None, clean_kw, normalize_title(clean_title(name))).ratio(),
+                difflib.SequenceMatcher(None, simp_kw, normalize_title(simplify_title(name))).ratio(),
+                difflib.SequenceMatcher(None, norm_kw, norm_cn).ratio(),
+            ]
+            max_ratio = max(ratios)
+            candidates.append((max_ratio, item))
 
         candidates.sort(key=lambda x: x[0], reverse=True)
 
-        if candidates and candidates[0][0] >= self.similarity_threshold:
-            logging.info(f"自动匹配 Bangumi: {candidates[0][1]['name']}（相似度 {candidates[0][0]:.2f}）")
-            return str(candidates[0][1]["id"])
+        # ✅ 子串匹配机制（不计相似度，只要标题彼此包含即可）
+        for _, item in candidates:
+            item_clean = clean_title(item.get("name", ""))
+            keyword_clean = clean_title(keyword)
+            if item_clean and (keyword_clean in item_clean or item_clean in keyword_clean):
+                logging.info(f"子串匹配成功：{item['name']}，视为同一作品")
+                return str(item["id"])
 
+        # ✅ 相似度 ≥ 阈值
+        if candidates and candidates[0][0] >= self.similarity_threshold:
+            best = candidates[0][1]
+            logging.info(f"自动匹配 Bangumi: {best['name']}（相似度 {candidates[0][0]:.2f}）")
+            return str(best["id"])
+
+        # ✅ 宽松匹配：标题包含或相似度稍低
+        if candidates and candidates[0][0] >= 0.7:
+            best = candidates[0][1]
+            if clean_title(best["name"]) in clean_title(keyword) or clean_title(keyword) in clean_title(best["name"]):
+                logging.info(f"模糊匹配 Bangumi（放宽判定）: {best['name']}（相似度 {candidates[0][0]:.2f}）")
+                return str(best["id"])
+
+        # ❌ 无法自动匹配，转手动选择
         print("⚠️ Bangumi自动匹配相似度不足，请手动选择:")
-        for idx, (ratio, item) in enumerate(candidates):
+        for idx, (ratio, item) in enumerate(candidates[:10]):
             print(f"{idx + 1}. {item['name']} / {item.get('name_cn','')} (相似度: {ratio:.2f})")
         print("0. 放弃匹配")
 

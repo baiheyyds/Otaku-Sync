@@ -1,5 +1,6 @@
 # main.py
 import os
+import sys
 import time
 import warnings
 from pathlib import Path
@@ -21,7 +22,7 @@ from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
 from core.selector import select_game
-from utils.similarity_check import check_existing_similar_games, load_cache, save_cache
+from utils.similarity_check import check_existing_similar_games, load_or_update_titles, save_cache
 from utils.utils import extract_main_keyword
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -63,7 +64,7 @@ def main():
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
 
-    cached_titles = load_cache(notion_client=notion, force_refresh=True)
+    cached_titles = load_or_update_titles(notion_client=notion)
     print(f"🗂️ 已加载缓存游戏条目数: {len(cached_titles)}")
 
     try:
@@ -209,11 +210,13 @@ def main():
 
             # 新建时更新缓存
             if page_id and action == "create":
-                cached_titles.append({
-                    "title": selected_game.get("title"),
-                    "id": page_id,
-                    "url": selected_game.get("url"),
-                })
+                cached_titles.append(
+                    {
+                        "title": selected_game.get("title"),
+                        "id": page_id,
+                        "url": selected_game.get("url"),
+                    }
+                )
                 save_cache(cached_titles)
 
             # Bangumi角色同步

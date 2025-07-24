@@ -70,8 +70,15 @@ class NotionClient:
 
     def check_page_exists(self, page_id):
         url = f"https://api.notion.com/v1/pages/{page_id}"
-        response = requests.get(url, headers=self.headers)
-        return response.status_code == 200
+        try:
+            res = requests.get(url, headers=self.headers)
+            if res.status_code == 404 or res.status_code == 403:
+                return False
+            data = res.json()
+            return not data.get("archived", False)
+        except Exception:
+            return False
+
 
     def search_brand(self, brand_name):
         url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"

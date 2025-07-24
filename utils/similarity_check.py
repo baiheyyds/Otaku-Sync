@@ -1,6 +1,6 @@
-# 该模块用于检查游戏标题的相似性，避免重复创建游戏条目
 # utils/similarity_check.py
 import difflib
+import hashlib
 import json
 import re
 import sys
@@ -24,73 +24,91 @@ def get_cache_path():
     return cache_dir / "game_titles_cache.json"
 
 
-def load_cache(notion_client=None, force_refresh=False):
-    path = get_cache_path()
-
-    # 强制刷新或文件不存在
-    if force_refresh or not path.exists():
-        if notion_client:
-            print("📥 [刷新缓存] 从 Notion 拉取游戏标题...")
-            data = notion_client.get_all_game_titles()
-            save_cache(data)
-            return data
-        return []
-
-    # 正常加载缓存
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            cached = json.load(f)
-            if not cached and notion_client:
-                print("📥 缓存为空，尝试从 Notion 获取...")
-                data = notion_client.get_all_game_titles()
-                save_cache(data)
-                return data
-            return cached
-    except Exception:
-        return []
-
-
 def save_cache(titles):
-    # 缓存写入前过滤掉没有 id 的无效项
     valid_titles = [t for t in titles if t.get("title") and t.get("id")]
     path = get_cache_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump(valid_titles, f, ensure_ascii=False, indent=2)
 
 
+def load_or_update_titles(notion_client):
+    """
+    如果本地缓存存在并通过校验，则加载本地；
+    否则重新从 Notion 拉取并缓存。
+    """
+    path = get_cache_path()
+
+    def hash_titles(data):
+        items = sorted(f"{item.get('id')}:{item.get('title')}" for item in data if item.get("id") and item.get("title"))
+        return hashlib.md5("".join(items).encode("utf-8")).hexdigest()
+
+    try:
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                local_data = json.load(f)
+        else:
+            local_data = []
+
+        remote_data = notion_client.get_all_game_titles()
+        if hash_titles(local_data) != hash_titles(remote_data):
+            print("♻️ Notion 游戏标题有更新，重新缓存...")
+            save_cache(remote_data)
+            return remote_data
+
+        return local_data
+
+    except Exception as e:
+        print(f"⚠️ 校验缓存失败，尝试从 Notion 拉取: {e}")
+        try:
+            remote_data = notion_client.get_all_game_titles()
+            save_cache(remote_data)
+            return remote_data
+        except Exception as e2:
+            print(f"❌ 无法连接 Notion，仅使用旧缓存: {e2}")
+            return local_data if path.exists() else []
+
+
 def check_existing_similar_games(notion_client, new_title, cached_titles=None, threshold=0.78):
     print("🔍 正在检查是否有可能重复的游戏...")
 
-    # 1. 载入缓存，如果无效就从 Notion 拉一遍
-    if not cached_titles or isinstance(cached_titles[0], str):
-        cached_titles = load_cache(notion_client=notion_client, force_refresh=True)
+    # ✅ 加载所有现有标题（只在首次加载或有变更时才真正拉取）
+    if not cached_titles or not isinstance(cached_titles[0], dict):
+        cached_titles = load_or_update_titles(notion_client)
 
     new_norm = normalize(new_title)
     candidates = []
+
     for item in cached_titles:
-        title = item.get("title") if isinstance(item, dict) else str(item)
+        title = item.get("title")
         norm_title = normalize(title)
         ratio = difflib.SequenceMatcher(None, norm_title, new_norm).ratio()
 
         if ratio >= threshold or new_norm in norm_title or norm_title in new_norm:
             candidates.append((item, ratio if ratio >= threshold else 0.95))
 
-    # 过滤缓存中已删除页面
+    # ✅ 移除缓存中失效的页面
     valid_candidates = []
+    updated_cache = cached_titles.copy()
+    changed = False
+
     for item, ratio in candidates:
         page_id = item.get("id")
         if page_id and notion_client.check_page_exists(page_id):
             valid_candidates.append((item, ratio))
         else:
-            print(f"🗑️ 缓存中已删除页面：{item.get('title')}，移除...")
-            cached_titles = [x for x in cached_titles if x.get("id") != page_id]
-            save_cache(cached_titles)
+            print(f"🗑️ 已失效页面：{item.get('title')}，从缓存移除")
+            updated_cache = [x for x in updated_cache if x.get("id") != page_id]
+            changed = True
 
-    # **实时 Notion 搜索最终确认是否存在游戏**
+    if changed:
+        save_cache(updated_cache)
+        cached_titles = updated_cache  # 更新外层缓存
+
+    # ✅ 额外再跑一轮 Notion 实时搜索（确保没有漏检）
     notion_results = notion_client.search_game(new_title)
     if notion_results:
-        print("⚠️ Notion 实时查询发现已有同名游戏：", notion_client.get_page_title(notion_results[0]) or "[无法获取标题]")
-        # 以 Notion 搜索结果为准覆盖缓存结果
+        print("⚠️ Notion 实时搜索发现已有同名游戏：",
+              notion_client.get_page_title(notion_results[0]) or "[未知标题]")
         valid_candidates = [(notion_results[0], 1.0)]
 
     if valid_candidates:
@@ -114,10 +132,9 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
         elif choice == "2":
             return True, cached_titles, "update", valid_candidates[0][0].get("id")
         else:
-            # 再确认一次避免误判
             confirm_check = notion_client.search_game(new_title)
             if confirm_check:
-                print(f"⚠️ 注意：你选择了新建，但 Notion 中仍存在相同标题，自动转为更新")
+                print("⚠️ 注意：你选择了新建，但 Notion 中仍存在相同标题，自动转为更新")
                 return True, cached_titles, "update", confirm_check[0].get("id")
             else:
                 return True, cached_titles, "create", None

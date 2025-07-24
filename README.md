@@ -41,16 +41,7 @@ Otaku-Notion-Sync 是一个自动化同步二次元游戏、品牌和角色信�
 
 ---
 
-<!-- 下面继续你的原有内容即可 -->
-# 🌸 Otaku-Notion-Sync 超详细使用说明
-
-## 一、项目简介
-
-Otaku-Notion-Sync 是一个自动化同步二次元游戏、品牌和角色信息到 Notion 数据库的工具。它支持从 DLsite、Getchu、GGBases 等平台抓取数据，并通过标签映射、品牌归一等机制，保证多平台数据格式统一、内容规范。适合需要批量管理和归档游戏信息的用户，尤其是有 Notion 数据库需求的二次元爱好者。
-
----
-
-## 二、快速开始
+## 快速开始
 
 ### 1. 安装 Python
 
@@ -78,7 +69,7 @@ pip install requests selenium beautifulsoup4 undetected-chromedriver
 
 ---
 
-## 三、Notion 数据库准备
+## Notion 数据库准备
 
 ### 1. 注册并新建数据库
 
@@ -108,7 +99,7 @@ CHARACTER_DB_ID = "你的角色数据库ID"
 
 ---
 
-## 4. Notion 字段设置指引（必看）
+## Notion 字段设置指引（必看）
 
 为了保证程序正常运行，请严格按照以下字段要求设置你的 Notion 数据库。以下为每个数据库的字段设置方法：
 
@@ -176,7 +167,7 @@ CHARACTER_DB_ID = "你的角色数据库ID"
 
 ---
 
-## 五、主要配置文件说明
+## 主要配置文件说明
 
 | 文件路径                            | 作用                                 |
 | :---------------------------------- | :----------------------------------- |
@@ -190,7 +181,7 @@ CHARACTER_DB_ID = "你的角色数据库ID"
 
 ---
 
-## 六、使用流程（一步步操作）
+## 使用流程（一步步操作）
 
 ### 1. 启动主程序
 
@@ -233,7 +224,7 @@ python scripts/auto_tag_completer.py
 
 ---
 
-## 七、常见问题与解决
+## 常见问题与解决
 
 - **标签未翻译/归类**：请定期检查 `mapping/tag_jp_to_cn.json` 和 `mapping/tag_ggbase.json`，补充中文翻译和归类。
 - **品牌信息不全**：可手动补充 `mapping/brand_mapping.json`，或完善 Bangumi、DLsite、Getchu 品牌信息。
@@ -244,7 +235,7 @@ python scripts/auto_tag_completer.py
 
 ---
 
-## 八、维护建议
+## 维护建议
 
 - 每次同步后检查 mapping 文件，及时补充和维护标签、品牌、角色信息，确保数据准确、统一。
 - 定期备份 cache 文件和映射文件，防止数据丢失。
@@ -252,7 +243,7 @@ python scripts/auto_tag_completer.py
 
 ---
 
-## 九、免责声明与安全提醒
+## 免责声明与安全提醒
 
 - 本项目部分标签可能包含 NSFW 内容，仅供数据归档和技术交流使用。
 - 请勿上传任何敏感 Token 或个人隐私信息到公共仓库。

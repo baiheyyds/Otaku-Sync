@@ -157,42 +157,46 @@ class DlsiteClient:
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
 
+        # 品牌名称及链接
         brand_tag = soup.select_one("#work_maker .maker_name a")
         brand = brand_tag.get_text(strip=True) if brand_tag else None
         brand_page_url = brand_tag["href"] if brand_tag and brand_tag.has_attr("href") else None
         if brand_page_url and not brand_page_url.startswith("http"):
             brand_page_url = self.BASE_URL + brand_page_url
 
-        sale_date, scenario, illustrator, voice_actor, music, genres, work_type = (
-            None,
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-        )
+        # 额外信息初始化
+        sale_date = None
+        scenario = []
+        illustrator = []
+        voice_actor = []
+        music = []
+        genres = []
+        work_type = []
+
+        # 解析信息表
         table = soup.find("table", id="work_outline")
         if table:
             for tr in table.find_all("tr"):
-                th, td = tr.find("th"), tr.find("td")
+                th = tr.find("th")
+                td = tr.find("td")
                 if not th or not td:
                     continue
                 key = th.get_text(strip=True)
-                val = [a.get_text(strip=True) for a in td.find_all("a")]
                 if key == "販売日":
                     sale_date = td.get_text(strip=True)
                 elif key == "シナリオ":
-                    scenario = val
+                    scenario = [a.get_text(strip=True) for a in td.find_all("a")]
                 elif key == "イラスト":
-                    illustrator = val
+                    illustrator = [a.get_text(strip=True) for a in td.find_all("a")]
                 elif key == "声優":
-                    voice_actor = val
+                    voice_actor = [a.get_text(strip=True) for a in td.find_all("a")]
                 elif key == "音楽":
-                    music = val
+                    music = [a.get_text(strip=True) for a in td.find_all("a")]
                 elif key == "ジャンル":
-                    genres = val
+                    genres = [a.get_text(strip=True) for a in td.find_all("a")]
                 elif key == "作品形式":
+                    # 作品形式是多span带title属性
+                    spans = td.find_all("span", title=True)
                     mapping = {
                         "ロールプレイング": "RPG",
                         "アドベンチャー": "ADV",
@@ -202,27 +206,20 @@ class DlsiteClient:
                         "音楽あり": "有音乐",
                         "動画あり": "有动画",
                     }
-                    work_type = [
-                        mapping.get(s.get("title", "").strip(), s.get("title", "").strip())
-                        for s in td.find_all("span")
-                        if s.has_attr("title")
-                    ]
-        cover = soup.find("meta", property="og:image")
-        cover = cover["content"] if cover and cover.has_attr("content") else None
+                    work_type = [mapping.get(span["title"].strip(), span["title"].strip()) for span in spans]
 
-        # ✅ 新增：提取游戏容量（ファイル容量）
-        capacity = None
-        capacity_th = soup.find("th", string=lambda s: s and "ファイル容量" in s)
-        if capacity_th:
-            td = capacity_th.find_next_sibling("td")
-            if td:
-                text = td.get_text(strip=True)
-                # 提取像 "3.46GB" 或 "356.59MB" 的容量数值
-                match = re.search(r"([\d.]+(?:MB|GB))", text)
-                if match:
-                    capacity = match.group(1)
+                elif key == "ファイル容量":
+                    # 这里容量在td下的div.main_genre，直接取文本
+                    capacity_div = td.find("div", class_="main_genre")
+                    capacity = capacity_div.get_text(strip=True) if capacity_div else None
 
-        # ✅ 将抓取到的标签写入 tag_jp_to_cn 映射模块
+        # 封面图
+        cover = None
+        meta_og = soup.find("meta", property="og:image")
+        if meta_og and meta_og.has_attr("content"):
+            cover = meta_og["content"]
+
+        # 记录新标签映射
         if genres:
             append_new_tags(TAG_JP_PATH, genres)
 
@@ -237,7 +234,7 @@ class DlsiteClient:
             "作品形式": work_type,
             "封面图链接": cover,
             "品牌页链接": brand_page_url,
-            "容量": capacity,
+            "容量": capacity if 'capacity' in locals() else None,
         }
 
     def batch_get_brand_extra_info_from_dlsite(self, brand_page_urls):

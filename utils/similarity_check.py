@@ -1,4 +1,3 @@
-# utils/similarity_check.py
 import difflib
 import hashlib
 import json
@@ -26,28 +25,26 @@ def get_cache_path():
 
 def save_cache(titles):
     valid_titles = [t for t in titles if t.get("title") and t.get("id")]
-    path = get_cache_path()
-    with open(path, "w", encoding="utf-8") as f:
+    with open(get_cache_path(), "w", encoding="utf-8") as f:
         json.dump(valid_titles, f, ensure_ascii=False, indent=2)
+
+
+def hash_titles(data):
+    items = sorted(f"{item.get('id')}:{item.get('title')}" for item in data if item.get("id") and item.get("title"))
+    return hashlib.md5("".join(items).encode("utf-8")).hexdigest()
 
 
 def load_or_update_titles(notion_client):
     """
-    如果本地缓存存在并通过校验，则加载本地；
-    否则重新从 Notion 拉取并缓存。
+    加载本地缓存，如与 Notion 数据不一致则更新。
     """
     path = get_cache_path()
 
-    def hash_titles(data):
-        items = sorted(f"{item.get('id')}:{item.get('title')}" for item in data if item.get("id") and item.get("title"))
-        return hashlib.md5("".join(items).encode("utf-8")).hexdigest()
-
     try:
+        local_data = []
         if path.exists():
             with open(path, "r", encoding="utf-8") as f:
                 local_data = json.load(f)
-        else:
-            local_data = []
 
         remote_data = notion_client.get_all_game_titles()
         if hash_titles(local_data) != hash_titles(remote_data):
@@ -68,13 +65,10 @@ def load_or_update_titles(notion_client):
             return local_data if path.exists() else []
 
 
-def check_existing_similar_games(notion_client, new_title, cached_titles=None, threshold=0.78):
-    print("🔍 正在检查是否有可能重复的游戏...")
-
-    # ✅ 加载所有现有标题（只在首次加载或有变更时才真正拉取）
-    if not cached_titles or not isinstance(cached_titles[0], dict):
-        cached_titles = load_or_update_titles(notion_client)
-
+def filter_similar_titles(new_title, cached_titles, threshold):
+    """
+    返回所有可能相似的旧游戏标题
+    """
     new_norm = normalize(new_title)
     candidates = []
 
@@ -84,27 +78,46 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
         ratio = difflib.SequenceMatcher(None, norm_title, new_norm).ratio()
 
         if ratio >= threshold or new_norm in norm_title or norm_title in new_norm:
-            candidates.append((item, ratio if ratio >= threshold else 0.95))
+            # 强制给模糊包含一个较高分
+            candidates.append((item, max(ratio, 0.95)))
+    return candidates
 
-    # ✅ 移除缓存中失效的页面
+
+def remove_invalid_pages(candidates, cached_titles, notion_client):
+    """
+    检查页面是否仍存在；如不存在则从缓存中删除
+    """
+    updated_cache = cached_titles
     valid_candidates = []
-    updated_cache = cached_titles.copy()
     changed = False
 
-    for item, ratio in candidates:
+    for item, score in candidates:
         page_id = item.get("id")
         if page_id and notion_client.check_page_exists(page_id):
-            valid_candidates.append((item, ratio))
+            valid_candidates.append((item, score))
         else:
             print(f"🗑️ 已失效页面：{item.get('title')}，从缓存移除")
             updated_cache = [x for x in updated_cache if x.get("id") != page_id]
             changed = True
 
+    return valid_candidates, updated_cache, changed
+
+
+def check_existing_similar_games(notion_client, new_title, cached_titles=None, threshold=0.78):
+    print("🔍 正在检查是否有可能重复的游戏...")
+
+    # 加载缓存（如未传入）
+    if not cached_titles or not isinstance(cached_titles[0], dict):
+        cached_titles = load_or_update_titles(notion_client)
+
+    candidates = filter_similar_titles(new_title, cached_titles, threshold)
+    valid_candidates, updated_cache, changed = remove_invalid_pages(candidates, cached_titles, notion_client)
+
     if changed:
         save_cache(updated_cache)
-        cached_titles = updated_cache  # 更新外层缓存
+        cached_titles = updated_cache
 
-    # ✅ 额外再跑一轮 Notion 实时搜索（确保没有漏检）
+    # 实时 Notion 搜索作为最终保障
     notion_results = notion_client.search_game(new_title)
     if notion_results:
         print("⚠️ Notion 实时搜索发现已有同名游戏：",

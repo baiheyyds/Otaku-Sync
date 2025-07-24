@@ -1,6 +1,6 @@
 <div align="center">
   <br>
-  <img width="120" src="https://raw.githubusercontent.com/cc63/ICON/main/otaku-notion-sync.png" alt="Otaku-Notion-Sync Logo">
+  <img width="120" src="https://youke1.picui.cn/s1/2025/07/25/68829b028b263.png" alt="Otaku-Notion-Sync Logo">
   <br>
   <h2 align="center">Otaku-Notion-Sync</h2>
 </div>
@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/你的仓库/actions">
-    <img src="https://img.shields.io/github/workflow/status/你的仓库名/otaku-notion-sync/CI" alt="Build Status">
+  <a href="https://github.com/baiheyyds/Otaku-Notion-Sync/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/baiheyyds/Otaku-Notion-Sync/CI.yml?branch=main" alt="Build Status">
   </a>
-  <img src="https://img.shields.io/github/license/你的仓库名/otaku-notion-sync" alt="License">
-  <img src="https://img.shields.io/github/stars/你的仓库名/otaku-notion-sync?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/issues/你的仓库名/otaku-notion-sync" alt="Issues">
-  <img src="https://img.shields.io/github/last-commit/你的仓库名/otaku-notion-sync" alt="Last Commit">
+  <img src="https://img.shields.io/github/license/baiheyyds/Otaku-Notion-Sync" alt="License">
+  <img src="https://img.shields.io/github/stars/baiheyyds/Otaku-Notion-Sync?style=social" alt="Stars">
+  <img src="https://img.shields.io/github/issues/baiheyyds/Otaku-Notion-Sync" alt="Issues">
+  <img src="https://img.shields.io/github/last-commit/baiheyyds/Otaku-Notion-Sync" alt="Last Commit">
 </p>
 
 ---

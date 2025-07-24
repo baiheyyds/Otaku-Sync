@@ -1,3 +1,47 @@
+<div align="center">
+  <br>
+  <img width="120" src="https://raw.githubusercontent.com/cc63/ICON/main/otaku-notion-sync.png" alt="Otaku-Notion-Sync Logo">
+  <br>
+  <h2 align="center">Otaku-Notion-Sync</h2>
+</div>
+
+<p align="center" style="color:#6a737d">
+自动同步二次元游戏、品牌、角色信息到 Notion 数据库的高效工具
+</p>
+
+<p align="center">
+  <a href="https://github.com/你的仓库/actions">
+    <img src="https://img.shields.io/github/workflow/status/你的仓库名/otaku-notion-sync/CI" alt="Build Status">
+  </a>
+  <img src="https://img.shields.io/github/license/你的仓库名/otaku-notion-sync" alt="License">
+  <img src="https://img.shields.io/github/stars/你的仓库名/otaku-notion-sync?style=social" alt="Stars">
+  <img src="https://img.shields.io/github/issues/你的仓库名/otaku-notion-sync" alt="Issues">
+  <img src="https://img.shields.io/github/last-commit/你的仓库名/otaku-notion-sync" alt="Last Commit">
+</p>
+
+---
+
+## ✨ 项目简介
+
+Otaku-Notion-Sync 是一个自动化同步二次元游戏、品牌和角色信息到 Notion 数据库的工具。支持从 DLsite、Getchu、GGBases 等平台抓取数据，并通过标签映射、品牌归一等机制，保证多平台数据格式统一、内容规范。适合需要批量管理和归档游戏信息的用户，尤其是有 Notion 数据库需求的二次元爱好者。
+
+---
+
+## 📖 目录
+
+- [快速开始](#快速开始)
+- [Notion 数据库准备](#notion-数据库准备)
+- [Notion 字段设置指引（必看）](#4-notion-字段设置指引必看)
+- [主要配置文件说明](#五主要配置文件说明)
+- [使用流程](#六使用流程一步步操作)
+- [常见问题与解决](#七常见问题与解决)
+- [维护建议](#八维护建议)
+- [免责声明与安全提醒](#九免责声明与安全提醒)
+- [参考文档](#十参考文档)
+
+---
+
+<!-- 下面继续你的原有内容即可 -->
 # 🌸 Otaku-Notion-Sync 超详细使用说明
 
 ## 一、项目简介

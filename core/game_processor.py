@@ -93,7 +93,6 @@ def process_and_sync_game(
 
         return cover_url
 
-
     # 标签处理
     dlsite_tags_raw = detail.get("标签", [])
     if not isinstance(dlsite_tags_raw, list):
@@ -131,6 +130,7 @@ def process_and_sync_game(
         "大小": size,
         "资源链接": ggbases_detail_url,
         "标签": mapped_tags,
+        "游戏简介": bangumi_info.get("summary") or "",
     }
 
     page_id = notion_client.create_or_update_game(merged, brand_relation_id=brand_id, page_id=selected_similar_page_id)

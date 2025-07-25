@@ -22,7 +22,11 @@ from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
 from core.selector import select_game
-from utils.similarity_check import check_existing_similar_games, load_or_update_titles, save_cache
+from utils.similarity_check import (
+    check_existing_similar_games,
+    load_or_update_titles,
+    save_cache,
+)
 from utils.utils import extract_main_keyword
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"

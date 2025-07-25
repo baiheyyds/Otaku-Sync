@@ -1,10 +1,10 @@
 # clients/brand_cache.py
 # 该模块用于处理品牌信息的缓存
+import hashlib
 import json
 import os
 import shutil
 from datetime import datetime
-import hashlib
 
 CACHE_DIR = "cache"
 CACHE_FILE_NAME = "brand_extra_info_cache.json"

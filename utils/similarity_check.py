@@ -120,14 +120,15 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
     # 实时 Notion 搜索作为最终保障
     notion_results = notion_client.search_game(new_title)
     if notion_results:
-        print("⚠️ Notion 实时搜索发现已有同名游戏：",
-              notion_client.get_page_title(notion_results[0]) or "[未知标题]")
+        print("⚠️ Notion 实时搜索发现已有同名游戏：", notion_client.get_page_title(notion_results[0]) or "[未知标题]")
         valid_candidates = [(notion_results[0], 1.0)]
 
     if valid_candidates:
         print("⚠️ 检测到可能重复的游戏：")
         for item, score in sorted(valid_candidates, key=lambda x: x[1], reverse=True):
-            title_str = item.get("title") if isinstance(item, dict) and "title" in item else notion_client.get_page_title(item)
+            title_str = (
+                item.get("title") if isinstance(item, dict) and "title" in item else notion_client.get_page_title(item)
+            )
             print(f"  - {title_str}（相似度：{score:.2f}）")
 
         print("请选择操作：")

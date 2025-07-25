@@ -132,16 +132,7 @@ class DlsiteClient:
                 break
 
         # === 只排除非游戏类别，保留其余 ===
-        exclude_keywords = [
-            "単行本",
-            "マンガ",
-            "小説",
-            "書籍",
-            "雑誌/アンソロ",
-            "ボイス・ASMR",
-            "音楽",
-            "動画"
-        ]
+        exclude_keywords = ["単行本", "マンガ", "小説", "書籍", "雑誌/アンソロ", "ボイス・ASMR", "音楽", "動画"]
 
         filtered_results = []
         for item in results:
@@ -234,7 +225,7 @@ class DlsiteClient:
             "作品形式": work_type,
             "封面图链接": cover,
             "品牌页链接": brand_page_url,
-            "容量": capacity if 'capacity' in locals() else None,
+            "容量": capacity if "capacity" in locals() else None,
         }
 
     def batch_get_brand_extra_info_from_dlsite(self, brand_page_urls):

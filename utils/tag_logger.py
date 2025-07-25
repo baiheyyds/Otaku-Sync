@@ -35,4 +35,3 @@ def append_new_tags(file_path, new_tags):
 
     save_tag_dict(file_path, tag_dict)
     return added
-    return added

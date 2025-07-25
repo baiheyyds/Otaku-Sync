@@ -61,7 +61,6 @@ class NotionClient:
             print(f"get_page_title error: {e}")
             return "[无法获取标题]"
 
-
     def search_game(self, title):
         url = f"https://api.notion.com/v1/databases/{self.game_db_id}/query"
         payload = {"filter": {"property": FIELDS["game_name"], "title": {"equals": title}}}
@@ -78,7 +77,6 @@ class NotionClient:
             return not data.get("archived", False)
         except Exception:
             return False
-
 
     def search_brand(self, brand_name):
         url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"
@@ -177,6 +175,13 @@ class NotionClient:
                         "external": {"url": info["封面图链接"]},
                     }
                 ]
+            }
+        
+        # 新增游戏简介支持
+        summary = info.get("游戏简介")
+        if summary:
+            props[FIELDS["game_summary"]] = {
+                "rich_text": [{"text": {"content": summary[:2000]}}]
             }
 
         if brand_relation_id:

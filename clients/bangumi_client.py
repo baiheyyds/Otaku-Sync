@@ -41,6 +41,7 @@ def normalize_title(title: str) -> str:
     title = re.sub(r"\s+", "", title)
     return title.lower().strip()
 
+
 def extract_primary_brand_name(name: str) -> str:
     """
     提取品牌名中的主干部分，忽略括号中的读音/注音。
@@ -128,7 +129,6 @@ class BangumiClient:
                 logging.info(f"子串匹配成功：{item['name']}，视为同一作品")
                 return str(item["id"])
 
-
         # ✅ 相似度 ≥ 阈值
         if candidates and candidates[0][0] >= self.similarity_threshold:
             best = candidates[0][1]
@@ -174,7 +174,6 @@ class BangumiClient:
             "url": f"https://bangumi.tv/subject/{subject_id}",
             "封面图链接": cover_url,
         }
-
 
     def fetch_characters(self, subject_id: str) -> list:
         url = f"https://api.bgm.tv/v0/subjects/{subject_id}/characters"

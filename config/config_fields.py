@@ -3,6 +3,7 @@
 FIELDS = {
     ##游戏记录数据库
     "game_name": "游戏名称",
+    "game_summary": "游戏简介",
     "game_url": "官方网站",
     "game_size": "游戏大小",
     "release_date": "发售时间",

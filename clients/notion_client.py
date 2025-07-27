@@ -132,6 +132,12 @@ class NotionClient:
             FIELDS["game_name"]: {"title": [{"text": {"content": title}}]},
             FIELDS["game_url"]: {"url": info.get("url")},
         }
+        
+        if info.get("游戏别名"):
+            props[FIELDS["game_alias"]] = {
+                "rich_text": [{"text": {"content": info["游戏别名"]}}]
+            }
+
 
         if info.get("大小"):
             props[FIELDS["game_size"]] = {"rich_text": [{"text": {"content": info["大小"]}}]}

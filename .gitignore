@@ -21,3 +21,7 @@ config/config_token.py
 # 系统文件
 .DS_Store
 Thumbs.db
+
+*.json
+
+test.py

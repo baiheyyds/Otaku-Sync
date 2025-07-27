@@ -78,4 +78,3 @@ def extract_first_valid(infobox, keys):
                     if val_str:
                         return val_str
     return None
-    return None

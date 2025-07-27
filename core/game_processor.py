@@ -116,6 +116,7 @@ def process_and_sync_game(
             or game.get("notion_title")  # 你在 main.py 中设置了这个
             or game.get("title")
         ),
+        "游戏别名": bangumi_info.get("title_cn") or "",
         "url": game.get("url"),
         "价格": game.get("价格") or game.get("price"),
         "品牌": detail.get("品牌"),

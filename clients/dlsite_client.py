@@ -200,9 +200,11 @@ class DlsiteClient:
                     work_type = [mapping.get(span["title"].strip(), span["title"].strip()) for span in spans]
 
                 elif key == "ファイル容量":
-                    # 这里容量在td下的div.main_genre，直接取文本
                     capacity_div = td.find("div", class_="main_genre")
-                    capacity = capacity_div.get_text(strip=True) if capacity_div else None
+                    raw_text = capacity_div.get_text(strip=True) if capacity_div else td.get_text(strip=True)
+                    # 去掉 “総計” 等前缀
+                    capacity = raw_text.replace("総計", "").strip()
+
 
         # 封面图
         cover = None

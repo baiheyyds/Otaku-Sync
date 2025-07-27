@@ -206,13 +206,10 @@ class BangumiClient:
             aliases = set()
             if detail.get("name_cn"):
                 aliases.add(detail["name_cn"])
-            alias_raw = stats.get("character_alias")
-            if isinstance(alias_raw, str):
-                aliases.update([a.strip() for a in re.split(r"[、,，/／；;]", alias_raw)])
-            elif isinstance(alias_raw, list):
-                for item in alias_raw:
-                    val = item.strip() if isinstance(item, str) else item.get("v", "").strip()
-                    aliases.add(val)
+
+            alias_list = extract_aliases(raw_stats, alias_type="character_alias")
+            for a in alias_list:
+                aliases.add(a.strip())
 
             characters.append(
                 {
@@ -240,9 +237,6 @@ class BangumiClient:
 
     def create_or_update_character(self, char: dict) -> str | None:
         existing_id = self._character_exists(char["url"])
-        if existing_id:
-            logging.info(f"角色已存在，跳过创建：{char['name']}")
-            return existing_id
 
         props = {
             "角色名称": {"title": [{"text": {"content": char["name"]}}]},
@@ -276,9 +270,32 @@ class BangumiClient:
             alias_text = "、".join(char["aliases"][:20])
             props["别名"] = {"rich_text": [{"text": {"content": alias_text}}]}
 
-        payload = {"parent": {"database_id": CHARACTER_DB_ID}, "properties": props}
-        r = requests.post("https://api.notion.com/v1/pages", headers=self.notion.headers, json=payload)
-        return r.json().get("id") if r.status_code == 200 else None
+        if existing_id:
+            # 更新已有角色
+            r = requests.patch(
+                f"https://api.notion.com/v1/pages/{existing_id}",
+                headers=self.notion.headers,
+                json={"properties": props},
+            )
+            if r.status_code == 200:
+                logging.info(f"角色已存在，已更新：{char['name']}")
+                return existing_id
+            else:
+                logging.warning(f"更新角色失败：{char['name']}，状态码：{r.status_code}")
+                return None
+        else:
+            # 创建新角色
+            payload = {"parent": {"database_id": CHARACTER_DB_ID}, "properties": props}
+            r = requests.post(
+                "https://api.notion.com/v1/pages", headers=self.notion.headers, json=payload
+            )
+            if r.status_code == 200:
+                logging.info(f"新角色已创建：{char['name']}")
+                return r.json().get("id")
+            else:
+                logging.warning(f"创建角色失败：{char['name']}，状态码：{r.status_code}")
+                return None
+
 
     def create_or_link_characters(self, game_page_id: str, subject_id: str):
         characters = self.fetch_characters(subject_id)
@@ -338,7 +355,7 @@ class BangumiClient:
             for r in results:
                 candidate_name = r.get("name", "")
                 infobox = r.get("infobox", [])
-                aliases = extract_aliases(infobox)
+                aliases = extract_aliases(infobox, alias_type="brand_alias")
                 names = [candidate_name] + aliases
                 score = max(difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio() for n in names)
                 print(f"🧪 候选: {candidate_name} | 相似度: {score:.2f} | 别名: {aliases}")
@@ -360,7 +377,7 @@ class BangumiClient:
         birthday = extract_first_valid(infobox, FIELD_ALIASES.get("brand_birthday", []))
         company_address = extract_first_valid(infobox, ["公司地址", "地址", "所在地", "所在地地址"])
         bangumi_url = f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
-        aliases = extract_aliases(infobox)
+        aliases = extract_aliases(infobox, alias_type="brand_alias")
 
         twitter = links.get("brand_twitter") or links.get("Twitter") or ""
         if twitter.startswith("@"):

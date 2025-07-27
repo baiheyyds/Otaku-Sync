@@ -8,17 +8,15 @@ with open(alias_path, "r", encoding="utf-8") as f:
     FIELD_ALIASES = json.load(f)
 
 
-def extract_aliases(infobox):
+def extract_aliases(infobox, alias_type="brand_alias"):
     aliases = []
-    alias_keys = FIELD_ALIASES.get("brand_alias", [])
+    alias_keys = FIELD_ALIASES.get(alias_type, [])
     for item in infobox:
         if item.get("key") in alias_keys and isinstance(item.get("value"), list):
             for alias_obj in item["value"]:
                 if isinstance(alias_obj, dict):
                     if "v" in alias_obj:
                         aliases.append(alias_obj["v"])
-                    elif isinstance(alias_obj, str):
-                        aliases.append(alias_obj)
                 elif isinstance(alias_obj, str):
                     aliases.append(alias_obj)
     return aliases

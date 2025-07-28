@@ -1,6 +1,7 @@
 # main.py
 import os
-import sys
+import threading
+import json
 import time
 import warnings
 from pathlib import Path
@@ -26,6 +27,8 @@ from utils.similarity_check import (
     check_existing_similar_games,
     load_or_update_titles,
     save_cache,
+    get_cache_path,
+    hash_titles,
 )
 from utils.utils import extract_main_keyword
 
@@ -54,6 +57,29 @@ def create_shared_driver():
     driver.set_window_size(1200, 800)
     return driver
 
+def load_cache_quick():
+    path = get_cache_path()
+    try:
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"⚠️ 本地缓存读取失败: {e}")
+    return []
+
+def update_cache_background(notion_client, local_cache):
+    try:
+        print("🔄 正在后台刷新查重缓存...")
+        remote_data = notion_client.get_all_game_titles()
+        local_hash = hash_titles(local_cache)
+        remote_hash = hash_titles(remote_data)
+        if local_hash != remote_hash:
+            print("♻️ Notion 游戏标题有更新，已刷新缓存")
+            save_cache(remote_data)
+        else:
+            print("✅ 游戏标题缓存已是最新")
+    except Exception as e:
+        print(f"⚠️ 后台更新缓存失败: {e}")
 
 def main():
     print("\n🚀 启动程序，创建浏览器驱动...")
@@ -68,8 +94,11 @@ def main():
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
 
-    cached_titles = load_or_update_titles(notion_client=notion)
-    print(f"🗂️ 已加载缓存游戏条目数: {len(cached_titles)}")
+    cached_titles = load_cache_quick()
+    print(f"🗂️ 本地缓存游戏条目数: {len(cached_titles)}")
+
+    # 异步刷新缓存（传入当前缓存）
+    threading.Thread(target=update_cache_background, args=(notion, cached_titles), daemon=True).start()
 
     try:
         while True:

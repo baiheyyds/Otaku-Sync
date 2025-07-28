@@ -4,6 +4,7 @@ import contextlib
 import os
 import sys
 import time
+import traceback
 import urllib.parse
 
 from bs4 import BeautifulSoup
@@ -20,9 +21,14 @@ from utils.tag_mapping import map_and_translate_tags
 TAG_GGBASE_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_ggbase.json")
 
 
+def print_short_exception(e):
+    """仅打印错误类型"""
+    print(f"⚠️ 错误类型: {type(e).__name__}")
+
+
+
 @contextlib.contextmanager
 def suppress_stdout_stderr():
-    """重定向stdout和stderr到null，屏蔽浏览器启动时日志。"""
     with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         old_stderr = sys.stderr
@@ -82,7 +88,8 @@ class GGBasesClient:
             time.sleep(1.5)
             return self.driver.page_source
         except Exception as e:
-            print(f"⚠️ 页面加载失败: {url} | 错误: {e}")
+            print(f"⚠️ 页面加载失败: {url}")
+            print_short_exception(e)
             try:
                 return self.driver.execute_script("return document.documentElement.outerHTML")
             except:
@@ -107,7 +114,8 @@ class GGBasesClient:
             }
             return info
         except Exception as e:
-            print(f"⚠️ 抓取 GGBases 详情页失败: {e}")
+            print("⚠️ 抓取 GGBases 详情页失败")
+            print_short_exception(e)
             return {}
 
     def choose_or_parse_popular_url(self, html=None, interactive=False, search_url=None):
@@ -121,7 +129,8 @@ class GGBasesClient:
                 time.sleep(1.5)
                 html = self.driver.page_source
             except Exception as e:
-                print(f"⚠️ 页面加载失败或无搜索结果: {e}")
+                print("⚠️ 页面加载失败或无搜索结果")
+                print_short_exception(e)
                 return None
 
         soup = BeautifulSoup(html, "lxml")
@@ -140,7 +149,8 @@ class GGBasesClient:
                 if title_td:
                     title = title_td.get_text(separator=" ", strip=True)
             except Exception as e:
-                print(f"⚠️ 标题提取失败: {e}")
+                print("⚠️ 标题提取失败")
+                print_short_exception(e)
 
             popularity = 0
             try:
@@ -152,7 +162,8 @@ class GGBasesClient:
                         if pop_text.isdigit():
                             popularity = int(pop_text)
             except Exception as e:
-                print(f"⚠️ 热度提取异常: {e}")
+                print("⚠️ 热度提取异常")
+                print_short_exception(e)
 
             candidates.append({"title": title, "url": url, "popularity": popularity})
 
@@ -179,7 +190,8 @@ class GGBasesClient:
                 print("⚠️ 编号超出范围，默认使用第一个结果")
                 selected_index = 0
         except Exception as e:
-            print(f"⚠️ 输入异常，默认使用第一个结果: {e}")
+            print("⚠️ 输入异常，默认使用第一个结果")
+            print_short_exception(e)
             selected_index = 0
 
         selected = candidates[selected_index]
@@ -211,7 +223,8 @@ class GGBasesClient:
             self._cache[title] = info
             return info
         except Exception as e:
-            print(f"⚠️ 获取 GGBases 信息失败: {e}")
+            print("⚠️ 获取 GGBases 信息失败")
+            print_short_exception(e)
             self._cache[title] = {}
             return {}
 
@@ -243,7 +256,6 @@ class GGBasesClient:
             if tr.find("a", href=lambda x: x and "tags.so?target=female" in x)
             for span in tr.find_all("span", class_="female_span")
         ]
-        # 不抓取dlsite标签，dlsite标签单独处理
         all_tags = female_tags
         if all_tags:
             append_new_tags(TAG_GGBASE_PATH, all_tags)
@@ -275,4 +287,5 @@ class GGBasesClient:
             else:
                 print("❌ 标签补全失败")
         except Exception as e:
-            print(f"❌ 标签补全异常: {e}")
+            print("❌ 标签补全异常")
+            print_short_exception(e)

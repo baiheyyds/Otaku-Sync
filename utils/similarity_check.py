@@ -1,3 +1,4 @@
+# utils/similarity_check.py
 import difflib
 import hashlib
 import json
@@ -5,6 +6,16 @@ import re
 import sys
 import unicodedata
 from pathlib import Path
+
+def load_cache_quick():
+    path = get_cache_path()
+    try:
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"⚠️ 本地缓存读取失败: {e}")
+    return []
 
 
 def normalize(text):
@@ -24,9 +35,16 @@ def get_cache_path():
 
 
 def save_cache(titles):
-    valid_titles = [t for t in titles if t.get("title") and t.get("id")]
-    with open(get_cache_path(), "w", encoding="utf-8") as f:
-        json.dump(valid_titles, f, ensure_ascii=False, indent=2)
+    try:
+        valid_titles = [t for t in titles if t.get("title") and t.get("id")]
+        if not valid_titles:
+            print("⚠️ 尝试保存的缓存为空，跳过写入。")
+            return
+        with open(get_cache_path(), "w", encoding="utf-8") as f:
+            json.dump(valid_titles, f, ensure_ascii=False, indent=2)
+        print(f"💾 缓存成功写入，条目数: {len(valid_titles)}")
+    except Exception as e:
+        print(f"❌ 缓存写入失败: {e}")
 
 
 def hash_titles(data):

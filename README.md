@@ -1,7 +1,5 @@
 
 -----
-
-````markdown
 <div align="center">
   <br>
   <img width="120" src="https://youke1.picui.cn/s1/2025/07/25/68829b028b263.png" alt="Otaku-Sync Logo">

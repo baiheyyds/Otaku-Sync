@@ -2,7 +2,7 @@
   <br>
   <img width="120" src="https://youke1.picui.cn/s1/2025/07/25/68829b028b263.png" alt="Otaku-Notion-Sync Logo">
   <br>
-  <h2 align="center">Otaku-Notion-Sync</h2>
+  <h2 align="center">Otaku-Sync</h2>
 </div>
 
 <p align="center" style="color:#6a737d">
@@ -23,7 +23,7 @@
 
 ## ✨ 项目简介
 
-Otaku-Notion-Sync 是一个自动化同步Galgame和同人游戏以及它们的品牌和角色信息到 Notion 数据库的工具。支持从 DLsite、Getchu、GGBases 等平台抓取数据，并通过标签映射、品牌归一等机制，保证多平台数据格式统一、内容规范。适合需要批量管理和归档游戏信息的用户，尤其是有 Notion 数据库需求的二次元爱好者。
+Otaku-Sync 是一个自动化同步Galgame和同人游戏以及它们的品牌和角色信息到 Notion 数据库的工具。支持从 DLsite、Getchu、GGBases 等平台抓取数据，并通过标签映射、品牌归一等机制，保证多平台数据格式统一、内容规范。适合需要批量管理和归档游戏信息的用户，尤其是有 Notion 数据库需求的二次元爱好者。
 
 ---
 

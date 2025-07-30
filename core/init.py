@@ -8,13 +8,9 @@ from clients.getchu_client import GetchuClient
 from clients.ggbases_client import GGBasesClient
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
-
 from utils.driver import create_driver
-from utils.similarity_check import (
-    load_cache_quick,
-    save_cache,
-    hash_titles
-)
+from utils.similarity_check import hash_titles, load_cache_quick, save_cache
+
 
 def update_cache_background(notion_client, local_cache):
     try:
@@ -34,6 +30,7 @@ def update_cache_background(notion_client, local_cache):
             print("✅ 游戏标题缓存已是最新")
     except Exception as e:
         print(f"⚠️ 后台更新缓存失败: {e}")
+
 
 def init_context():
     print("\n🚀 启动程序，创建浏览器驱动...")

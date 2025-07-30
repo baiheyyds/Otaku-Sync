@@ -1,18 +1,16 @@
 # main.py
-
 import time
 import warnings
-from core.init import init_context
+
 from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
+from core.init import init_context
 from core.selector import select_game
-from utils.similarity_check import (
-    check_existing_similar_games,
-    save_cache,
-)
+from utils.similarity_check import check_existing_similar_games, save_cache
 from utils.utils import extract_main_keyword
 
 warnings.filterwarnings("ignore", message=".*iCCP: known incorrect sRGB profile.*")
+
 
 def main():
     context = init_context()
@@ -71,11 +69,13 @@ def main():
                 print(f"✅ [Dlsite] 抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')} ✔️")
             else:
                 detail = getchu.get_game_detail(selected_game["url"])
-                detail.update({
-                    "标题": selected_game.get("title"),
-                    "品牌": detail.get("品牌") or selected_game.get("品牌"),
-                    "链接": selected_game.get("url"),
-                })
+                detail.update(
+                    {
+                        "标题": selected_game.get("title"),
+                        "品牌": detail.get("品牌") or selected_game.get("品牌"),
+                        "链接": selected_game.get("url"),
+                    }
+                )
                 print(f"✅ [Getchu] 抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')} ✔️")
                 if not detail.get("作品形式"):
                     detail["作品形式"] = ["ADV", "有声音", "有音乐"]
@@ -141,11 +141,13 @@ def main():
             )
 
             if page_id and action == "create":
-                cached_titles.append({
-                    "title": selected_game.get("title"),
-                    "id": page_id,
-                    "url": selected_game.get("url"),
-                })
+                cached_titles.append(
+                    {
+                        "title": selected_game.get("title"),
+                        "id": page_id,
+                        "url": selected_game.get("url"),
+                    }
+                )
                 save_cache(cached_titles)
 
             try:

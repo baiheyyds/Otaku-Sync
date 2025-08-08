@@ -3,6 +3,8 @@
 import json
 import os
 
+from utils import logger
+
 
 def load_tag_dict(file_path):
     """读取 JSON 格式的标签映射"""
@@ -29,9 +31,7 @@ def append_new_tags(file_path, new_tags):
             added.append(tag)
 
     if added:
-        print(f"📌 新增标签 {len(added)} 条：")
-        for i in range(0, len(added), 8):
-            print("    " + "，".join(added[i : i + 8]))
+        logger.info(f"新增标签 {len(added)} 条，已记录到 {os.path.basename(file_path)}")
 
     save_tag_dict(file_path, tag_dict)
     return added

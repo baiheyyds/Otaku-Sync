@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from utils import logger
 from utils.tag_logger import append_new_tags
 
 TAG_GGBASE_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_ggbase.json")
@@ -25,13 +26,12 @@ class GGBasesClient:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
             }
         )
-        self._cache = {}
 
     def set_driver(self, driver):
         self.driver = driver
 
     def choose_or_parse_popular_url_with_requests(self, keyword):
-        print(f"🔍 [GGBases] 正在通过 requests 搜索: {keyword}")
+        logger.info(f"[GGBases] 正在通过 requests 搜索: {keyword}")
         try:
             encoded = urllib.parse.quote(keyword)
             search_url = f"{self.BASE_URL}/search.so?p=0&title={encoded}&advanced="
@@ -42,12 +42,12 @@ class GGBasesClient:
             rows = soup.find_all("tr", class_="dtr")
             candidates = []
 
-            for i, row in enumerate(rows[:10]):
+            for row in rows[:10]:
                 detail_link = row.find("a", href=lambda x: x and "/view.so?id=" in x)
                 if not detail_link:
                     continue
-                url = urllib.parse.urljoin(self.BASE_URL, detail_link["href"])
 
+                url = urllib.parse.urljoin(self.BASE_URL, detail_link["href"])
                 title = (
                     row.find_all("td")[1].get_text(separator=" ", strip=True)
                     if len(row.find_all("td")) > 1
@@ -62,18 +62,18 @@ class GGBasesClient:
                 candidates.append({"title": title, "url": url, "popularity": popularity})
 
             if not candidates:
-                print("⚠️ [GGBases] (requests) 没有找到有效结果")
+                logger.warn("[GGBases] (requests) 没有找到有效结果")
                 return None
 
             best = max(candidates, key=lambda x: x["popularity"])
-            print(f"🔥 [GGBases] (requests) 自动选择热度最高结果: {best['title']} ({best['popularity']})")
+            logger.success(f"[GGBases] (requests) 自动选择热度最高结果: {best['title']} ({best['popularity']})")
             return best["url"]
 
         except requests.RequestException as e:
-            print(f"❌ [GGBases] (requests) 搜索请求失败: {e}")
+            logger.error(f"[GGBases] (requests) 搜索请求失败: {e}")
             return None
         except Exception as e:
-            print(f"❌ [GGBases] (requests) 解析搜索结果失败: {e}")
+            logger.error(f"[GGBases] (requests) 解析搜索结果失败: {e}")
             return None
 
     def get_info_by_url_with_selenium(self, detail_url):
@@ -82,7 +82,7 @@ class GGBasesClient:
         if not detail_url:
             return {}
 
-        print(f"🔩 [GGBases] 正在启动Selenium抓取详情页: {detail_url}")
+        logger.info(f"[GGBases] 正在用Selenium抓取详情页: {detail_url}")
         try:
             self.driver.get(detail_url)
             WebDriverWait(self.driver, 10).until(
@@ -94,9 +94,10 @@ class GGBasesClient:
                 "封面图链接": self._extract_cover_url(soup),
                 "标签": self._extract_tags(soup),
             }
+            logger.success("[GGBases] (Selenium) 详情页信息抓取成功")
             return info
         except Exception as e:
-            print(f"⚠️ [GGBases] (Selenium) 抓取详情页失败: {e}")
+            logger.warn(f"[GGBases] (Selenium) 抓取详情页失败: {e}")
             return {}
 
     def _normalize_url(self, src):
@@ -104,7 +105,7 @@ class GGBasesClient:
             return None
         if src.startswith("//"):
             return "https:" + src
-        elif src.startswith("/"):
+        if src.startswith("/"):
             return urllib.parse.urljoin(self.BASE_URL, src)
         return src
 
@@ -130,7 +131,6 @@ class GGBasesClient:
             if tr.find("a", href=lambda x: x and "tags.so?target=female" in x)
             for span in tr.find_all("span", class_="female_span")
         ]
-        all_tags = female_tags
-        if all_tags:
-            append_new_tags(TAG_GGBASE_PATH, all_tags)
-        return all_tags
+        if female_tags:
+            append_new_tags(TAG_GGBASE_PATH, female_tags)
+        return female_tags

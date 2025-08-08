@@ -8,7 +8,6 @@ from clients.getchu_client import GetchuClient
 from clients.ggbases_client import GGBasesClient
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
-from utils.driver import create_driver
 from utils.similarity_check import hash_titles, load_cache_quick, save_cache
 
 
@@ -21,7 +20,7 @@ def update_cache_background(notion_client, local_cache):
         local_hash = hash_titles(local_cache)
         remote_hash = hash_titles(remote_data)
         if local_hash != remote_hash:
-            if remote_data:  # 只有非空数据才保存
+            if remote_data:
                 print("♻️ Notion 游戏标题有更新，已刷新缓存")
                 save_cache(remote_data)
             else:
@@ -33,15 +32,13 @@ def update_cache_background(notion_client, local_cache):
 
 
 def init_context():
-    print("\n🚀 启动程序，创建浏览器驱动...")
-    driver = create_driver()
-    print("✅ 浏览器驱动创建完成。")
+    print("\n🚀 启动程序...")
 
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID)
     bangumi = BangumiClient(notion)
-    dlsite = DlsiteClient(driver=driver)
-    getchu = GetchuClient(driver=driver)
-    ggbases = GGBasesClient(driver=driver)
+    dlsite = DlsiteClient()
+    getchu = GetchuClient()
+    ggbases = GGBasesClient()
 
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
@@ -51,7 +48,7 @@ def init_context():
     threading.Thread(target=update_cache_background, args=(notion, cached_titles), daemon=True).start()
 
     return {
-        "driver": driver,
+        "driver": None,
         "notion": notion,
         "bangumi": bangumi,
         "dlsite": dlsite,

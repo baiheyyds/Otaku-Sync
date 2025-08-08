@@ -2,43 +2,37 @@
 # GetchuClient 类用于抓取 Getchu 网站的游戏信息
 import random
 import re
-import time
 from urllib.parse import quote, urljoin
 
 import requests
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 
 
 class GetchuClient:
     BASE_URL = "https://www.getchu.com"
     SEARCH_URL = "https://www.getchu.com/php/nsearch.phtml"
+    # AGE_CHECK_URL 不再需要，因为我们采用更直接的方式
 
-    def __init__(self, driver=None, driver_path=None, headless=True):
-        self.driver = driver
-        self.headless = headless
-        self.driver_path = driver_path
+    def __init__(self):
         self.session = requests.Session()
+        self.session.headers.update(self._get_headers())
+        # 在初始化时就完成年龄认证
+        self._perform_age_check()
 
-        if not self.driver:
-            self._init_driver()
-
-    def _init_driver(self):
-        if self.driver is not None:
-            return
-        options = Options()
-        if self.headless:
-            options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--log-level=3")
-        service = ChromeService(executable_path=self.driver_path) if self.driver_path else ChromeService()
-        self.driver = webdriver.Chrome(service=service, options=options)
+    def _perform_age_check(self):
+        """
+        修改：直接在session中手动设置年龄验证Cookie，这是最可靠的方式。
+        """
+        try:
+            print("⏳ [Getchu] 正在手动设置年龄认证Cookie...")
+            self.session.cookies.set(
+                name="getchu_adalt_flag",
+                value="getchu.com",
+                domain=".getchu.com",  # 使用 .getchu.com 保证对所有子域名有效
+            )
+            print("✅ [Getchu] 'getchu_adalt_flag' Cookie已手动设置。")
+        except Exception as e:
+            print(f"❌ [Getchu] 手动设置Cookie失败: {e}")
 
     def _get_headers(self):
         headers = {
@@ -59,19 +53,9 @@ class GetchuClient:
             safe_keyword = keyword.replace("～", "〜")
             encoded_keyword = quote(safe_keyword.encode("shift_jis"))
             url = f"{self.SEARCH_URL}?genre=all&search_keyword={encoded_keyword}&check_key_dtl=1&submit="
-            retries = 5
-            while retries > 0:
-                resp = self.session.get(url, timeout=10, headers=self._get_headers())
-                if resp.status_code == 403:
-                    retries -= 1
-                    print(f"❌ 请求失败，剩余重试次数: {retries}")
-                    time.sleep(2)
-                else:
-                    break
 
-            if resp.status_code != 200:
-                print(f"❌ 搜索失败，状态码: {resp.status_code}")
-                return []
+            resp = self.session.get(url, timeout=10)
+            resp.raise_for_status()
 
             resp.encoding = "euc_jp"
             soup = BeautifulSoup(resp.text, "html.parser")
@@ -87,13 +71,10 @@ class GetchuClient:
                     continue
 
                 title_tag = block.select_one("a.blueb[href*='soft.phtml?id=']")
-
-                # 提取类型
                 type_tag = block.select_one("span.orangeb")
                 item_type = type_tag.get_text(strip=True) if type_tag else "未知"
-
-                # 🛠️ 增强版价格提取逻辑
                 price_tag = block.select_one(".redb")
+
                 if price_tag:
                     price = price_tag.get_text(strip=True)
                 else:
@@ -115,13 +96,11 @@ class GetchuClient:
                             "title": title_tag.get_text(strip=True),
                             "url": f"{self.BASE_URL}/soft.phtml?id={game_id.group(1)}",
                             "价格": price,
-                            "类型": item_type,  # ✅ 新增字段
+                            "类型": item_type,
                         }
                     )
 
-            # 新增：过滤只保留游戏类型
             items = [item for item in items if "ゲーム" in item.get("类型", "")]
-
             exclude_keywords = ["グッズ", "BOOKS", "CD", "音楽"]
             items = [item for item in items if not any(ex_kw in item.get("类型", "") for ex_kw in exclude_keywords)]
 
@@ -137,20 +116,19 @@ class GetchuClient:
 
     def get_game_detail(self, url):
         try:
-            print(f"\n🚀 正在加载游戏详情页: {url}")
-            self.driver.get(url)
-            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            print(f"\n🚀 [Getchu] 正在通过requests加载游戏详情页: {url}")
+            # 因为cookie已经设置好，这个请求现在会直接命中详情页
+            resp = self.session.get(url, timeout=15)
+            resp.encoding = "euc_jp"
+            resp.raise_for_status()
 
-            if "年齢認証" in self.driver.title:
-                print("⚠️ 遇到年龄验证，尝试通过...")
-                links = self.driver.find_elements(By.TAG_NAME, "a")
-                for link in links:
-                    if "すすむ" in link.text:
-                        link.click()
-                        WebDriverWait(self.driver, 10).until(EC.title_contains("Getchu"))
-                        break
+            soup = BeautifulSoup(resp.text, "html.parser")
 
-            soup = BeautifulSoup(self.driver.page_source, "html.parser")
+            # 如果成功，标题不会是'Getchu.com：R18 年齢認証'
+            if "年齢認証" in soup.title.text:
+                print("❌ [Getchu] 绕过年龄验证失败，页面内容不正确。")
+                return {}
+
             info_table = soup.find("table", {"width": "100%", "style": "padding:1px;"})
 
             def extract_info(keyword):
@@ -166,7 +144,6 @@ class GetchuClient:
             raw_image_url = urljoin(self.BASE_URL, img_tag["src"]) if img_tag and img_tag.get("src") else None
             image_url = raw_image_url.replace(self.BASE_URL, "https://cover.ydgal.com") if raw_image_url else None
 
-            # --- 新结构的品牌信息提取 ---
             brand, brand_site = None, None
             trs = soup.find_all("tr")
             for tr in trs:
@@ -182,7 +159,6 @@ class GetchuClient:
             title = title_tag.text.strip().split(" (")[0] if title_tag else None
 
             print("📦 正在提取字段...")
-
             result = {
                 "封面图链接": image_url,
                 "标题": title,
@@ -201,32 +177,5 @@ class GetchuClient:
             return result
 
         except Exception as e:
-            print(f"❌ 抓取失败: {e}")
+            print(f"❌ (requests)抓取失败: {e}")
             return {}
-
-    def close(self):
-        if self.driver:
-            print("🧹 正在关闭浏览器驱动...")
-            self.driver.quit()
-            self.driver = None
-
-
-if __name__ == "__main__":
-    client = GetchuClient(headless=True)
-    try:
-        while True:
-            keyword = input("\n请输入游戏关键词（日文，回车退出）：").strip()
-            if not keyword:
-                break
-            results = client.search(keyword)
-            if not results:
-                print("没有搜索结果。")
-                continue
-            for i, item in enumerate(results):
-                print(f"[{i}] 🎮 {item['title']} | 💴 {item['价格']}")
-            idx = input("请选择游戏编号查看详情（回车跳过）：").strip()
-            if idx.isdigit() and 0 <= int(idx) < len(results):
-                client.get_game_detail(results[int(idx)]["url"])
-    finally:
-        client.close()
-        client.close()

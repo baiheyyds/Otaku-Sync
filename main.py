@@ -6,6 +6,7 @@ from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
 from core.init import init_context
 from core.selector import select_game
+from utils.driver import create_driver
 from utils.similarity_check import check_existing_similar_games, save_cache
 from utils.utils import extract_main_keyword
 
@@ -15,7 +16,6 @@ warnings.filterwarnings("ignore", message=".*iCCP: known incorrect sRGB profile.
 def main():
     context = init_context()
 
-    driver = context["driver"]
     notion = context["notion"]
     bangumi = context["bangumi"]
     dlsite = context["dlsite"]
@@ -25,6 +25,7 @@ def main():
     brand_extra_info_cache = context["brand_extra_info_cache"]
     cached_titles = context["cached_titles"]
 
+    driver = None
     try:
         while True:
             keyword_raw = input("\n请输入游戏关键词（日文，可加 -m 手动选择 GGBases，回车退出）：").strip()
@@ -46,27 +47,13 @@ def main():
             selected_game["source"] = source
             print(f"✅ 选中游戏: {selected_game.get('title')} (来源: {source})")
 
-            subject_id = None
-            bangumi_info = {}
-            try:
-                subject_id = bangumi.search_and_select_bangumi_id(keyword_raw.replace("-m", "").strip())
-                if subject_id:
-                    bangumi_info = bangumi.fetch_game(subject_id)
-                    print(f"🎯 Bangumi 游戏封面图抓取成功: {bangumi_info.get('封面图链接')}")
-                else:
-                    print("⚠️ Bangumi 未匹配到对应游戏")
-            except Exception as e:
-                print(f"⚠️ Bangumi 游戏信息抓取异常: {e}")
+            # --- Phase 1: Requests-based info gathering ---
+            print("🚀 (Phase 1) 正在通过Requests获取基础信息...")
 
-            proceed, cached_titles, action, existing_page_id = check_existing_similar_games(
-                notion, selected_game.get("title"), cached_titles=cached_titles
-            )
-            if not proceed or action == "skip":
-                continue
-
+            detail = {}
             if source == "dlsite":
                 detail = dlsite.get_game_detail(selected_game["url"])
-                print(f"✅ [Dlsite] 抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')} ✔️")
+                print(f"✅ [Dlsite] (requests)抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')}")
             else:
                 detail = getchu.get_game_detail(selected_game["url"])
                 detail.update(
@@ -76,50 +63,65 @@ def main():
                         "链接": selected_game.get("url"),
                     }
                 )
-                print(f"✅ [Getchu] 抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')} ✔️")
-                if not detail.get("作品形式"):
-                    detail["作品形式"] = ["ADV", "有声音", "有音乐"]
+                print(f"✅ [Getchu] (requests)抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')}")
 
-            html = ggbases.get_search_page_html(keyword)
-            detail_url = ggbases.choose_or_parse_popular_url(html, interactive=interactive_mode)
-            ggbases_info = ggbases.get_info_by_url(detail_url) if detail_url else {}
+            bangumi_info = {}
+            subject_id = None
+            try:
+                subject_id = bangumi.search_and_select_bangumi_id(keyword_raw.replace("-m", "").strip())
+                if subject_id:
+                    bangumi_info = bangumi.fetch_game(subject_id)
+                    print(f"🎯 Bangumi 游戏封面图抓取成功: {bangumi_info.get('封面图链接')}")
+            except Exception as e:
+                print(f"⚠️ Bangumi 游戏信息抓取异常: {e}")
 
-            if source == "getchu":
-                game_size = ggbases_info.get("容量") or detail.get("容量")
-                print(f"📦 容量信息: {game_size or '未找到'}")
-            else:
-                game_size = detail.get("容量") or ggbases_info.get("容量")
-                print(f"📦 容量信息: {game_size or '未找到'}")
+            proceed, cached_titles, action, existing_page_id = check_existing_similar_games(
+                notion, detail.get("标题") or selected_game.get("title"), cached_titles=cached_titles
+            )
+            if not proceed or action == "skip":
+                continue
 
-            if source == "getchu":
-                if ggbases_info.get("封面图链接"):
-                    detail["封面图链接"] = ggbases_info["封面图链接"]
-                    print("🖼️ 使用 GGBases 封面图替代原封面")
-                else:
-                    print("⚠️ 未找到 GGBases 封面图")
+            # --- Phase 2: Selenium-based supplementary info gathering ---
+            print("🔩 (Phase 2) 检查是否需要启动Selenium获取补充信息...")
+            ggbases_info = {}
+            detail_url = ggbases.choose_or_parse_popular_url_with_requests(keyword)
+            if detail_url:
+                if driver is None:
+                    print("...首次需要，正在创建浏览器驱动...")
+                    driver = create_driver()
+                    dlsite.set_driver(driver)
+                    ggbases.set_driver(driver)
+                ggbases_info = ggbases.get_info_by_url_with_selenium(detail_url)
 
-            print("🔍 品牌信息处理...")
-            brand_name = detail.get("品牌") or selected_game.get("品牌")
-            brand_url = detail.get("品牌页链接") if source == "dlsite" else None
-            getchu_brand_url = detail.get("品牌页链接") if source == "getchu" else None
+            brand_page_url = detail.get("品牌页链接")
+            if source == "dlsite" and brand_page_url and brand_page_url not in brand_extra_info_cache:
+                if driver is None:
+                    print("...首次需要，正在创建浏览器驱动...")
+                    driver = create_driver()
+                    dlsite.set_driver(driver)
+                    ggbases.set_driver(driver)
+
+                brand_extra_info = dlsite.get_brand_extra_info_with_selenium(brand_page_url)
+                if brand_extra_info.get("官网"):
+                    brand_extra_info_cache[brand_page_url] = brand_extra_info
+
+            # --- Phase 3: Data processing and syncing ---
+            print("🔄 (Phase 3) 整合所有信息并同步到Notion...")
+            game_size = detail.get("容量") or ggbases_info.get("容量")
+            print(f"📦 容量信息: {game_size or '未找到'}")
 
             brand_id = handle_brand_info(
                 source=source,
                 dlsite_client=dlsite,
                 notion_client=notion,
-                brand_name=brand_name,
-                brand_page_url=brand_url,
+                brand_name=detail.get("品牌"),
+                brand_page_url=detail.get("品牌页链接") if source == "dlsite" else None,
                 cache=brand_extra_info_cache,
-                brand_homepage=None,
-                brand_icon=detail.get("品牌图标"),
                 bangumi_client=bangumi,
                 getchu_client=getchu,
-                getchu_brand_page_url=getchu_brand_url,
+                getchu_brand_page_url=detail.get("品牌官网") if source == "getchu" else None,
             )
             print(f"✅ 品牌信息同步完成，品牌ID: {brand_id}")
-
-            page_id_for_update = existing_page_id if action == "update" else None
-            print(f"📤 开始同步游戏数据到 Notion...")
 
             notion_game_title = bangumi_info.get("title") or bangumi_info.get("title_cn") or selected_game.get("title")
             selected_game["notion_title"] = notion_game_title
@@ -137,54 +139,44 @@ def main():
                 ggbases_info=ggbases_info,
                 bangumi_info=bangumi_info,
                 source=source,
-                selected_similar_page_id=page_id_for_update,
+                selected_similar_page_id=(existing_page_id if action == "update" else None),
             )
 
             if page_id and action == "create":
                 cached_titles.append(
-                    {
-                        "title": selected_game.get("title"),
-                        "id": page_id,
-                        "url": selected_game.get("url"),
-                    }
+                    {"title": selected_game.get("title"), "id": page_id, "url": selected_game.get("url")}
                 )
                 save_cache(cached_titles)
 
-            try:
-                if subject_id:
-                    print(f"🎭 抓取Bangumi角色数据...")
-                    game_page_id = existing_page_id if action == "update" else None
-
+            if subject_id:
+                try:
+                    game_page_id = existing_page_id if action == "update" else page_id
                     if not game_page_id:
-                        search_results = notion.search_game(selected_game.get("notion_title"))
+                        search_results = notion.search_game(notion_game_title)
                         if search_results:
                             game_page_id = search_results[0].get("id")
 
                     if game_page_id:
+                        print(f"🎭 抓取Bangumi角色数据...")
                         bangumi.create_or_link_characters(game_page_id, subject_id)
                     else:
                         print("⚠️ 未能确定游戏页面ID，跳过角色同步")
-                else:
-                    print("⚠️ Bangumi匹配失败，跳过角色补全")
-            except Exception as e:
-                print(f"⚠️ Bangumi角色补全异常: {e}")
+                except Exception as e:
+                    print(f"⚠️ Bangumi角色补全异常: {e}")
 
-            if action == "update":
-                print(f"🔁 已覆盖更新原条目")
-            else:
-                print(f"✅ 游戏同步完成: {notion_game_title} 🎉")
-
+            print(f"✅ 同步完成: {notion_game_title} {'(已覆盖更新)' if action == 'update' else '🎉'}")
             print("-" * 40)
             time.sleep(1)
 
     except KeyboardInterrupt:
         print("\n👋 用户中断，程序退出")
     finally:
+        if driver:
+            print("🚪 正在关闭浏览器驱动...")
+            driver.quit()
         save_cache(cached_titles)
         brand_cache.save_cache(brand_extra_info_cache)
-        print("♻️ 品牌缓存已保存")
-        driver.quit()
-        print("🚪 浏览器驱动已关闭")
+        print("♻️ 缓存和驱动已清理。程序结束。")
 
 
 if __name__ == "__main__":

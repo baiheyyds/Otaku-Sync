@@ -36,4 +36,3 @@ def convert_date_jp_to_iso(date_str):
             continue
 
     return None
-    return None

@@ -80,7 +80,18 @@ class DlsiteClient:
             if len(results) >= limit:
                 break
 
-        exclude_keywords = ["単行本", "マンガ", "小説", "書籍", "雑誌/アンソロ", "ボイス・ASMR", "音楽", "動画"]
+        exclude_keywords = [
+            "単行本",
+            "マンガ",
+            "小説",
+            "書籍",
+            "雑誌/アンソロ",
+            "ボイス・ASMR",
+            "音楽",
+            "動画",
+            "CG・イラスト",
+            "単話",
+        ]
         filtered_results = [
             item for item in results if not any(ex_kw in item.get("类型", "") for ex_kw in exclude_keywords)
         ]

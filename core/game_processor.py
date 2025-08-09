@@ -6,7 +6,7 @@ from utils import logger
 from utils.tag_mapping import map_and_translate_tags
 
 
-def process_and_sync_game(
+async def process_and_sync_game(
     game,
     detail,
     size,
@@ -21,6 +21,7 @@ def process_and_sync_game(
     source=None,
     selected_similar_page_id=None,
 ):
+    # --- 辅助函数 split_to_list, split_work_types, choose_cover_url 不变 ---
     def split_to_list(text):
         if not text:
             return []
@@ -37,13 +38,13 @@ def process_and_sync_game(
 
     source = (source or game.get("source", "unknown")).lower()
 
-    # 确保 ggbases_info 和 bangumi_info 是字典，避免后续 .get() 出错
     ggbases_info = ggbases_info or {}
     bangumi_info = bangumi_info or {}
 
-    def choose_cover_url(source_str: str, detail_dict: dict, bangumi_dict: dict, ggbases_dict: dict) -> str:
+    def choose_cover_url(
+        source_str: str, detail_dict: dict, bangumi_dict: dict, ggbases_dict: dict
+    ) -> str:
         cover_url = None
-
         if source_str == "dlsite":
             cover_url = detail_dict.get("封面图链接") or detail_dict.get("封面图")
             if not cover_url:
@@ -64,9 +65,9 @@ def process_and_sync_game(
                 cover_url = ggbases_dict.get("封面图链接")
             if not cover_url:
                 cover_url = detail_dict.get("封面图链接") or detail_dict.get("封面图")
-
         return cover_url
 
+    # --- 标签和数据合并逻辑不变 ---
     dlsite_tags_raw = detail.get("标签", [])
     if not isinstance(dlsite_tags_raw, list):
         dlsite_tags_raw = [dlsite_tags_raw]
@@ -78,12 +79,14 @@ def process_and_sync_game(
     mapped_dlsite_tags = map_and_translate_tags(dlsite_tags_raw, source="dlsite")
     mapped_ggbases_tags = map_and_translate_tags(ggbases_tags_raw, source="ggbase")
     mapped_tags = sorted(set(mapped_dlsite_tags + mapped_ggbases_tags))
-
     cover_url = choose_cover_url(source, detail, bangumi_info, ggbases_info)
 
     merged = {
         "title": (
-            bangumi_info.get("title") or bangumi_info.get("title_cn") or game.get("notion_title") or game.get("title")
+            bangumi_info.get("title")
+            or bangumi_info.get("title_cn")
+            or game.get("notion_title")
+            or game.get("title")
         ),
         "游戏别名": bangumi_info.get("title_cn") or "",
         "url": game.get("url"),
@@ -103,5 +106,7 @@ def process_and_sync_game(
         "游戏简介": bangumi_info.get("summary") or "",
     }
 
-    page_id = notion_client.create_or_update_game(merged, brand_relation_id=brand_id, page_id=selected_similar_page_id)
+    page_id = await notion_client.create_or_update_game(
+        merged, brand_relation_id=brand_id, page_id=selected_similar_page_id
+    )
     return page_id

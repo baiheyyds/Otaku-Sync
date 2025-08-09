@@ -1,4 +1,5 @@
 # utils/similarity_check.py
+import asyncio
 import difflib
 import hashlib
 import json
@@ -21,6 +22,7 @@ def load_cache_quick():
     return []
 
 
+# --- normalize, get_cache_path, save_cache, hash_titles 函数不变 ---
 def normalize(text):
     if not text:
         return ""
@@ -50,19 +52,19 @@ def save_cache(titles):
 
 
 def hash_titles(data):
-    items = sorted(f"{item.get('id')}:{item.get('title')}" for item in data if item.get("id") and item.get("title"))
+    items = sorted(
+        f"{item.get('id')}:{item.get('title')}"
+        for item in data
+        if item.get("id") and item.get("title")
+    )
     return hashlib.md5("".join(items).encode("utf-8")).hexdigest()
 
 
-def load_or_update_titles(notion_client):
+async def load_or_update_titles(notion_client):
     path = get_cache_path()
     try:
-        local_data = []
-        if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
-                local_data = json.load(f)
-
-        remote_data = notion_client.get_all_game_titles()
+        local_data = load_cache_quick()
+        remote_data = await notion_client.get_all_game_titles()
         if hash_titles(local_data) != hash_titles(remote_data):
             logger.system("Notion 游戏标题有更新，重新缓存...")
             save_cache(remote_data)
@@ -71,12 +73,12 @@ def load_or_update_titles(notion_client):
     except Exception as e:
         logger.warn(f"校验缓存失败，尝试从 Notion 拉取: {e}")
         try:
-            remote_data = notion_client.get_all_game_titles()
+            remote_data = await notion_client.get_all_game_titles()
             save_cache(remote_data)
             return remote_data
         except Exception as e2:
             logger.error(f"无法连接 Notion，仅使用旧缓存: {e2}")
-            return local_data if path.exists() else []
+            return load_cache_quick()
 
 
 def filter_similar_titles(new_title, cached_titles, threshold):
@@ -91,13 +93,18 @@ def filter_similar_titles(new_title, cached_titles, threshold):
     return candidates
 
 
-def remove_invalid_pages(candidates, cached_titles, notion_client):
-    updated_cache = cached_titles
+async def remove_invalid_pages(candidates, cached_titles, notion_client):
+    updated_cache = list(cached_titles)
     valid_candidates = []
     changed = False
-    for item, score in candidates:
+
+    # 并发检查页面是否存在
+    tasks = [notion_client.check_page_exists(item.get("id")) for item, score in candidates]
+    results = await asyncio.gather(*tasks)
+
+    for (item, score), exists in zip(candidates, results):
         page_id = item.get("id")
-        if page_id and notion_client.check_page_exists(page_id):
+        if page_id and exists:
             valid_candidates.append((item, score))
         else:
             logger.warn(f"已失效页面：{item.get('title')}，从缓存移除")
@@ -106,29 +113,40 @@ def remove_invalid_pages(candidates, cached_titles, notion_client):
     return valid_candidates, updated_cache, changed
 
 
-def check_existing_similar_games(notion_client, new_title, cached_titles=None, threshold=0.78):
+async def check_existing_similar_games(
+    notion_client, new_title, cached_titles=None, threshold=0.78
+):
     logger.info("正在检查是否有可能重复的游戏...")
 
     if not cached_titles or not isinstance(cached_titles[0], dict):
-        cached_titles = load_or_update_titles(notion_client)
+        cached_titles = await load_or_update_titles(notion_client)
 
     candidates = filter_similar_titles(new_title, cached_titles, threshold)
-    valid_candidates, updated_cache, changed = remove_invalid_pages(candidates, cached_titles, notion_client)
+    valid_candidates, updated_cache, changed = await remove_invalid_pages(
+        candidates, cached_titles, notion_client
+    )
 
     if changed:
         save_cache(updated_cache)
         cached_titles = updated_cache
 
-    notion_results = notion_client.search_game(new_title)
+    notion_results = await notion_client.search_game(new_title)
     if notion_results:
         logger.warn(
             f"Notion 实时搜索发现已有同名游戏：{notion_client.get_page_title(notion_results[0]) or '[未知标题]'}"
         )
         existing_page_data = {"id": notion_results[0]["id"], "title": new_title}
-        valid_candidates = [(p, s) for p, s in valid_candidates if p["id"] != existing_page_data["id"]]
+        valid_candidates = [
+            (p, s) for p, s in valid_candidates if p["id"] != existing_page_data["id"]
+        ]
         valid_candidates.insert(0, (existing_page_data, 1.0))
 
-    if valid_candidates:
+    if not valid_candidates:
+        logger.success("没有发现重复游戏，将创建新条目。")
+        return True, cached_titles, "create", None
+
+    # 将阻塞的 input 调用放到线程中执行
+    def _interactive_selection():
         logger.warn("检测到可能重复的游戏：")
         sorted_candidates = sorted(valid_candidates, key=lambda x: x[1], reverse=True)
         for i, (item, score) in enumerate(sorted_candidates):
@@ -145,21 +163,23 @@ def check_existing_similar_games(notion_client, new_title, cached_titles=None, t
             if choice in {"u", "c", "s", ""}:
                 break
 
-        if choice == "s":
-            logger.info("已选择跳过。")
-            return False, cached_titles, "skip", None
-        elif choice == "c":
-            confirm_check = notion_client.search_game(new_title)
-            if confirm_check:
-                logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
-                return True, cached_titles, "update", confirm_check[0].get("id")
-            else:
-                logger.success("确认创建为新游戏。")
-                return True, cached_titles, "create", None
+        return choice, sorted_candidates
+
+    choice, sorted_candidates = await asyncio.to_thread(_interactive_selection)
+
+    if choice == "s":
+        logger.info("已选择跳过。")
+        return False, cached_titles, "skip", None
+    elif choice == "c":
+        # 强制创建前再次检查，因为用户输入时可能有其他进程写入了
+        confirm_check = await notion_client.search_game(new_title)
+        if confirm_check:
+            logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
+            return True, cached_titles, "update", confirm_check[0].get("id")
         else:
-            selected_id = sorted_candidates[0][0].get("id")
-            logger.info(f"已选择更新游戏：{sorted_candidates[0][0].get('title')}")
-            return True, cached_titles, "update", selected_id
-    else:
-        logger.success("没有发现重复游戏，将创建新条目。")
-        return True, cached_titles, "create", None
+            logger.success("确认创建为新游戏。")
+            return True, cached_titles, "create", None
+    else:  # 默认为 u
+        selected_id = sorted_candidates[0][0].get("id")
+        logger.info(f"已选择更新游戏：{sorted_candidates[0][0].get('title')}")
+        return True, cached_titles, "update", selected_id

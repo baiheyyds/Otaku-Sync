@@ -2,9 +2,9 @@
 from utils import logger
 
 
-def select_game(dlsite_client, getchu_client, main_keyword: str, original_keyword: str):
+async def select_game(dlsite_client, getchu_client, main_keyword: str, original_keyword: str):
     # 优先 DLsite 搜索
-    results = dlsite_client.search(original_keyword)
+    results = await dlsite_client.search(original_keyword)
     if results:
         print("\n🔍 DLsite 找到以下结果:")
         for idx, item in enumerate(results):
@@ -35,7 +35,7 @@ def select_game(dlsite_client, getchu_client, main_keyword: str, original_keywor
         logger.info("DLsite 未找到，尝试 Getchu 搜索...")
 
     # Getchu 搜索
-    results = getchu_client.search(original_keyword)
+    results = await getchu_client.search(original_keyword)
     if results:
         print("\n🔍 Getchu 找到以下结果:")
         for idx, item in enumerate(results):

@@ -4,7 +4,7 @@ import random
 import re
 from urllib.parse import quote, urljoin
 
-import requests
+import httpx
 from bs4 import BeautifulSoup
 
 from utils import logger
@@ -14,20 +14,10 @@ class GetchuClient:
     BASE_URL = "https://www.getchu.com"
     SEARCH_URL = "https://www.getchu.com/php/nsearch.phtml"
 
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update(self._get_headers())
-        self._perform_age_check()
-
-    def _perform_age_check(self):
-        try:
-            self.session.cookies.set(
-                name="getchu_adalt_flag",
-                value="getchu.com",
-                domain=".getchu.com",
-            )
-        except Exception as e:
-            logger.error(f"[Getchu] 手动设置Cookie失败: {e}")
+    def __init__(self, client: httpx.AsyncClient):
+        self.client = client
+        self.client.headers.update(self._get_headers())
+        self.client.cookies.set(name="getchu_adalt_flag", value="getchu.com", domain=".getchu.com")
 
     def _get_headers(self):
         return {
@@ -40,22 +30,25 @@ class GetchuClient:
             "Referer": "https://www.getchu.com/",
         }
 
-    def search(self, keyword):
+    async def search(self, keyword):
         logger.info(f"[Getchu] 开始搜索: {keyword}")
         try:
             safe_keyword = keyword.replace("～", "〜")
             encoded_keyword = quote(safe_keyword.encode("shift_jis", errors="ignore"))
             url = f"{self.SEARCH_URL}?genre=all&search_keyword={encoded_keyword}&check_key_dtl=1&submit="
 
-            resp = self.session.get(url, timeout=10)
+            resp = await self.client.get(url, timeout=10)
             resp.raise_for_status()
-            resp.encoding = "euc_jp"
-            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Getchu 使用 EUC-JP 编码
+            html_text = resp.content.decode("euc_jp", errors="ignore")
+            soup = BeautifulSoup(html_text, "html.parser")
 
             result_ul = soup.find("ul", class_="display")
             if not result_ul:
                 return []
 
+            # --- 解析逻辑不变 ---
             items = []
             for li in result_ul.find_all("li"):
                 block = li.select_one("#detail_block")
@@ -91,7 +84,11 @@ class GetchuClient:
 
             items = [item for item in items if "ゲーム" in item.get("类型", "")]
             exclude_keywords = ["グッズ", "BOOKS", "CD", "音楽"]
-            items = [item for item in items if not any(ex_kw in item.get("类型", "") for ex_kw in exclude_keywords)]
+            items = [
+                item
+                for item in items
+                if not any(ex_kw in item.get("类型", "") for ex_kw in exclude_keywords)
+            ]
 
             logger.success(f"找到 {len(items)} 个Getchu搜索结果。")
             return items
@@ -103,12 +100,12 @@ class GetchuClient:
             logger.error(f"[Getchu] 搜索失败: {e}")
             return []
 
-    def get_game_detail(self, url):
+    async def get_game_detail(self, url):
         try:
-            resp = self.session.get(url, timeout=15)
-            resp.encoding = "euc_jp"
+            resp = await self.client.get(url, timeout=15)
             resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
+            html_text = resp.content.decode("euc_jp", errors="ignore")
+            soup = BeautifulSoup(html_text, "html.parser")
 
             if "年齢認証" in soup.title.text:
                 logger.error("[Getchu] 绕过年龄验证失败，页面内容不正确。")
@@ -116,6 +113,7 @@ class GetchuClient:
 
             info_table = soup.find("table", id="soft_table")
 
+            # --- 解析逻辑不变 ---
             def extract_info(keyword):
                 if not info_table:
                     return None
@@ -125,9 +123,13 @@ class GetchuClient:
                 return None
 
             cover_a = soup.select_one("a.highslide[href*='/graphics/']")
-            raw_image_url = urljoin(self.BASE_URL, cover_a["href"]) if cover_a and cover_a.img else None
+            raw_image_url = (
+                urljoin(self.BASE_URL, cover_a["href"]) if cover_a and cover_a.img else None
+            )
             image_url = (
-                raw_image_url.replace("https://www.getchu.com", "https://cover.ydgal.com") if raw_image_url else None
+                raw_image_url.replace("https://www.getchu.com", "https://cover.ydgal.com")
+                if raw_image_url
+                else None
             )
 
             brand, brand_site = None, None
@@ -140,7 +142,11 @@ class GetchuClient:
                     brand_site = a_tag.get("href")
 
             title_tag = soup.select_one("#soft-title")
-            title = title_tag.get_text(strip=True).replace("Getchu.com：", "") if title_tag else "未知标题"
+            title = (
+                title_tag.get_text(strip=True).replace("Getchu.com：", "")
+                if title_tag
+                else "未知标题"
+            )
 
             return {
                 "封面图链接": image_url,
@@ -153,5 +159,5 @@ class GetchuClient:
                 "剧本": extract_info("シナリオ"),
             }
         except Exception as e:
-            logger.error(f"[Getchu] (requests)抓取详情失败: {e}")
+            logger.error(f"[Getchu] (httpx)抓取详情失败: {e}")
             return {}

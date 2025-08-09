@@ -1,5 +1,6 @@
 # core/brand_handler.py
 # 该模块用于处理品牌信息的获取和存储
+import asyncio
 import json
 import os
 
@@ -10,7 +11,7 @@ with open(mapping_path, "r", encoding="utf-8") as f:
     brand_mapping = json.load(f)
 
 
-def handle_brand_info(
+async def handle_brand_info(
     source,
     dlsite_client,
     notion_client,
@@ -33,10 +34,17 @@ def handle_brand_info(
             brand_name = canonical
             break
 
+    # 并发获取 Bangumi 信息
+    bangumi_info_task = (
+        asyncio.create_task(bangumi_client.fetch_brand_info_from_bangumi(brand_name))
+        if bangumi_client
+        else None
+    )
+
     bangumi_info = {}
-    if bangumi_client:
+    if bangumi_info_task:
         try:
-            bangumi_info = bangumi_client.fetch_brand_info_from_bangumi(brand_name) or {}
+            bangumi_info = (await bangumi_info_task) or {}
             if bangumi_info:
                 logger.success(f"[{brand_name}] 从 Bangumi 获取品牌信息成功")
         except Exception as e:
@@ -52,6 +60,7 @@ def handle_brand_info(
         else:
             logger.warn(f"[{brand_name}] 品牌页链接为空，无法从 Dlsite 获取额外信息")
 
+    # --- 字段合并逻辑不变 ---
     def first_nonempty(*args):
         for v in args:
             if v:
@@ -68,32 +77,15 @@ def handle_brand_info(
             extra.get("官网"),
             brand_homepage,
         ),
-        "icon_url": combine_field(
-            bangumi_info.get("icon"),
-            extra.get("图标"),
-            brand_icon,
-        ),
-        "summary": combine_field(
-            bangumi_info.get("summary"),
-            extra.get("简介"),
-        ),
+        "icon_url": combine_field(bangumi_info.get("icon"), extra.get("图标"), brand_icon),
+        "summary": combine_field(bangumi_info.get("summary"), extra.get("简介")),
         "bangumi_url": bangumi_info.get("bangumi_url"),
         "company_address": combine_field(
-            bangumi_info.get("company_address"),
-            extra.get("公司地址"),
+            bangumi_info.get("company_address"), extra.get("公司地址")
         ),
-        "birthday": combine_field(
-            bangumi_info.get("birthday"),
-            extra.get("生日"),
-        ),
-        "alias": combine_field(
-            bangumi_info.get("alias"),
-            extra.get("别名"),
-        ),
-        "twitter": combine_field(
-            bangumi_info.get("twitter"),
-            extra.get("推特"),
-        ),
+        "birthday": combine_field(bangumi_info.get("birthday"), extra.get("生日")),
+        "alias": combine_field(bangumi_info.get("alias"), extra.get("别名")),
+        "twitter": combine_field(bangumi_info.get("twitter"), extra.get("推特")),
     }
 
-    return notion_client.create_or_update_brand(brand_name, **combined_info)
+    return await notion_client.create_or_update_brand(brand_name, **combined_info)

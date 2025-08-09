@@ -1,230 +1,152 @@
 # main.py
-import threading
-import time
-import warnings
+import asyncio
+import sys
 
 from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
-from core.init import init_context
+from core.init import close_context, init_context
 from core.selector import select_game
 from utils import logger
 from utils.driver import create_driver
-from utils.similarity_check import check_existing_similar_games, save_cache
-from utils.utils import extract_main_keyword
-
-warnings.filterwarnings("ignore", message=".*iCCP: known incorrect sRGB profile.*")
+from utils.similarity_check import check_existing_similar_games
 
 
-def main():
-    context = init_context()
+async def run_single_game_flow(context: dict):
+    """处理单个游戏从搜索到入库的完整流程"""
+    try:
+        # 1. 获取用户输入
+        original_keyword = await asyncio.to_thread(
+            input, "\n💡 请输入要搜索的游戏关键词 (或输入 'q' 退出): "
+        )
+        original_keyword = original_keyword.strip()
+        if not original_keyword or original_keyword.lower() == "q":
+            return False
 
-    notion = context["notion"]
-    bangumi = context["bangumi"]
-    dlsite = context["dlsite"]
-    getchu = context["getchu"]
-    ggbases = context["ggbases"]
-    brand_cache = context["brand_cache"]
-    brand_extra_info_cache = context["brand_extra_info_cache"]
-    cached_titles = context["cached_titles"]
+        # 2. 选择游戏源
+        game, source = await select_game(
+            context["dlsite"], context["getchu"], original_keyword, original_keyword
+        )
+        if not game or source == "cancel":
+            logger.info("操作已取消。")
+            return True
 
-    driver = None
+        logger.step(f"已选择来源: {source.upper()}, 游戏: {game['title']}")
+
+        # 3. 查重
+        should_continue, updated_cache, mode, page_id = await check_existing_similar_games(
+            context["notion"], game["title"], context["cached_titles"]
+        )
+        context["cached_titles"] = updated_cache
+
+        if not should_continue:
+            return True
+
+        # 4. 按需初始化 Selenium Driver
+        needs_driver = source in ["dlsite", "ggbases"]
+        if needs_driver and not context.get("driver"):
+            logger.system("正在初始化浏览器驱动...")
+            context["driver"] = await asyncio.to_thread(create_driver)
+            context["dlsite"].set_driver(context["driver"])
+            context["ggbases"].set_driver(context["driver"])
+            logger.system("浏览器驱动已就绪。")
+
+        # 5. 并发获取所有详情信息
+        logger.info("正在并发获取 Dlsite, GGBases, Bangumi 的详细信息...")
+        detail_task = context[source].get_game_detail(game["url"])
+        ggbases_url_task = context["ggbases"].choose_or_parse_popular_url_with_requests(
+            game["title"]
+        )
+        bangumi_id_task = context["bangumi"].search_and_select_bangumi_id(game["title"])
+
+        detail, ggbases_url, bangumi_id = await asyncio.gather(
+            detail_task, ggbases_url_task, bangumi_id_task
+        )
+
+        ggbases_info_task = (
+            context["ggbases"].get_info_by_url_with_selenium(ggbases_url) if ggbases_url else None
+        )
+        bangumi_info_task = context["bangumi"].fetch_game(bangumi_id) if bangumi_id else None
+
+        getchu_brand_page_url = detail.get("品牌官网") if source == "getchu" else None
+
+        brand_extra_info_task = (
+            context["dlsite"].get_brand_extra_info_with_selenium(detail.get("品牌页链接"))
+            if source == "dlsite" and detail.get("品牌页链接")
+            else None
+        )
+
+        results = await asyncio.gather(
+            ggbases_info_task or asyncio.sleep(0, result={}),
+            bangumi_info_task or asyncio.sleep(0, result={}),
+            brand_extra_info_task or asyncio.sleep(0, result={}),
+        )
+        ggbases_info, bangumi_info, brand_extra_info = results[0], results[1], results[2]
+
+        if brand_extra_info and detail.get("品牌页链接"):
+            context["brand_extra_info_cache"][detail.get("品牌页链接")] = brand_extra_info
+
+        logger.success("所有信息获取完毕！")
+
+        # 6. 处理品牌信息
+        brand_id = await handle_brand_info(
+            source=source,
+            dlsite_client=context["dlsite"],
+            notion_client=context["notion"],
+            brand_name=detail.get("品牌"),
+            brand_page_url=detail.get("品牌页链接"),
+            cache=context["brand_extra_info_cache"],
+            bangumi_client=context["bangumi"],
+            getchu_brand_page_url=getchu_brand_page_url,
+        )
+
+        # 7. 同步游戏到 Notion
+        created_page_id = await process_and_sync_game(
+            game=game,
+            detail=detail,
+            size=ggbases_info.get("容量"),
+            notion_client=context["notion"],
+            brand_id=brand_id,
+            ggbases_client=context["ggbases"],
+            user_keyword=original_keyword,
+            ggbases_detail_url=ggbases_url,
+            ggbases_info=ggbases_info,
+            bangumi_info=bangumi_info,
+            source=source,
+            selected_similar_page_id=page_id,
+        )
+
+        # 8. 如果成功，同步 Bangumi 角色信息
+        if created_page_id and bangumi_id:
+            await context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)
+
+        logger.success(f"游戏 '{game['title']}' 处理流程完成！\n")
+
+    except Exception as e:
+        # 使用 exc_info=True 来自动记录完整的异常堆栈信息
+        logger.error(f"处理流程出现严重错误: {e}", exc_info=True)
+
+    return True
+
+
+async def main():
+    """主函数"""
+    context = await init_context()
     try:
         while True:
-            prompt_text = "\n请输入游戏关键词（日文，可加 -m 手动选择），或直接回车退出："
-            keyword_raw = input(prompt_text).strip()
-            if not keyword_raw:
+            should_continue = await run_single_game_flow(context)
+            if not should_continue:
                 break
-
-            interactive_mode = keyword_raw.endswith("-m")
-            keyword = keyword_raw[:-2].strip() if interactive_mode else keyword_raw
-
-            logger.info(f"正在处理关键词: {keyword}")
-            main_keyword = extract_main_keyword(keyword)
-            logger.info(f"提取主关键词: {main_keyword}")
-
-            # --- Step 1: Select Game, with cancel option ---
-            selected_game, source = select_game(dlsite, getchu, main_keyword, keyword)
-
-            if source == "cancel":
-                logger.warn("操作已取消，请输入下一个关键词。")
-                print("-" * 40)
-                continue
-
-            if not selected_game:
-                logger.error("未找到游戏，请重试。")
-                continue
-
-            selected_game["source"] = source
-            logger.success(f"选中游戏: {selected_game.get('title')} (来源: {source})")
-
-            # --- Step 2: Get basic info and check for duplicates immediately ---
-            logger.step("(Phase 1) 正在获取基础信息以供查重...")
-
-            detail = {}
-            if source == "dlsite":
-                detail = dlsite.get_game_detail(selected_game["url"])
-                logger.success(f"[Dlsite] (requests)抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')}")
-            else:
-                detail = getchu.get_game_detail(selected_game["url"])
-                detail.update(
-                    {
-                        "标题": selected_game.get("title"),
-                        "品牌": detail.get("品牌") or selected_game.get("品牌"),
-                        "链接": selected_game.get("url"),
-                    }
-                )
-                logger.success(f"[Getchu] (requests)抓取成功: 品牌={detail.get('品牌')}, 发售日={detail.get('发售日')}")
-
-            proceed, cached_titles, action, existing_page_id = check_existing_similar_games(
-                notion, detail.get("标题") or selected_game.get("title"), cached_titles=cached_titles
-            )
-            if not proceed or action == "skip":
-                print("-" * 40)
-                continue
-
-            # --- Step 3: Concurrently fetch all supplementary info ---
-            logger.step("(Phase 2) 确认操作，正在并发获取补充信息...")
-
-            results = {
-                "bangumi_info": {},
-                "ggbases_info": {},
-                "subject_id": None,
-                "ggbases_detail_url": None,
-            }
-
-            def task_bangumi(keyword_for_search, results_dict):
-                try:
-                    subject_id = bangumi.search_and_select_bangumi_id(keyword_for_search.replace("-m", "").strip())
-                    if subject_id:
-                        results_dict["subject_id"] = subject_id
-                        results_dict["bangumi_info"] = bangumi.fetch_game(subject_id)
-                        logger.success("[线程] Bangumi 游戏信息抓取成功")
-                except Exception as e:
-                    logger.warn(f"[线程] Bangumi 游戏信息抓取异常: {e}")
-
-            def task_ggbases(keyword_for_search, results_dict):
-                try:
-                    detail_url = ggbases.choose_or_parse_popular_url_with_requests(keyword_for_search)
-                    if detail_url:
-                        results_dict["ggbases_detail_url"] = detail_url
-                except Exception as e:
-                    logger.warn(f"[线程] GGBases 搜索异常: {e}")
-
-            threads = []
-            bangumi_thread = threading.Thread(target=task_bangumi, args=(keyword_raw, results))
-            threads.append(bangumi_thread)
-            bangumi_thread.start()
-
-            ggbases_thread = threading.Thread(target=task_ggbases, args=(keyword, results))
-            threads.append(ggbases_thread)
-            ggbases_thread.start()
-
-            for thread in threads:
-                thread.join()
-
-            # --- On-demand Selenium tasks ---
-            logger.step("(Phase 2.5) 检查是否需要启动Selenium...")
-            ggbases_info = {}
-
-            need_selenium = False
-            brand_page_url = detail.get("品牌页链接")
-            if results["ggbases_detail_url"]:
-                need_selenium = True
-            if source == "dlsite" and brand_page_url and brand_page_url not in brand_extra_info_cache:
-                need_selenium = True
-
-            if need_selenium:
-                if driver is None:
-                    logger.system("检测到需要Selenium，正在创建浏览器驱动...")
-                    driver = create_driver()
-                    dlsite.set_driver(driver)
-                    ggbases.set_driver(driver)
-
-                if results["ggbases_detail_url"]:
-                    ggbases_info = ggbases.get_info_by_url_with_selenium(results["ggbases_detail_url"])
-
-                if source == "dlsite" and brand_page_url and brand_page_url not in brand_extra_info_cache:
-                    brand_extra_info = dlsite.get_brand_extra_info_with_selenium(brand_page_url)
-                    if brand_extra_info.get("官网"):
-                        brand_extra_info_cache[brand_page_url] = brand_extra_info
-
-            # --- Step 4: Consolidate and Sync to Notion ---
-            logger.step("(Phase 3) 整合所有信息并同步到Notion...")
-            game_size = detail.get("容量") or ggbases_info.get("容量")
-            logger.info(f"容量信息: {game_size or '未找到'}")
-
-            brand_id = handle_brand_info(
-                source=source,
-                dlsite_client=dlsite,
-                notion_client=notion,
-                brand_name=detail.get("品牌"),
-                brand_page_url=detail.get("品牌页链接") if source == "dlsite" else None,
-                cache=brand_extra_info_cache,
-                bangumi_client=bangumi,
-                getchu_client=getchu,
-                getchu_brand_page_url=detail.get("品牌官网") if source == "getchu" else None,
-            )
-            logger.success(f"品牌信息同步完成，品牌ID: {brand_id}")
-
-            bangumi_game_info = results.get("bangumi_info", {})
-            notion_game_title = (
-                bangumi_game_info.get("title") or bangumi_game_info.get("title_cn") or selected_game.get("title")
-            )
-            selected_game["notion_title"] = notion_game_title
-
-            page_id = process_and_sync_game(
-                selected_game,
-                detail,
-                game_size,
-                notion,
-                brand_id,
-                ggbases,
-                keyword,
-                interactive=interactive_mode,
-                ggbases_detail_url=results.get("ggbases_detail_url"),
-                ggbases_info=ggbases_info,
-                bangumi_info=bangumi_game_info,
-                source=source,
-                selected_similar_page_id=(existing_page_id if action == "update" else None),
-            )
-
-            if page_id and action == "create":
-                cached_titles.append(
-                    {"title": selected_game.get("title"), "id": page_id, "url": selected_game.get("url")}
-                )
-                save_cache(cached_titles)
-
-            subject_id_final = results.get("subject_id")
-            if subject_id_final:
-                try:
-                    game_page_id = existing_page_id if action == "update" else page_id
-                    if not game_page_id:
-                        search_results = notion.search_game(notion_game_title)
-                        if search_results:
-                            game_page_id = search_results[0].get("id")
-
-                    if game_page_id:
-                        logger.info("抓取Bangumi角色数据...")
-                        bangumi.create_or_link_characters(game_page_id, subject_id_final)
-                    else:
-                        logger.warn("未能确定游戏页面ID，跳过角色同步")
-                except Exception as e:
-                    logger.warn(f"Bangumi角色补全异常: {e}")
-
-            logger.success(f"同步完成: {notion_game_title} {'(已覆盖更新)' if action == 'update' else '🎉'}")
-            print("-" * 40)
-            time.sleep(1)
-
-    except KeyboardInterrupt:
-        print("\n👋 用户中断，程序退出")
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        logger.warn("\n接收到中断信号，正在退出...")
     finally:
-        if driver:
-            logger.system("正在关闭浏览器驱动...")
-            driver.quit()
-        save_cache(cached_titles)
-        brand_cache.save_cache(brand_extra_info_cache)
-        logger.system("缓存和驱动已清理。程序结束。")
+        logger.system("正在清理资源...")
+        await close_context(context)
+        context["brand_cache"].save_cache(context["brand_extra_info_cache"])
+        logger.system("程序已安全退出。")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("程序被强制退出。")

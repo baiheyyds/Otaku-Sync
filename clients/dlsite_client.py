@@ -88,6 +88,7 @@ class DlsiteClient:
                 "動画",
                 "CG・イラスト",
                 "単話",
+                "WEBTOON",
             ]
             filtered_results = [
                 item

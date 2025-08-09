@@ -26,11 +26,13 @@ class GGBasesClient:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
             }
         )
-        self.driver = None
+        self.driver = None  # 将持有专属的 driver
         self.selenium_timeout = 5
 
     def set_driver(self, driver):
+        """外部注入专属的driver实例"""
         self.driver = driver
+        # 对专属 driver 进行一次性伪装
         stealth(
             self.driver,
             languages=["zh-CN", "zh"],
@@ -41,23 +43,18 @@ class GGBasesClient:
             fix_hairline=True,
         )
 
-    # --- 核心改动：方法名改回原来的，但功能是返回列表 ---
-    async def choose_or_parse_popular_url_with_requests(self, keyword: str) -> list:
-        """
-        此方法不再自动选择，而是搜索并返回所有候选结果的列表。
-        """
-        logger.info(f"[GGBases] 正在搜索: {keyword}")
+    # ... choose_or_parse_popular_url_with_requests 方法无变化 ...
+    async def choose_or_parse_popular_url_with_requests(self, keyword):
+        logger.info(f"[GGBases] 正在通过 requests 搜索: {keyword}")
         try:
             encoded = urllib.parse.quote(keyword)
             search_url = f"{self.BASE_URL}/search.so?p=0&title={encoded}&advanced="
             resp = await self.client.get(search_url, timeout=15)
             resp.raise_for_status()
-
             soup = BeautifulSoup(resp.text, "lxml")
             rows = soup.find_all("tr", class_="dtr")
             candidates = []
-
-            for row in rows[:15]:
+            for row in rows[:10]:
                 detail_link = row.find("a", href=lambda x: x and "/view.so?id=" in x)
                 if not detail_link:
                     continue
@@ -72,20 +69,20 @@ class GGBasesClient:
                 if pop_a and pop_a.get_text(strip=True).isdigit():
                     popularity = int(pop_a.get_text(strip=True))
                 candidates.append({"title": title, "url": url, "popularity": popularity})
-
             if not candidates:
-                logger.warn("[GGBases] 未找到任何结果")
-                return []
-
-            logger.success(f"[GGBases] 搜索到 {len(candidates)} 个候选结果")
-            return candidates
-
+                logger.warn("[GGBases] (requests) 没有找到有效结果")
+                return None
+            best = max(candidates, key=lambda x: x["popularity"])
+            logger.success(
+                f"[GGBases] (requests) 自动选择热度最高结果: {best['title']} ({best['popularity']})"
+            )
+            return best["url"]
         except httpx.RequestError as e:
             logger.error(f"[GGBases] (requests) 搜索请求失败: {e}")
-            return []
+            return None
         except Exception as e:
             logger.error(f"[GGBases] (requests) 解析搜索结果失败: {e}")
-            return []
+            return None
 
     async def get_info_by_url_with_selenium(self, detail_url):
         if not self.driver:
@@ -117,6 +114,7 @@ class GGBasesClient:
 
         return await asyncio.to_thread(_blocking_task)
 
+    # ... _normalize_url, _extract_game_size, _extract_cover_url, _extract_tags 方法无变化 ...
     def _normalize_url(self, src):
         if not src or src.startswith("data:"):
             return None

@@ -1,7 +1,6 @@
 # main.py
 import asyncio
 import sys
-import traceback  # <--- 新增导入
 
 from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
@@ -11,53 +10,15 @@ from utils import logger
 from utils.similarity_check import check_existing_similar_games
 
 
-async def _select_ggbases_game_interactively(candidates: list) -> str | None:
-    print("\n🔍 GGBases 找到以下结果，请手动选择:")
-    sorted_candidates = sorted(candidates, key=lambda x: x["popularity"], reverse=True)
-    for idx, item in enumerate(sorted_candidates):
-        print(f"  [{idx}] 🎮 {item['title']} (热度: {item['popularity']})")
-
-    print("  [c] 取消选择")
-
-    def _get_input():
-        prompt = "请输入序号选择 (默认0)，或输入'c'取消本次操作: "
-        return input(prompt).strip().lower()
-
-    while True:
-        choice = await asyncio.to_thread(_get_input)
-        if choice == "c":
-            return None
-        try:
-            selected_idx = int(choice or 0)
-            if 0 <= selected_idx < len(sorted_candidates):
-                return sorted_candidates[selected_idx]["url"]
-            else:
-                logger.error("序号超出范围，请重试。")
-        except (ValueError, IndexError):
-            logger.error("无效输入，请输入数字或'c'。")
-
-
 async def run_single_game_flow(context: dict):
+    """处理单个游戏从搜索到入库的完整流程"""
     try:
-        raw_input = await asyncio.to_thread(
-            input, "\n💡 请输入游戏关键词 (追加 -m 进入手动模式，q 退出): "
+        original_keyword = await asyncio.to_thread(
+            input, "\n💡 请输入要搜索的游戏关键词 (或输入 'q' 退出): "
         )
-        raw_input = raw_input.strip()
-
-        if not raw_input or raw_input.lower() == "q":
+        original_keyword = original_keyword.strip()
+        if not original_keyword or original_keyword.lower() == "q":
             return False
-
-        manual_mode = False
-        if raw_input.endswith(" -m"):
-            manual_mode = True
-            original_keyword = raw_input[:-3].strip()
-            logger.system(f"已为 '{original_keyword}' 启动单次手动模式。")
-        else:
-            original_keyword = raw_input
-
-        if not original_keyword:
-            logger.warn("请输入有效的游戏关键词。")
-            return True
 
         game, source = await select_game(
             context["dlsite"], context["getchu"], original_keyword, original_keyword
@@ -75,28 +36,20 @@ async def run_single_game_flow(context: dict):
         if not should_continue:
             return True
 
-        ggbases_candidates = await context["ggbases"].choose_or_parse_popular_url_with_requests(
-            game["title"]
-        )
-        ggbases_url = None
-        if ggbases_candidates:
-            if manual_mode:
-                ggbases_url = await _select_ggbases_game_interactively(ggbases_candidates)
-                if not ggbases_url:
-                    logger.info("已取消GGBases选择。")
-            else:
-                best = max(ggbases_candidates, key=lambda x: x["popularity"])
-                ggbases_url = best["url"]
-                logger.success(f"[GGBases] 自动选择热度最高结果: {best['title']}")
-        else:
-            logger.warn("[GGBases] 未找到任何结果。")
+        # --- 此处不再需要任何 driver 初始化逻辑 ---
 
         logger.info("正在并发获取 Dlsite, GGBases, Bangumi 的详细信息...")
         detail_task = context[source].get_game_detail(game["url"])
+        ggbases_url_task = context["ggbases"].choose_or_parse_popular_url_with_requests(
+            game["title"]
+        )
         bangumi_id_task = context["bangumi"].search_and_select_bangumi_id(game["title"])
 
-        detail, bangumi_id = await asyncio.gather(detail_task, bangumi_id_task)
+        detail, ggbases_url, bangumi_id = await asyncio.gather(
+            detail_task, ggbases_url_task, bangumi_id_task
+        )
 
+        # 准备并发执行所有可能需要 Selenium 的任务
         selenium_tasks = []
         if ggbases_url:
             selenium_tasks.append(context["ggbases"].get_info_by_url_with_selenium(ggbases_url))
@@ -109,26 +62,23 @@ async def run_single_game_flow(context: dict):
         elif source == "dlsite" and brand_page_url:
             logger.info(f"检测到商业品牌页({brand_page_url.split('/')[-2]})，跳过Selenium抓取。")
 
+        # 并发执行所有非 Selenium 任务和已准备好的 Selenium 任务
         other_tasks = [
             context["bangumi"].fetch_game(bangumi_id) if bangumi_id else asyncio.sleep(0, result={})
         ]
 
         all_tasks = selenium_tasks + other_tasks
-        results = await asyncio.gather(*all_tasks, return_exceptions=True)
+        results = await asyncio.gather(*all_tasks)
 
-        ggbases_info, brand_extra_info, bangumi_info = {}, {}, {}
-        result_idx = 0
+        # 解析结果
+        ggbases_info = {}
+        brand_extra_info = {}
         if ggbases_url:
-            ggbases_info = (
-                results[result_idx] if not isinstance(results[result_idx], Exception) else {}
-            )
-            result_idx += 1
+            ggbases_info = results.pop(0)
         if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
-            brand_extra_info = (
-                results[result_idx] if not isinstance(results[result_idx], Exception) else {}
-            )
-            result_idx += 1
-        bangumi_info = results[result_idx] if not isinstance(results[result_idx], Exception) else {}
+            brand_extra_info = results.pop(0)
+
+        bangumi_info = results.pop(0)
 
         if brand_extra_info and detail.get("品牌页链接"):
             context["brand_extra_info_cache"][detail.get("品牌页链接")] = brand_extra_info
@@ -163,15 +113,12 @@ async def run_single_game_flow(context: dict):
 
         if created_page_id and bangumi_id:
             await context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)
+
         logger.success(f"游戏 '{game['title']}' 处理流程完成！\n")
 
     except Exception as e:
-        # --- 核心改动：手动格式化并打印 traceback ---
-        logger.error(f"处理流程出现严重错误: {e}")
-        # 使用 traceback 模块来打印完整的错误堆栈信息
-        traceback_str = traceback.format_exc()
-        print(f"\n{Colors.FAIL}{traceback_str}{Colors.ENDC}")
-        # --- 核心改动结束 ---
+        logger.error(f"处理流程出现严重错误: {e}", exc_info=True)
+
     return True
 
 
@@ -193,9 +140,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    # 在 main.py 的开头，需要从 logger.py 引入 Colors
-    from utils.logger import Colors
-
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

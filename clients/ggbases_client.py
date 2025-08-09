@@ -1,5 +1,4 @@
 # clients/ggbases_client.py
-# 该模块用于与 GGBases 网站交互，获取游戏信息和标签
 import asyncio
 import os
 import urllib.parse
@@ -21,17 +20,30 @@ class GGBasesClient:
     BASE_URL = "https://ggbases.dlgal.com"
 
     def __init__(self, client: httpx.AsyncClient):
-        self.driver = None
         self.client = client
         self.client.headers.update(
             {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
             }
         )
+        self.driver = None  # 将持有专属的 driver
+        self.selenium_timeout = 5
 
     def set_driver(self, driver):
+        """外部注入专属的driver实例"""
         self.driver = driver
+        # 对专属 driver 进行一次性伪装
+        stealth(
+            self.driver,
+            languages=["zh-CN", "zh"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True,
+        )
 
+    # ... choose_or_parse_popular_url_with_requests 方法无变化 ...
     async def choose_or_parse_popular_url_with_requests(self, keyword):
         logger.info(f"[GGBases] 正在通过 requests 搜索: {keyword}")
         try:
@@ -39,11 +51,9 @@ class GGBasesClient:
             search_url = f"{self.BASE_URL}/search.so?p=0&title={encoded}&advanced="
             resp = await self.client.get(search_url, timeout=15)
             resp.raise_for_status()
-
             soup = BeautifulSoup(resp.text, "lxml")
             rows = soup.find_all("tr", class_="dtr")
             candidates = []
-
             for row in rows[:10]:
                 detail_link = row.find("a", href=lambda x: x and "/view.so?id=" in x)
                 if not detail_link:
@@ -59,17 +69,14 @@ class GGBasesClient:
                 if pop_a and pop_a.get_text(strip=True).isdigit():
                     popularity = int(pop_a.get_text(strip=True))
                 candidates.append({"title": title, "url": url, "popularity": popularity})
-
             if not candidates:
                 logger.warn("[GGBases] (requests) 没有找到有效结果")
                 return None
-
             best = max(candidates, key=lambda x: x["popularity"])
             logger.success(
                 f"[GGBases] (requests) 自动选择热度最高结果: {best['title']} ({best['popularity']})"
             )
             return best["url"]
-
         except httpx.RequestError as e:
             logger.error(f"[GGBases] (requests) 搜索请求失败: {e}")
             return None
@@ -79,26 +86,16 @@ class GGBasesClient:
 
     async def get_info_by_url_with_selenium(self, detail_url):
         if not self.driver:
-            raise RuntimeError("GGBasesClient的Selenium driver未设置，无法执行JS渲染抓取。")
+            raise RuntimeError("GGBasesClient的专属driver未设置。")
         if not detail_url:
             return {}
-
         logger.info(f"[GGBases] 正在用Selenium抓取详情页: {detail_url}")
 
         def _blocking_task():
-            stealth(
-                self.driver,
-                languages=["zh-CN", "zh"],  # <--- 核心修正：将伪装的语言改回中文
-                vendor="Google Inc.",
-                platform="Win32",
-                webgl_vendor="Intel Inc.",
-                renderer="Intel Iris OpenGL Engine",
-                fix_hairline=True,
-            )
-
             try:
                 self.driver.get(detail_url)
-                WebDriverWait(self.driver, 15).until(
+                wait = WebDriverWait(self.driver, self.selenium_timeout)
+                wait.until(
                     EC.presence_of_element_located(
                         (By.CSS_SELECTOR, 'a[href*="tags.so?target=female"]')
                     )
@@ -117,6 +114,7 @@ class GGBasesClient:
 
         return await asyncio.to_thread(_blocking_task)
 
+    # ... _normalize_url, _extract_game_size, _extract_cover_url, _extract_tags 方法无变化 ...
     def _normalize_url(self, src):
         if not src or src.startswith("data:"):
             return None

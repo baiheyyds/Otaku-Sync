@@ -5,7 +5,7 @@ import re
 from urllib.parse import quote, urljoin
 
 import httpx
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from utils import logger
 
@@ -16,8 +16,8 @@ class GetchuClient:
 
     def __init__(self, client: httpx.AsyncClient):
         self.client = client
-        self.client.headers.update(self._get_headers())
-        self.client.cookies.set(name="getchu_adalt_flag", value="getchu.com", domain=".getchu.com")
+        self.headers = self._get_headers()
+        self.cookies = {"getchu_adalt_flag": "getchu.com"}
 
     def _get_headers(self):
         return {
@@ -37,18 +37,20 @@ class GetchuClient:
             encoded_keyword = quote(safe_keyword.encode("shift_jis", errors="ignore"))
             url = f"{self.SEARCH_URL}?genre=all&search_keyword={encoded_keyword}&check_key_dtl=1&submit="
 
-            resp = await self.client.get(url, timeout=10)
+            resp = await self.client.get(
+                url, timeout=10, headers=self.headers, cookies=self.cookies
+            )
             resp.raise_for_status()
 
-            # Getchu 使用 EUC-JP 编码
             html_text = resp.content.decode("euc_jp", errors="ignore")
             soup = BeautifulSoup(html_text, "html.parser")
 
             result_ul = soup.find("ul", class_="display")
-            if not result_ul:
+
+            if not result_ul or not isinstance(result_ul, Tag):
+                logger.warn("[Getchu] 未找到搜索结果列表或页面结构异常。")
                 return []
 
-            # --- 解析逻辑不变 ---
             items = []
             for li in result_ul.find_all("li"):
                 block = li.select_one("#detail_block")
@@ -59,9 +61,12 @@ class GetchuClient:
                 if not title_tag:
                     continue
 
-                item_type = (block.select_one("span.orangeb") or {}).get_text(strip=True) or "未知"
+                item_type_tag = block.select_one("span.orangeb")
+                item_type = item_type_tag.get_text(strip=True) if item_type_tag else "未知"
 
-                price_text = (block.select_one(".redb") or {}).get_text(strip=True)
+                price_tag = block.select_one(".redb")
+                price_text = price_tag.get_text(strip=True) if price_tag else ""
+
                 if not price_text:
                     for p in block.find_all("p", string=re.compile("定価")):
                         match = re.search(r"定価[:：]?\s*([^\s<（]+)", p.get_text())
@@ -102,7 +107,9 @@ class GetchuClient:
 
     async def get_game_detail(self, url):
         try:
-            resp = await self.client.get(url, timeout=15)
+            resp = await self.client.get(
+                url, timeout=15, headers=self.headers, cookies=self.cookies
+            )
             resp.raise_for_status()
             html_text = resp.content.decode("euc_jp", errors="ignore")
             soup = BeautifulSoup(html_text, "html.parser")
@@ -112,15 +119,53 @@ class GetchuClient:
                 return {}
 
             info_table = soup.find("table", id="soft_table")
-
-            # --- 解析逻辑不变 ---
-            def extract_info(keyword):
+            if not info_table:
+                alt_table = soup.find("td", text=re.compile("ブランド"))
+                if alt_table:
+                    info_table = alt_table.find_parent("table")
                 if not info_table:
-                    return None
-                header = info_table.find("td", class_="right", string=re.compile(keyword))
-                if header and header.find_next_sibling("td"):
-                    return header.find_next_sibling("td").get_text("、", strip=True)
+                    logger.error("[Getchu] 未找到关键信息表格。")
+                    return {}
+
+            # --- 核心改动：移除对 class="right" 的依赖 ---
+
+            def find_row_by_header(header_text: str) -> Tag | None:
+                """根据表头文本查找并返回整行(tr)"""
+                regex = re.compile(f"^{header_text}[：:]?\\s*$")
+                # 不再需要 class_="right"，只根据文本内容查找
+                header_td = info_table.find("td", string=regex)
+                if header_td:
+                    return header_td.find_parent("tr")
                 return None
+
+            brand, brand_site = None, None
+            brand_row = find_row_by_header("ブランド")
+            if brand_row and (value_td := brand_row.find_all("td")[-1]):
+                a_tag = value_td.find("a", id="brandsite")
+                if a_tag:
+                    brand = a_tag.get_text(strip=True)
+                    brand_site = a_tag.get("href")
+
+            price = None
+            price_row = find_row_by_header("定価")
+            if price_row and (value_td := price_row.find_all("td")[-1]):
+                full_price_text = value_td.get_text(strip=True)
+                price = full_price_text.split("(")[0].strip()
+
+            release_date = None
+            date_row = find_row_by_header("発売日")
+            if date_row and (value_td := date_row.find_all("td")[-1]):
+                release_date = value_td.get_text(strip=True)
+
+            def extract_multi_values(header_text: str) -> list[str]:
+                """提取一个字段中的多个链接文本值"""
+                row = find_row_by_header(header_text)
+                if row and (value_td := row.find_all("td")[-1]):
+                    return [a.get_text(strip=True) for a in value_td.find_all("a")]
+                return []
+
+            illustrators = extract_multi_values("原画")
+            scenarists = extract_multi_values("シナリオ")
 
             cover_a = soup.select_one("a.highslide[href*='/graphics/']")
             raw_image_url = (
@@ -131,15 +176,6 @@ class GetchuClient:
                 if raw_image_url
                 else None
             )
-
-            brand, brand_site = None, None
-            brand_header = soup.find("td", class_="right", string=re.compile("ブランド"))
-            if brand_header and brand_header.find_next_sibling("td"):
-                brand_td = brand_header.find_next_sibling("td")
-                a_tag = brand_td.find("a")
-                if a_tag:
-                    brand = a_tag.get_text(strip=True)
-                    brand_site = a_tag.get("href")
 
             title_tag = soup.select_one("#soft-title")
             title = (
@@ -153,11 +189,11 @@ class GetchuClient:
                 "标题": title,
                 "品牌": brand,
                 "品牌官网": brand_site,
-                "发售日": extract_info("発売日"),
-                "价格": extract_info("定価"),
-                "原画": extract_info("原画"),
-                "剧本": extract_info("シナリオ"),
+                "发售日": release_date,
+                "价格": price,
+                "原画": illustrators,
+                "剧本": scenarists,
             }
         except Exception as e:
-            logger.error(f"[Getchu] (httpx)抓取详情失败: {e}")
+            logger.error(f"[Getchu] (httpx)抓取详情失败: {e}", exc_info=True)
             return {}

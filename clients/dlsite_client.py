@@ -11,6 +11,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium_stealth import stealth
 
 from utils import logger
+from utils.driver import create_driver
 from utils.tag_logger import append_new_tags
 
 TAG_JP_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_jp_to_cn.json")
@@ -26,13 +27,11 @@ class DlsiteClient:
             "Referer": "https://www.dlsite.com/maniax/",
             "Cookie": "adultchecked=1;",
         }
-        self.driver = None  # 将持有专属的 driver
+        self.driver = None
         self.selenium_timeout = 5
 
     def set_driver(self, driver):
-        """外部注入专属的driver实例"""
         self.driver = driver
-        # 对专属 driver 进行一次性伪装
         stealth(
             self.driver,
             languages=["ja-JP", "ja"],
@@ -43,8 +42,8 @@ class DlsiteClient:
             fix_hairline=True,
         )
 
-    # ... search 和 get_game_detail 方法无变化 ...
     async def search(self, keyword, limit=30):
+        # ... 此方法无变化 ...
         logger.info(f"[Dlsite] 正在搜索关键词: {keyword}")
         query = urllib.parse.quote_plus(keyword)
         url = f"{self.BASE_URL}/maniax/fsr/=/language/jp/sex_category%5B0%5D/male/keyword/{query}/work_category%5B0%5D/doujin/work_category%5B1%5D/books/work_category%5B2%5D/pc/work_category%5B3%5D/app/order%5B0%5D/trend/options_and_or/and/per_page/30/page/1/from/fs.header"
@@ -88,7 +87,6 @@ class DlsiteClient:
                 "動画",
                 "CG・イラスト",
                 "単話",
-                "WEBTOON",
             ]
             filtered_results = [
                 item
@@ -102,6 +100,7 @@ class DlsiteClient:
             return []
 
     async def get_game_detail(self, url):
+        # ... 此方法无变化 ...
         try:
             r = await self.client.get(url, timeout=15)
             r.raise_for_status()
@@ -182,24 +181,41 @@ class DlsiteClient:
         if not self.driver:
             raise RuntimeError("DlsiteClient的专属driver未设置。")
         if not brand_page_url:
-            return {"官网": None, "图标": None}
+            return {}
 
         def _blocking_task():
-            try:
-                self.driver.get(brand_page_url)
-                wait = WebDriverWait(self.driver, self.selenium_timeout)
-                link_block_element = wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
+            with create_driver() as driver:
+                stealth(
+                    driver,
+                    languages=["ja-JP", "ja"],
+                    vendor="Google Inc.",
+                    platform="Win32",
+                    webgl_vendor="Intel Inc.",
+                    renderer="Intel Iris OpenGL Engine",
+                    fix_hairline=True,
                 )
-                soup = BeautifulSoup(link_block_element.get_attribute("outerHTML"), "html.parser")
-                cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
-                icon_img_tag = soup.select_one(".creator_icon img[src]")
-                official_url = cien_link_tag["href"].strip() if cien_link_tag else None
-                icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
-                logger.success(f"[Dlsite] (Selenium)获取成功: 官网={official_url}, 图标={icon_url}")
-                return {"官网": official_url, "图标": icon_url}
-            except Exception as e:
-                logger.error(f"[Dlsite] (Selenium)抓取品牌信息失败 {brand_page_url}: {e}")
-                return {"官网": None, "图标": None}
+                try:
+                    driver.get(brand_page_url)
+                    wait = WebDriverWait(driver, self.selenium_timeout)
+                    link_block_element = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
+                    )
+                    soup = BeautifulSoup(
+                        link_block_element.get_attribute("outerHTML"), "html.parser"
+                    )
+                    cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
+                    icon_img_tag = soup.select_one(".creator_icon img[src]")
+
+                    # --- 核心改动：返回更具体的键名 ---
+                    cien_url = cien_link_tag["href"].strip() if cien_link_tag else None
+                    icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
+                    logger.success(
+                        f"[Dlsite] (Selenium)获取成功: Ci-en={cien_url}, 图标={icon_url}"
+                    )
+                    return {"ci_en_url": cien_url, "icon_url": icon_url}
+                    # --- 核心改动结束 ---
+                except Exception as e:
+                    logger.error(f"[Dlsite] (Selenium)抓取品牌信息失败 {brand_page_url}: {e}")
+                    return {}
 
         return await asyncio.to_thread(_blocking_task)

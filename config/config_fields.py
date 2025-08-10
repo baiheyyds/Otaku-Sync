@@ -5,7 +5,9 @@ FIELDS = {
     "game_name": "游戏名称",
     "game_alias": "游戏别名",
     "game_summary": "游戏简介",
-    "game_url": "官方网站",
+    "game_official_url": "游戏官网",  # <- 重命名
+    "dlsite_link": "DLsite链接",  # <- 新增
+    "getchu_link": "Getchu链接",  # <- 新增
     "game_size": "游戏大小",
     "release_date": "发售时间",
     "script": "剧本",
@@ -24,24 +26,23 @@ FIELDS = {
     "brand_name": "厂商名",
     "brand_official_url": "官网",
     "brand_icon": "图标",
-    "brand_name": "厂商名",  # ✅ title
-    "brand_alias": "别名",  # ✅ rich_text
-    "brand_summary": "简介",  # ✅ rich_text
-    "brand_cien": "Ci-en",  # ✅ url
-    "brand_twitter": "Twitter",  # ✅ url
-    "brand_birthday": "生日",  # ✅ rich_text
+    "brand_alias": "别名",
+    "brand_summary": "简介",
+    "brand_cien": "Ci-en",
+    "brand_twitter": "Twitter",
+    "brand_birthday": "生日",
     "brand_bangumi_url": "bangumi链接",
     "brand_company_address": "公司地址",
     # 以下为角色信息数据库字段
     "character_name": "角色名称",
-    "character_alias": "别名",  # 如 Fia 英文名等
+    "character_alias": "别名",
     "character_cv": "声优",
     "character_gender": "性别",
-    "character_avatar": "头像",  # 图片
-    "character_bwh": "BWH",  # 如果能提取（胸围/腰围/臀围）
-    "character_height": "身高",  # 新增 身高 字段
+    "character_avatar": "头像",
+    "character_bwh": "BWH",
+    "character_height": "身高",
     "character_summary": "简介",
-    "character_url": "详情页面",  # Bangumi角色页面链接
-    "character_birthday": "生日",  # rich_text
-    "character_blood_type": "血型",  # select
+    "character_url": "详情页面",
+    "character_birthday": "生日",
+    "character_blood_type": "血型",
 }

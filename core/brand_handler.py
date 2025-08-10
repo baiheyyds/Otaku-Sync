@@ -28,13 +28,11 @@ async def handle_brand_info(
         logger.warn("品牌名为空，跳过品牌处理")
         return None
 
-    # 规范品牌名
     for canonical, aliases in brand_mapping.items():
         if brand_name == canonical or brand_name in aliases:
             brand_name = canonical
             break
 
-    # 并发获取 Bangumi 信息
     bangumi_info_task = (
         asyncio.create_task(bangumi_client.fetch_brand_info_from_bangumi(brand_name))
         if bangumi_client
@@ -51,41 +49,40 @@ async def handle_brand_info(
             logger.warn(f"[{brand_name}] Bangumi品牌信息抓取异常: {e}")
 
     extra = {}
-    if source == "dlsite":
-        if brand_page_url:
-            if brand_page_url in cache:
-                extra = cache[brand_page_url]
-                logger.cache(f"[{brand_name}] 使用品牌缓存（Dlsite）")
-            # Selenium操作已在main.py中前置处理，此处无需操作
-        else:
-            logger.warn(f"[{brand_name}] 品牌页链接为空，无法从 Dlsite 获取额外信息")
+    if brand_page_url and brand_page_url in cache:
+        extra = cache[brand_page_url]
+        logger.cache(f"[{brand_name}] 使用品牌缓存")
 
-    # --- 字段合并逻辑不变 ---
     def first_nonempty(*args):
         for v in args:
             if v:
                 return v
         return None
 
-    def combine_field(*fields):
-        return first_nonempty(*fields)
-
+    # --- 核心改动：分离官网和 Ci-en 的数据源 ---
     combined_info = {
-        "official_url": combine_field(
+        "official_url": first_nonempty(
             bangumi_info.get("homepage"),
-            getchu_brand_page_url,
-            extra.get("官网"),
+            getchu_brand_page_url,  # Getchu 的品牌链接是真正的官网
             brand_homepage,
         ),
-        "icon_url": combine_field(bangumi_info.get("icon"), extra.get("图标"), brand_icon),
-        "summary": combine_field(bangumi_info.get("summary"), extra.get("简介")),
+        "ci_en_url": first_nonempty(
+            extra.get("ci_en_url"),  # Dlsite 的链接现在只提供给 Ci-en
+        ),
+        "icon_url": first_nonempty(
+            bangumi_info.get("icon"),
+            extra.get("icon_url"),  # Dlsite 的图标可以继续使用
+            brand_icon,
+        ),
+        "summary": first_nonempty(bangumi_info.get("summary"), extra.get("简介")),
         "bangumi_url": bangumi_info.get("bangumi_url"),
-        "company_address": combine_field(
+        "company_address": first_nonempty(
             bangumi_info.get("company_address"), extra.get("公司地址")
         ),
-        "birthday": combine_field(bangumi_info.get("birthday"), extra.get("生日")),
-        "alias": combine_field(bangumi_info.get("alias"), extra.get("别名")),
-        "twitter": combine_field(bangumi_info.get("twitter"), extra.get("推特")),
+        "birthday": first_nonempty(bangumi_info.get("birthday"), extra.get("生日")),
+        "alias": first_nonempty(bangumi_info.get("alias"), extra.get("别名")),
+        "twitter": first_nonempty(bangumi_info.get("twitter"), extra.get("推特")),
     }
+    # --- 核心改动结束 ---
 
     return await notion_client.create_or_update_brand(brand_name, **combined_info)

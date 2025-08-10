@@ -21,7 +21,6 @@ async def process_and_sync_game(
     source=None,
     selected_similar_page_id=None,
 ):
-    # --- 辅助函数 split_to_list, split_work_types, choose_cover_url 不变 ---
     def split_to_list(text):
         if not text:
             return []
@@ -32,12 +31,12 @@ async def process_and_sync_game(
     def split_work_types(text):
         if not text:
             return []
+        text = str(text).replace("[", "").replace("]", "")
         if isinstance(text, list):
             return text
-        return [s.strip() for s in re.split(r"[、/・|｜,，\n]", text) if s.strip()]
+        return [s.strip() for s in re.split(r"[、/・|｜,，\n\.]", text) if s.strip()]
 
     source = (source or game.get("source", "unknown")).lower()
-
     ggbases_info = ggbases_info or {}
     bangumi_info = bangumi_info or {}
 
@@ -46,40 +45,57 @@ async def process_and_sync_game(
     ) -> str:
         cover_url = None
         if source_str == "dlsite":
-            cover_url = detail_dict.get("封面图链接") or detail_dict.get("封面图")
-            if not cover_url:
-                cover_url = ggbases_dict.get("封面图链接")
-            if not cover_url:
-                cover_url = bangumi_dict.get("封面图链接") or bangumi_dict.get("image")
+            cover_url = (
+                detail_dict.get("封面图链接")
+                or detail_dict.get("封面图")
+                or ggbases_dict.get("封面图链接")
+                or bangumi_dict.get("封面图链接")
+                or bangumi_dict.get("image")
+            )
         elif source_str == "getchu":
-            cover_url = bangumi_dict.get("封面图链接") or bangumi_dict.get("image")
-            if not cover_url:
-                cover_url = ggbases_dict.get("封面图链接")
-            if not cover_url:
-                cover_url = detail_dict.get("封面图链接") or detail_dict.get("封面图")
+            cover_url = (
+                bangumi_dict.get("封面图链接")
+                or bangumi_dict.get("image")
+                or ggbases_dict.get("封面图链接")
+                or detail_dict.get("封面图链接")
+                or detail_dict.get("封面图")
+            )
             if cover_url and not cover_url.startswith("http"):
                 cover_url = "https://www.getchu.com" + cover_url
         else:
-            cover_url = bangumi_dict.get("封面图链接") or bangumi_dict.get("image")
-            if not cover_url:
-                cover_url = ggbases_dict.get("封面图链接")
-            if not cover_url:
-                cover_url = detail_dict.get("封面图链接") or detail_dict.get("封面图")
+            cover_url = (
+                bangumi_dict.get("封面图链接")
+                or bangumi_dict.get("image")
+                or ggbases_dict.get("封面图链接")
+                or detail_dict.get("封面图链接")
+                or detail_dict.get("封面图")
+            )
         return cover_url
 
-    # --- 标签和数据合并逻辑不变 ---
     dlsite_tags_raw = detail.get("标签", [])
     if not isinstance(dlsite_tags_raw, list):
         dlsite_tags_raw = [dlsite_tags_raw]
-
     ggbases_tags_raw = ggbases_info.get("标签", [])
     if not isinstance(ggbases_tags_raw, list):
         ggbases_tags_raw = [ggbases_tags_raw]
-
     mapped_dlsite_tags = map_and_translate_tags(dlsite_tags_raw, source="dlsite")
     mapped_ggbases_tags = map_and_translate_tags(ggbases_tags_raw, source="ggbase")
     mapped_tags = sorted(set(mapped_dlsite_tags + mapped_ggbases_tags))
     cover_url = choose_cover_url(source, detail, bangumi_info, ggbases_info)
+
+    # --- 核心改动：智能添加 Getchu 默认游戏类型 ---
+    # 1. 先从所有来源正常解析游戏类型
+    scraped_types_raw = detail.get("作品形式") or detail.get("ジャンル") or game.get("类型")
+    final_types = split_work_types(scraped_types_raw)
+
+    # 2. 如果来源是 Getchu，则添加默认类型
+    if source == "getchu":
+        default_getchu_types = ["ADV", "有声音", "有音乐"]
+        # 使用 set 合并并去重，然后转回有序列表
+        combined_set = set(final_types + default_getchu_types)
+        final_types = sorted(list(combined_set))
+        logger.info("[Getchu] 已自动添加默认游戏类型: ADV, 有声音, 有音乐")
+    # --- 核心改动结束 ---
 
     merged = {
         "title": (
@@ -89,17 +105,19 @@ async def process_and_sync_game(
             or game.get("title")
         ),
         "游戏别名": bangumi_info.get("title_cn") or "",
-        "url": game.get("url"),
+        "dlsite_link": game.get("url") if source == "dlsite" else None,
+        "getchu_link": game.get("url") if source == "getchu" else None,
+        "game_official_url": None,
+        "bangumi_url": bangumi_info.get("url"),
         "价格": game.get("价格") or game.get("price"),
         "品牌": detail.get("品牌"),
-        "链接": game.get("url"),
         "封面图链接": cover_url,
         "发售日": detail.get("发售日") or detail.get("発売日"),
         "剧本": split_to_list(detail.get("剧本") or detail.get("シナリオ")),
         "原画": split_to_list(detail.get("原画") or detail.get("原画家")),
         "声优": split_to_list(detail.get("声优") or detail.get("CV")),
         "音乐": split_to_list(detail.get("音乐") or detail.get("音楽")),
-        "作品形式": split_work_types(detail.get("作品形式") or detail.get("ジャンル")),
+        "作品形式": final_types,  # 使用我们最终处理好的类型列表
         "大小": size,
         "资源链接": ggbases_detail_url,
         "标签": mapped_tags,

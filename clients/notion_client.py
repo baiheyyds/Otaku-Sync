@@ -5,10 +5,10 @@ import re
 import time
 from datetime import datetime
 
-import httpx  # 替换 requests
+import httpx
 
 from config.config_fields import FIELDS
-from utils import logger  # 引入日志工具
+from utils import logger
 from utils.utils import convert_date_jp_to_iso
 
 
@@ -51,6 +51,7 @@ class NotionClient:
         logger.error("⛔ 最终重试失败，跳过该请求")
         return None
 
+    # ... get_page_title, search_game, check_page_exists, search_brand, get_all_game_titles 无变化 ...
     def get_page_title(self, page):
         try:
             if "properties" not in page:
@@ -82,12 +83,7 @@ class NotionClient:
 
     async def search_brand(self, brand_name):
         url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"
-        payload = {
-            "filter": {
-                "property": FIELDS["brand_name"],
-                "title": {"equals": brand_name},
-            }
-        }
+        payload = {"filter": {"property": FIELDS["brand_name"], "title": {"equals": brand_name}}}
         resp = await self._request("POST", url, payload)
         return resp.get("results", []) if resp else []
 
@@ -119,21 +115,26 @@ class NotionClient:
             existing = await self.search_game(title)
             page_id = existing[0]["id"] if existing else None
 
-        props = {
-            FIELDS["game_name"]: {"title": [{"text": {"content": title}}]},
-            FIELDS["game_url"]: {"url": info.get("url")},
-        }
+        props = {FIELDS["game_name"]: {"title": [{"text": {"content": title}}]}}
 
-        # ... (property building logic is unchanged) ...
+        # --- 核心改动：支持写入新字段 ---
+        if info.get("game_official_url"):
+            props[FIELDS["game_official_url"]] = {"url": info["game_official_url"]}
+        if info.get("dlsite_link"):
+            props[FIELDS["dlsite_link"]] = {"url": info["dlsite_link"]}
+        if info.get("getchu_link"):
+            props[FIELDS["getchu_link"]] = {"url": info["getchu_link"]}
+        if info.get("bangumi_url"):
+            props[FIELDS["bangumi_url"]] = {"url": info["bangumi_url"]}
+        # --- 核心改动结束 ---
+
         if info.get("游戏别名"):
             props[FIELDS["game_alias"]] = {"rich_text": [{"text": {"content": info["游戏别名"]}}]}
         if info.get("大小"):
             props[FIELDS["game_size"]] = {"rich_text": [{"text": {"content": info["大小"]}}]}
-
         iso_date = convert_date_jp_to_iso(info.get("发售日"))
         if iso_date:
             props[FIELDS["release_date"]] = {"date": {"start": iso_date}}
-
         for key, field_key in [
             ("剧本", "script"),
             ("原画", "illustrator"),
@@ -151,7 +152,6 @@ class NotionClient:
             props[FIELDS["tags"]] = {
                 "multi_select": [{"name": t} for t in info["标签"] if t.strip()]
             }
-
         price_raw = info.get("价格")
         if price_raw and price_raw != "无":
             try:
@@ -203,14 +203,20 @@ class NotionClient:
         birthday=None,
         alias=None,
         twitter=None,
+        ci_en_url=None,  # <- 新增参数
     ):
         existing = await self.search_brand(brand_name)
         page_id = existing[0]["id"] if existing else None
 
         props = {FIELDS["brand_name"]: {"title": [{"text": {"content": brand_name}}]}}
-        # ... (property building logic is unchanged) ...
+
+        # --- 核心改动：支持写入 Ci-en 字段 ---
         if official_url:
             props[FIELDS["brand_official_url"]] = {"url": official_url}
+        if ci_en_url:
+            props[FIELDS["brand_cien"]] = {"url": ci_en_url}
+        # --- 核心改动结束 ---
+
         if icon_url:
             props[FIELDS["brand_icon"]] = {
                 "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]

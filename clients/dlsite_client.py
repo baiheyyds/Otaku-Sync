@@ -184,38 +184,27 @@ class DlsiteClient:
             return {}
 
         def _blocking_task():
-            with create_driver() as driver:
-                stealth(
-                    driver,
-                    languages=["ja-JP", "ja"],
-                    vendor="Google Inc.",
-                    platform="Win32",
-                    webgl_vendor="Intel Inc.",
-                    renderer="Intel Iris OpenGL Engine",
-                    fix_hairline=True,
+            try:
+                # 直接使用 self.driver，不再创建新的
+                self.driver.get(brand_page_url) 
+                wait = WebDriverWait(self.driver, self.selenium_timeout)
+                link_block_element = wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
                 )
-                try:
-                    driver.get(brand_page_url)
-                    wait = WebDriverWait(driver, self.selenium_timeout)
-                    link_block_element = wait.until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
-                    )
-                    soup = BeautifulSoup(
-                        link_block_element.get_attribute("outerHTML"), "html.parser"
-                    )
-                    cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
-                    icon_img_tag = soup.select_one(".creator_icon img[src]")
+                soup = BeautifulSoup(
+                    link_block_element.get_attribute("outerHTML"), "html.parser"
+                )
+                cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
+                icon_img_tag = soup.select_one(".creator_icon img[src]")
 
-                    # --- 核心改动：返回更具体的键名 ---
-                    cien_url = cien_link_tag["href"].strip() if cien_link_tag else None
-                    icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
-                    logger.success(
-                        f"[Dlsite] (Selenium)获取成功: Ci-en={cien_url}, 图标={icon_url}"
-                    )
-                    return {"ci_en_url": cien_url, "icon_url": icon_url}
-                    # --- 核心改动结束 ---
-                except Exception as e:
-                    logger.error(f"[Dlsite] (Selenium)抓取品牌信息失败 {brand_page_url}: {e}")
-                    return {}
+                cien_url = cien_link_tag["href"].strip() if cien_link_tag else None
+                icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
+                logger.success(
+                    f"[Dlsite] (Selenium)获取成功: Ci-en={cien_url}, 图标={icon_url}"
+                )
+                return {"ci_en_url": cien_url, "icon_url": icon_url}
+            except Exception as e:
+                logger.error(f"[Dlsite] (Selenium)抓取品牌信息失败 {brand_page_url}: {e}")
+                return {}
 
         return await asyncio.to_thread(_blocking_task)

@@ -132,27 +132,65 @@ class BangumiMappingManager:
     async def handle_new_key(
         self, bangumi_key: str, notion_client, schema_manager, target_db_id: str
     ) -> str | None:
+        # --- 新增：判断数据库名称，用于提示 ---
+        db_name = "角色数据库" if target_db_id == CHARACTER_DB_ID else "厂商数据库"
+
         def _get_action_input():
+            # 获取可用的属性列表
+            mappable_props = schema_manager.get_mappable_properties(target_db_id)
+
             prompt = (
-                f"\n❓ [Bangumi] 发现新的infobox属性: '{bangumi_key}'\n"
-                f"   [y] 创建同名新属性 (默认)\n"
-                f"   [n] 本次运行中忽略\n"
-                f"   或输入一个【自定义的/已存在的】Notion属性名来映射\n"
-                f"请输入您的选择: "
+                f"\n❓ [Bangumi] 在【{db_name}】中发现新属性: '{bangumi_key}'\n"
+                f"   请选择如何处理:\n\n"
+                f"   --- 映射到现有 Notion 属性 ---\n"
             )
-            return input(prompt).strip()
 
-        action = await asyncio.to_thread(_get_action_input)
+            prop_map = {}
+            for i, prop_name in enumerate(mappable_props, 1):
+                prompt += f"     [{i}] {prop_name}\n"
+                prop_map[str(i)] = prop_name
 
-        if action.lower() == "n":
+            prompt += (
+                f"\n   --- 或执行其他操作 ---\n"
+                f"     [y] 在 Notion 中创建同名新属性 '{bangumi_key}' (默认)\n"
+                f"     [n] 本次运行中忽略此属性\n"
+                f"     [c] 自定义新属性名称并创建\n"
+                f"\n请输入您的选择 (数字或字母): "
+            )
+
+            choice = input(prompt).strip().lower()
+            return choice, prop_map
+
+        action, prop_map = await asyncio.to_thread(_get_action_input)
+
+        if action.isdigit() and action in prop_map:
+            selected_prop = prop_map[action]
+            logger.info(f"已选择映射到现有属性: '{selected_prop}'")
+            self.add_new_mapping(bangumi_key, selected_prop)
+            return selected_prop
+
+        if action == "n":
             self.ignore_key_session(bangumi_key)
             return None
 
-        if action == "" or action.lower() == "y":
+        if action == "" or action == "y":
             return await self._create_and_map_new_property(
                 bangumi_key, bangumi_key, notion_client, schema_manager, target_db_id
             )
 
+        if action == "c":
+            custom_name = await asyncio.to_thread(input, "请输入要创建的自定义 Notion 属性名: ")
+            if custom_name:
+                return await self._create_and_map_new_property(
+                    bangumi_key, custom_name.strip(), notion_client, schema_manager, target_db_id
+                )
+            else:
+                logger.warn("未输入名称，已取消操作。")
+                return None
+
+        # 旧的逻辑，作为备用
+        logger.warn(f"输入 '{action}' 无效，将尝试按旧逻辑处理。")
+        # ... (可以保留旧的 handle_new_key 的部分逻辑作为 fallback，或直接提示错误)
         custom_prop_name = action
         prop_type = schema_manager.get_property_type(target_db_id, custom_prop_name)
 
@@ -161,19 +199,7 @@ class BangumiMappingManager:
             self.add_new_mapping(bangumi_key, custom_prop_name)
             return custom_prop_name
         else:
-
-            def _get_confirmation():
-                confirm_prompt = (
-                    f"   ⚠️ 您输入的属性 '{custom_prop_name}' 在 Notion 中不存在。\n"
-                    f"   是否要立即创建它？ (y/n, 默认 y): "
-                )
-                return input(confirm_prompt).strip().lower()
-
-            confirmation = await asyncio.to_thread(_get_confirmation)
-            if confirmation == "" or confirmation == "y":
-                return await self._create_and_map_new_property(
-                    bangumi_key, custom_prop_name, notion_client, schema_manager, target_db_id
-                )
-            else:
-                logger.info(f"已取消为 '{bangumi_key}' 创建新属性 '{custom_prop_name}'。")
-                return None
+            logger.error("输入无效，请在提供的选项中选择。")
+            return await self.handle_new_key(
+                bangumi_key, notion_client, schema_manager, target_db_id
+            )  # 重新提问

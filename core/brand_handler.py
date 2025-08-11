@@ -33,21 +33,17 @@ async def handle_brand_info(
             brand_name = canonical
             break
 
-    bangumi_info_task = (
-        asyncio.create_task(bangumi_client.fetch_brand_info_from_bangumi(brand_name))
-        if bangumi_client
-        else None
-    )
-
+    # 1. 从 Bangumi 获取信息作为基础数据
     bangumi_info = {}
-    if bangumi_info_task:
+    if bangumi_client:
         try:
-            bangumi_info = (await bangumi_info_task) or {}
+            bangumi_info = await bangumi_client.fetch_brand_info_from_bangumi(brand_name) or {}
             if bangumi_info:
                 logger.success(f"[{brand_name}] 从 Bangumi 获取品牌信息成功")
         except Exception as e:
             logger.warn(f"[{brand_name}] Bangumi品牌信息抓取异常: {e}")
 
+    # 2. 从缓存（Dlsite Selenium 结果）获取补充信息
     extra = {}
     if brand_page_url and brand_page_url in cache:
         extra = cache[brand_page_url]
@@ -59,30 +55,32 @@ async def handle_brand_info(
                 return v
         return None
 
-    # --- 核心改动：分离官网和 Ci-en 的数据源 ---
-    combined_info = {
-        "official_url": first_nonempty(
-            bangumi_info.get("homepage"),
-            getchu_brand_page_url,  # Getchu 的品牌链接是真正的官网
-            brand_homepage,
-        ),
-        "ci_en_url": first_nonempty(
-            extra.get("ci_en_url"),  # Dlsite 的链接现在只提供给 Ci-en
-        ),
-        "icon_url": first_nonempty(
-            bangumi_info.get("icon"),
-            extra.get("icon_url"),  # Dlsite 的图标可以继续使用
-            brand_icon,
-        ),
-        "summary": first_nonempty(bangumi_info.get("summary"), extra.get("简介")),
-        "bangumi_url": bangumi_info.get("bangumi_url"),
-        "company_address": first_nonempty(
-            bangumi_info.get("company_address"), extra.get("公司地址")
-        ),
-        "birthday": first_nonempty(bangumi_info.get("birthday"), extra.get("生日")),
-        "alias": first_nonempty(bangumi_info.get("alias"), extra.get("别名")),
-        "twitter": first_nonempty(bangumi_info.get("twitter"), extra.get("推特")),
-    }
-    # --- 核心改动结束 ---
+    # 3. 整合所有来源的数据，并将键名统一为 notion_client 期望的格式
+    combined_info = bangumi_info.copy()
 
+    # 整合官网
+    combined_info["official_url"] = first_nonempty(
+        bangumi_info.get("homepage"),
+        getchu_brand_page_url,
+        brand_homepage,
+    )
+
+    # 整合 Ci-en 链接
+    combined_info["ci_en_url"] = first_nonempty(
+        bangumi_info.get("Ci-en"),  # Bangumi 的 infobox 可能有 Ci-en
+        extra.get("ci_en_url"),
+    )
+
+    # 【关键修复】整合图标链接，将 bangumi 的 'icon' 键映射到 'icon_url'
+    combined_info["icon_url"] = first_nonempty(
+        bangumi_info.get("icon"),  # Bangumi 来源
+        extra.get("icon_url"),  # Dlsite 来源
+        brand_icon,  # Getchu 来源 (如果未来有)
+    )
+
+    # 4. 清理掉临时的或已转换的旧键名，避免混淆
+    combined_info.pop("homepage", None)
+    combined_info.pop("icon", None)
+
+    # 5. 将整理好的数据包传递给 notion_client
     return await notion_client.create_or_update_brand(brand_name, **combined_info)

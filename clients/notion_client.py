@@ -224,52 +224,82 @@ class NotionClient:
             logger.error(f"提交游戏失败: {title}")
             return None
 
-    async def create_or_update_brand(
-        self,
-        brand_name,
-        official_url=None,
-        icon_url=None,
-        summary=None,
-        bangumi_url=None,
-        company_address=None,
-        birthday=None,
-        alias=None,
-        twitter=None,
-        ci_en_url=None,
-        **extra_props,
-    ):
+    async def create_or_update_brand(self, brand_name, **info):
         existing = await self.search_brand(brand_name)
         page_id = existing[0]["id"] if existing else None
 
-        props = {FIELDS["brand_name"]: {"title": [{"text": {"content": brand_name}}]}}
-        if official_url:
-            props[FIELDS["brand_official_url"]] = {"url": official_url}
-        if ci_en_url:
-            props[FIELDS["brand_cien"]] = {"url": ci_en_url}
-        if icon_url:
-            props[FIELDS["brand_icon"]] = {
-                "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]
-            }
-        if summary:
-            props[FIELDS["brand_summary"]] = {"rich_text": [{"text": {"content": summary}}]}
-        if bangumi_url:
-            props[FIELDS["brand_bangumi_url"]] = {"url": bangumi_url}
-        if company_address:
-            props[FIELDS["brand_company_address"]] = {
-                "rich_text": [{"text": {"content": company_address}}]
-            }
-        if birthday:
-            props[FIELDS["brand_birthday"]] = {"rich_text": [{"text": {"content": birthday}}]}
-        if twitter:
-            props[FIELDS["brand_twitter"]] = {"url": twitter}
-        if alias:
-            alias_text = "、".join(alias) if isinstance(alias, (list, set)) else str(alias)
-            props[FIELDS["brand_alias"]] = {"rich_text": [{"text": {"content": alias_text}}]}
+        schema_data = await self.get_database_schema(self.brand_db_id)
+        if not schema_data:
+            logger.error("无法获取厂商数据库结构，无法更新品牌信息。")
+            return None
+        properties_schema = schema_data.get("properties", {})
 
-        for key, value in extra_props.items():
-            if value:
-                props[key] = {"rich_text": [{"text": {"content": str(value)}}]}
+        # 步骤 1: 将所有 info 中的内部键，映射到 Notion 字段名
+        # 这是一个 key -> value 的映射，key是Notion字段名，value是对应的值
+        notion_data_map = {
+            FIELDS["brand_name"]: brand_name,
+            FIELDS["brand_official_url"]: info.get("official_url"),
+            FIELDS["brand_icon"]: info.get("icon_url"),
+            FIELDS["brand_summary"]: info.get("summary"),
+            FIELDS["brand_bangumi_url"]: info.get("bangumi_url"),
+            FIELDS["brand_company_address"]: info.get("company_address"),
+            FIELDS["brand_birthday"]: info.get("birthday"),
+            FIELDS["brand_alias"]: info.get("alias"),
+            FIELDS["brand_twitter"]: info.get("twitter"),
+            FIELDS["brand_cien"]: info.get("ci_en_url"),
+        }
 
+        # 将 info 中所有其他未明确映射的键值对也添加进来
+        # (例如未来新增的 'DLsite' 等)
+        for key, value in info.items():
+            if (
+                key
+                not in [
+                    "official_url",
+                    "icon_url",
+                    "summary",
+                    "bangumi_url",
+                    "company_address",
+                    "birthday",
+                    "alias",
+                    "twitter",
+                    "ci_en_url",
+                ]
+                and value
+            ):
+                notion_data_map[key] = value
+
+        # 步骤 2: 动态构建属性 payload
+        props = {}
+        for notion_prop_name, value in notion_data_map.items():
+            if not value or not notion_prop_name:
+                continue
+
+            # 使用正确的 Notion 属性名进行查询
+            prop_info = properties_schema.get(notion_prop_name)
+            if not prop_info:
+                logger.warn(f"属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
+                continue
+
+            prop_type = prop_info.get("type")
+
+            # 根据属性类型构建 payload (这部分逻辑不变)
+            if prop_type == "title":
+                props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
+            elif prop_type == "rich_text":
+                val_str = "、".join(value) if isinstance(value, (list, set)) else str(value)
+                props[notion_prop_name] = {"rich_text": [{"text": {"content": val_str}}]}
+            elif prop_type == "url":
+                props[notion_prop_name] = {"url": str(value)}
+            elif prop_type == "files":
+                props[notion_prop_name] = {
+                    "files": [{"type": "external", "name": "icon", "external": {"url": str(value)}}]
+                }
+            elif prop_type == "select":
+                props[notion_prop_name] = {"select": {"name": str(value)}}
+            # ... 其他类型 ...
+
+        # 步骤 3: 发送请求 (逻辑不变)
         if page_id:
             resp = await self._request(
                 "PATCH", f"https://api.notion.com/v1/pages/{page_id}", {"properties": props}

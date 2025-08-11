@@ -1,160 +1,124 @@
+# scripts/update_all_brands.py
+# 该脚本用于批量更新 Notion 中所有品牌的 Bangumi 信息
+import asyncio
 import os
 import sys
-import time
 
-import requests
+import httpx
 
+# 将项目根目录添加到 Python 路径中，以便能够导入其他模块
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from config.config_fields import FIELDS
-from config.config_token import BANGUMI_TOKEN, BRAND_DB_ID, NOTION_TOKEN
-from utils.field_helper import (
-    FIELD_ALIASES,
-    extract_aliases,
-    extract_first_valid,
-    extract_link_map,
-)
 
-NOTION_API_URL = "https://api.notion.com/v1"
-NOTION_VERSION = "2022-06-28"
-
-HEADERS = {
-    "Authorization": f"Bearer {NOTION_TOKEN}",
-    "Notion-Version": NOTION_VERSION,
-    "Content-Type": "application/json",
-}
+from clients.bangumi_client import BangumiClient
+from clients.notion_client import NotionClient
+from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from core.mapping_manager import BangumiMappingManager
+from core.schema_manager import NotionSchemaManager
+from utils import logger
 
 
-def query_all_brands():
-    url = f"{NOTION_API_URL}/databases/{BRAND_DB_ID}/query"
-    results = []
-    next_cursor = None
-    while True:
-        payload = {"start_cursor": next_cursor} if next_cursor else {}
-        resp = requests.post(url, headers=HEADERS, json=payload).json()
-        results.extend(resp.get("results", []))
-        if resp.get("has_more"):
-            next_cursor = resp.get("next_cursor")
-        else:
-            break
-    return results
+async def main():
+    """主执行函数"""
+    logger.system("启动品牌信息批量更新脚本...")
 
+    # 1. 初始化所有核心组件，与 main.py 保持一致
+    async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
 
-def extract_brand_name(notion_page):
-    title_obj = notion_page["properties"][FIELDS["brand_name"]]["title"]
-    return "".join(t["plain_text"] for t in title_obj).strip()
+    bgm_mapper = BangumiMappingManager()
+    notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
+    schema_manager = NotionSchemaManager(notion_client)
 
+    # 在开始前，先加载好数据库的 Schema
+    await schema_manager.initialize_schema(BRAND_DB_ID, "厂商数据库")
+    await schema_manager.initialize_schema(CHARACTER_DB_ID, "角色数据库")
 
-def bangumi_search_brand(keyword):
-    url = "https://api.bgm.tv/v0/search/persons"
-    headers = {
-        "Authorization": f"Bearer {BANGUMI_TOKEN}",
-        "Content-Type": "application/json",
-        "User-Agent": "OtakuNotionSync/1.0",
-    }
-    data = {"keyword": keyword, "filter": {"career": ["artist", "director", "producer"]}}
-    resp = requests.post(url, headers=headers, json=data)
-    if resp.status_code == 200:
-        return resp.json().get("data", [])
-    print(f"请求失败，状态码: {resp.status_code}")
-    return []
+    bangumi_client = BangumiClient(notion_client, bgm_mapper, schema_manager, async_client)
 
+    try:
+        # 2. 从 Notion 获取所有品牌页面
+        logger.info("正在从 Notion 获取所有品牌页面...")
+        all_brand_pages = await notion_client.get_all_pages_in_db(BRAND_DB_ID)
+        if not all_brand_pages:
+            logger.error("未能从 Notion 获取到任何品牌信息，脚本终止。")
+            return
 
-def similarity_ratio(s1, s2):
-    import difflib
+        total_brands = len(all_brand_pages)
+        logger.success(f"成功获取到 {total_brands} 个品牌，开始逐一更新。")
 
-    return difflib.SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+        # 3. 遍历每个品牌并更新
+        for i, brand_page in enumerate(all_brand_pages, 1):
+            # 从页面属性中提取品牌名
+            brand_name = notion_client.get_title_from_page(brand_page)
+            if not brand_name:
+                logger.warn(
+                    f"[{i}/{total_brands}] 跳过一个没有名称的品牌页面 (Page ID: {brand_page.get('id')})"
+                )
+                continue
 
+            logger.step(f"[{i}/{total_brands}] 正在处理品牌: {brand_name}")
 
-def extract_birthday(best_match):
-    # 生日优先用字段，fallback用infobox
-    if all(k in best_match for k in ("birth_year", "birth_mon", "birth_day")):
-        s = str(best_match["birth_year"])
-        if best_match["birth_mon"]:
-            s += f"-{best_match['birth_mon']:02d}"
-        if best_match["birth_day"]:
-            s += f"-{best_match['birth_day']:02d}"
-        return s
-    birthday_keys = FIELD_ALIASES.get("brand_birthday", [])
-    return extract_first_valid(best_match.get("infobox", []), birthday_keys)
+            # 4. 复用 BangumiClient 的核心方法来获取信息
+            # 这一步包含了搜索、相似度匹配、infobox 动态解析等所有复杂逻辑
+            bangumi_info = await bangumi_client.fetch_brand_info_from_bangumi(brand_name)
 
+            if not bangumi_info:
+                logger.warn(f"在 Bangumi 上未能找到 '{brand_name}' 的匹配信息，跳过更新。")
+                await asyncio.sleep(1.2)  # 即使失败也稍作等待，避免对 API 造成冲击
+                continue
 
-def update_notion_brand(page_id, update_props):
-    url = f"{NOTION_API_URL}/pages/{page_id}"
-    resp = requests.patch(url, headers=HEADERS, json={"properties": update_props})
-    return resp.status_code == 200
+            # 5. 复用 NotionClient 的核心方法来更新页面
+            # 这一步包含了构建 payload 和发送请求的所有逻辑
+            # 注意：我们将 page_id 传入，使其强制执行“更新”操作
+            success = await notion_client.create_or_update_brand(
+                brand_name=brand_name, page_id=brand_page.get("id"), **bangumi_info
+            )
 
-
-def main():
-    print("🔍 获取品牌列表中...")
-    brands = query_all_brands()
-    print(f"共 {len(brands)} 个品牌")
-
-    for i, brand in enumerate(brands, 1):
-        brand_name = extract_brand_name(brand)
-        page_id = brand["id"]
-        print(f"\n[{i}/{len(brands)}] 查找 Bangumi 品牌：{brand_name}")
-
-        results = bangumi_search_brand(brand_name)
-        if not results:
-            print("❌ 未找到匹配结果")
-            continue
-
-        # 找最相似结果
-        best_match = None
-        best_score = 0
-        for r in results:
-            names = [r.get("name", "")] + extract_aliases(r.get("infobox", []))
-            score = max(similarity_ratio(brand_name, n) for n in names)
-            if score > best_score:
-                best_score = score
-                best_match = r
-
-        if best_score < 0.85:
-            print(f"❌ 匹配度 {best_score:.2f} 太低，跳过")
-            continue
-
-        infobox = best_match.get("infobox", [])
-        aliases = extract_aliases(infobox)
-        links = extract_link_map(infobox)
-        summary = best_match.get("summary", "")
-        icon_url = best_match.get("img")
-        birthday = extract_birthday(best_match)
-        company_address = extract_first_valid(infobox, ["公司地址", "地址", "所在地", "所在地地址"])
-        bangumi_url = f"https://bgm.tv/person/{best_match.get('id')}" if best_match.get("id") else None
-
-        update_payload = {}
-
-        if aliases:
-            update_payload[FIELDS["brand_alias"]] = {"rich_text": [{"text": {"content": ", ".join(aliases)}}]}
-        if links.get("官网"):
-            update_payload[FIELDS["brand_official_url"]] = {"url": links["官网"]}
-        if links.get("Ci-en"):
-            update_payload[FIELDS["brand_cien"]] = {"url": links["Ci-en"]}
-        if links.get("Twitter"):
-            update_payload[FIELDS["brand_twitter"]] = {"url": links["Twitter"]}
-        if summary:
-            update_payload[FIELDS["brand_summary"]] = {"rich_text": [{"text": {"content": summary}}]}
-        if icon_url:
-            update_payload[FIELDS["brand_icon"]] = {
-                "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]
-            }
-        if birthday:
-            update_payload[FIELDS["brand_birthday"]] = {"rich_text": [{"text": {"content": birthday}}]}
-        if company_address:
-            update_payload[FIELDS["brand_company_address"]] = {"rich_text": [{"text": {"content": company_address}}]}
-        if bangumi_url:
-            update_payload[FIELDS["brand_bangumi_url"]] = {"url": bangumi_url}
-
-        if update_payload:
-            if update_notion_brand(page_id, update_payload):
-                print("✅ 品牌信息已更新")
+            if success:
+                logger.success(f"品牌 '{brand_name}' 的信息已成功更新。")
             else:
-                print("❌ 更新失败")
-        else:
-            print("⚠️ 无需更新信息")
+                logger.error(f"品牌 '{brand_name}' 的信息更新失败。")
 
-        time.sleep(1.2)
+            # 尊重 Bangumi API 的速率限制
+            await asyncio.sleep(1.2)
+
+    except Exception as e:
+        logger.error(f"脚本执行过程中发生未处理的异常: {e}", exc_info=True)
+    finally:
+        # 6. 优雅地关闭资源
+        await async_client.aclose()
+        logger.system("HTTP 客户端已关闭，脚本执行完毕。")
 
 
 if __name__ == "__main__":
-    main()
+    # 我们还需要一个 `get_all_pages_in_db` 和 `get_title_from_page` 方法
+    # 所以需要先在这里 monkey-patch 到 NotionClient
+
+    async def get_all_pages_in_db(self, db_id):
+        url = f"https://api.notion.com/v1/databases/{db_id}/query"
+        all_pages = []
+        next_cursor = None
+        while True:
+            payload = {"start_cursor": next_cursor} if next_cursor else {}
+            resp = await self._request("POST", url, payload)
+            if not resp:
+                break
+            results = resp.get("results", [])
+            all_pages.extend(results)
+            if resp.get("has_more"):
+                next_cursor = resp.get("next_cursor")
+            else:
+                break
+        return all_pages
+
+    def get_title_from_page(self, page):
+        # 尝试从 page 对象的所有属性中找到类型为 'title' 的那个
+        for prop_name, prop_data in page.get("properties", {}).items():
+            if prop_data.get("type") == "title":
+                title_obj = prop_data["title"]
+                return "".join(t["plain_text"] for t in title_obj).strip()
+        return None
+
+    NotionClient.get_all_pages_in_db = get_all_pages_in_db
+    NotionClient.get_title_from_page = get_title_from_page
+
+    asyncio.run(main())

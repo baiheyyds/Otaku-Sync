@@ -7,14 +7,16 @@ import os
 import re
 import time
 import unicodedata
+from typing import Set
 
 import httpx
 
 from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
-from config.config_token import BANGUMI_TOKEN, CHARACTER_DB_ID
+from config.config_token import BANGUMI_TOKEN, BRAND_DB_ID, CHARACTER_DB_ID
+from core.mapping_manager import BangumiMappingManager
+from core.schema_manager import NotionSchemaManager
 from utils import logger
-from utils.field_helper import extract_aliases, extract_first_valid, extract_link_map
 
 API_TOKEN = BANGUMI_TOKEN
 HEADERS_API = {
@@ -23,12 +25,7 @@ HEADERS_API = {
     "Accept": "application/json",
 }
 
-alias_path = os.path.join(os.path.dirname(__file__), "../config/field_aliases.json")
-with open(alias_path, "r", encoding="utf-8") as f:
-    FIELD_ALIASES = json.load(f)
 
-
-# --- 辅助函数 normalize_title, extract_primary_brand_name, clean_title, simplify_title 不变 ---
 def normalize_title(title: str) -> str:
     if not title:
         return ""
@@ -62,8 +59,16 @@ def simplify_title(title: str) -> str:
 
 
 class BangumiClient:
-    def __init__(self, notion: NotionClient, client: httpx.AsyncClient):
+    def __init__(
+        self,
+        notion: NotionClient,
+        mapper: BangumiMappingManager,
+        schema: NotionSchemaManager,
+        client: httpx.AsyncClient,
+    ):
         self.notion = notion
+        self.mapper = mapper
+        self.schema = schema
         self.client = client
         self.headers = HEADERS_API
         self.similarity_threshold = 0.85
@@ -89,12 +94,9 @@ class BangumiClient:
                 raw_results = await self._search(simplified)
             if not raw_results:
                 return None
-
-        # --- 匹配和选择逻辑不变 ---
         norm_kw = normalize_title(keyword)
         clean_kw = normalize_title(clean_title(keyword))
         simp_kw = normalize_title(simplify_title(keyword))
-
         candidates = []
         for item in raw_results:
             name, name_cn = item.get("name", ""), item.get("name_cn", "")
@@ -108,21 +110,17 @@ class BangumiClient:
                 difflib.SequenceMatcher(None, norm_kw, norm_cn).ratio(),
             ]
             candidates.append((max(ratios), item))
-
         candidates.sort(key=lambda x: x[0], reverse=True)
-
         for _, item in candidates:
             item_clean = clean_title(item.get("name", ""))
             keyword_clean = clean_title(keyword)
             if item_clean and (keyword_clean in item_clean):
                 logger.info(f"[Bangumi] 子串匹配成功: {item['name']}，视为同一作品")
                 return str(item["id"])
-
         if candidates and candidates[0][0] >= self.similarity_threshold:
             best = candidates[0][1]
             logger.info(f"[Bangumi] 自动匹配成功: {best['name']} (相似度 {candidates[0][0]:.2f})")
             return str(best["id"])
-
         if candidates and candidates[0][0] >= 0.7:
             best = candidates[0][1]
             if clean_title(best["name"]) in clean_title(keyword) or clean_title(
@@ -132,14 +130,12 @@ class BangumiClient:
                     f"[Bangumi] 模糊匹配成功（放宽判定）: {best['name']} (相似度 {candidates[0][0]:.2f})"
                 )
                 return str(best["id"])
-
         logger.warn("Bangumi自动匹配相似度不足，请手动选择:")
         for idx, (ratio, item) in enumerate(candidates[:10]):
             print(
                 f"  {idx + 1}. {item['name']} / {item.get('name_cn','') or ''} (相似度: {ratio:.2f})"
             )
         print("  0. 放弃匹配")
-
         while True:
             sel = input("请输入序号选择 Bangumi 条目（0放弃）：").strip()
             if sel.isdigit():
@@ -166,14 +162,34 @@ class BangumiClient:
             "封面图链接": cover_url,
         }
 
-    async def fetch_character_detail(self, char_id: int):
-        """获取单个角色详情的辅助函数"""
-        detail_resp = await self.client.get(
-            f"https://api.bgm.tv/v0/characters/{char_id}", headers=self.headers
-        )
-        if detail_resp.status_code != 200:
-            return None
-        return detail_resp.json()
+    async def _process_infobox(self, infobox: list, target_db_id: str) -> dict:
+        processed = {}
+        if not infobox:
+            return processed
+
+        for item in infobox:
+            bangumi_key, bangumi_value = item.get("key"), item.get("value")
+            if not bangumi_key or not bangumi_value:
+                continue
+
+            if isinstance(bangumi_value, list):
+                value_str = ", ".join(
+                    [v.get("v", v) if isinstance(v, dict) else str(v) for v in bangumi_value]
+                )
+            else:
+                value_str = str(bangumi_value)
+
+            notion_prop = self.mapper.get_notion_prop(bangumi_key)
+            if not notion_prop:
+                # --- 核心改动：将 schema_manager 传入 ---
+                notion_prop = await self.mapper.handle_new_key(
+                    bangumi_key, self.notion, self.schema, target_db_id
+                )
+
+            if notion_prop:
+                processed[notion_prop] = value_str.strip()
+
+        return processed
 
     async def fetch_characters(self, subject_id: str) -> list:
         url = f"https://api.bgm.tv/v0/subjects/{subject_id}/characters"
@@ -182,94 +198,91 @@ class BangumiClient:
             return []
 
         char_list = r.json()
-        # 并发获取所有角色的详细信息
-        tasks = [self.fetch_character_detail(ch["id"]) for ch in char_list]
-        details_list = await asyncio.gather(*tasks)
+        tasks = [
+            self.client.get(f"https://api.bgm.tv/v0/characters/{ch['id']}", headers=self.headers)
+            for ch in char_list
+        ]
+        responses = await asyncio.gather(*tasks)
 
         characters = []
-        for ch, detail in zip(char_list, details_list):
-            if not detail:
+        for ch, detail_resp in zip(char_list, responses):
+            if detail_resp.status_code != 200:
                 continue
+            detail = detail_resp.json()
 
-            # --- 解析逻辑不变 ---
-            raw_stats = detail.get("infobox", [])
-            stats = {}
-            for item in raw_stats:
-                key, val = item.get("key"), item.get("value")
-                if not key or val is None:
-                    continue
-                for canonical, aliases in FIELD_ALIASES.items():
-                    if key in aliases:
-                        if isinstance(val, list):
-                            stats[canonical] = ", ".join(
-                                [f"{i['k']}: {i['v']}" for i in val if isinstance(i, dict)]
-                            )
-                        else:
-                            stats[canonical] = val
-                        break
+            infobox_data = await self._process_infobox(detail.get("infobox", []), CHARACTER_DB_ID)
 
-            aliases = {detail["name_cn"]} if detail.get("name_cn") else set()
-            for a in extract_aliases(raw_stats, alias_type="character_alias"):
-                aliases.add(a.strip())
+            aliases = {detail.get("name_cn")} if detail.get("name_cn") else set()
+            if "别名" in infobox_data:
+                aliases.update([a.strip() for a in infobox_data["别名"].split(",")])
 
-            characters.append(
-                {
-                    "name": detail["name"],
-                    "cv": ch["actors"][0]["name"] if ch.get("actors") else "",
-                    "avatar": detail.get("images", {}).get("large", ""),
-                    "summary": detail.get("summary", "").strip(),
-                    "bwh": stats.get("character_bwh", ""),
-                    "height": stats.get("character_height", ""),
-                    "gender": stats.get("character_gender", ""),
-                    "birthday": stats.get("character_birthday", ""),
-                    "blood_type": stats.get("character_blood_type", ""),
-                    "url": f"https://bangumi.tv/character/{ch['id']}",
-                    "aliases": list(aliases),
-                }
-            )
+            character_data = {
+                "name": detail["name"],
+                "avatar": detail.get("images", {}).get("large", ""),
+                "summary": detail.get("summary", "").strip(),
+                "url": f"https://bangumi.tv/character/{ch['id']}",
+                "aliases": list(filter(None, aliases)),
+            }
+            character_data.update(infobox_data)
+            characters.append(character_data)
+
         return characters
 
     async def _character_exists(self, url: str) -> str | None:
-        payload = {"filter": {"property": "详情页面", "url": {"equals": url}}}
+        payload = {"filter": {"property": FIELDS["character_url"], "url": {"equals": url}}}
         resp = await self.notion._request(
             "POST", f"https://api.notion.com/v1/databases/{CHARACTER_DB_ID}/query", payload
         )
         return resp["results"][0]["id"] if resp and resp.get("results") else None
 
-    async def create_or_update_character(self, char: dict) -> str | None:
+    async def create_or_update_character(self, char: dict, warned_keys: Set[str]) -> str | None:
         existing_id = await self._character_exists(char["url"])
-        props = {
-            "角色名称": {"title": [{"text": {"content": char["name"]}}]},
-            "详情页面": {"url": char["url"]},
+
+        props = {}
+        key_to_notion_map = {
+            "name": FIELDS["character_name"],
+            "aliases": FIELDS["character_alias"],
+            "avatar": FIELDS["character_avatar"],
+            "summary": FIELDS["character_summary"],
+            "url": FIELDS["character_url"],
         }
-        # --- property building logic is unchanged ---
-        if char.get("cv"):
-            props["声优"] = {"rich_text": [{"text": {"content": char["cv"]}}]}
-        if char.get("gender"):
-            props["性别"] = {"select": {"name": char["gender"]}}
-        if char.get("bwh"):
-            props["BWH"] = {"rich_text": [{"text": {"content": char["bwh"]}}]}
-        if char.get("height"):
-            props[FIELDS["character_height"]] = {
-                "rich_text": [{"text": {"content": char["height"]}}]
-            }
-        if char.get("birthday"):
-            props[FIELDS["character_birthday"]] = {
-                "rich_text": [{"text": {"content": char["birthday"]}}]
-            }
-        if char.get("blood_type"):
-            props[FIELDS["character_blood_type"]] = {"select": {"name": char["blood_type"]}}
-        if char.get("summary"):
-            props["简介"] = {"rich_text": [{"text": {"content": char["summary"]}}]}
-        if char.get("avatar"):
-            props["头像"] = {
-                "files": [
-                    {"type": "external", "name": "avatar", "external": {"url": char["avatar"]}}
-                ]
-            }
-        if char.get("aliases"):
-            alias_text = "、".join(char["aliases"][:20])
-            props["别名"] = {"rich_text": [{"text": {"content": alias_text}}]}
+
+        for internal_key, value in char.items():
+            if not value:
+                continue
+
+            notion_prop_name = key_to_notion_map.get(internal_key, internal_key)
+            prop_type = self.schema.get_property_type(CHARACTER_DB_ID, notion_prop_name)
+
+            if not prop_type:
+                if notion_prop_name not in warned_keys:
+                    logger.warn(f"属性 '{notion_prop_name}' 在 Notion 数据库中不存在，已跳过。")
+                    warned_keys.add(notion_prop_name)
+                continue
+
+            if prop_type == "title":
+                props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
+            elif prop_type == "rich_text":
+                if isinstance(value, list):
+                    props[notion_prop_name] = {
+                        "rich_text": [{"text": {"content": "、".join(value)}}]
+                    }
+                else:
+                    props[notion_prop_name] = {"rich_text": [{"text": {"content": str(value)}}]}
+            elif prop_type == "url":
+                props[notion_prop_name] = {"url": str(value)}
+            elif prop_type == "files":
+                props[notion_prop_name] = {
+                    "files": [{"type": "external", "name": "avatar", "external": {"url": value}}]
+                }
+            elif prop_type == "select":
+                if str(value):
+                    props[notion_prop_name] = {"select": {"name": str(value)}}
+
+        if FIELDS["character_name"] not in props:
+            props[FIELDS["character_name"]] = {"title": [{"text": {"content": char["name"]}}]}
+        if FIELDS["character_url"] not in props:
+            props[FIELDS["character_url"]] = {"url": char["url"]}
 
         if existing_id:
             resp = await self.notion._request(
@@ -288,12 +301,15 @@ class BangumiClient:
     async def create_or_link_characters(self, game_page_id: str, subject_id: str):
         characters = await self.fetch_characters(subject_id)
 
-        # 并发创建或更新角色
-        tasks = [self.create_or_update_character(ch) for ch in characters]
+        warned_keys_for_this_game = set()
+        tasks = [
+            self.create_or_update_character(ch, warned_keys_for_this_game) for ch in characters
+        ]
+
         char_ids = await asyncio.gather(*tasks)
 
         character_relations = [{"id": cid} for cid in char_ids if cid]
-        all_cvs = {ch["cv"].strip() for ch in characters if ch.get("cv")}
+        all_cvs = {ch["声优"].strip() for ch in characters if ch.get("声优")}
 
         patch = {
             FIELDS["bangumi_url"]: {"url": f"https://bangumi.tv/subject/{subject_id}"},
@@ -322,17 +338,33 @@ class BangumiClient:
             return results
 
         primary_name = extract_primary_brand_name(brand_name)
-
-        # --- 匹配和解析逻辑不变 ---
         best_match, best_score = None, 0
         results = await search_brand(primary_name or brand_name)
         for r in results:
             candidate_name = r.get("name", "")
             infobox = r.get("infobox", [])
-            aliases = extract_aliases(infobox, alias_type="brand_alias")
+
+            aliases = []
+            aliases_value = next(
+                (
+                    item.get("value")
+                    for item in infobox
+                    if self.mapper.get_notion_prop(item.get("key")) == "别名"
+                ),
+                None,
+            )
+            if isinstance(aliases_value, str):
+                aliases = [a.strip() for a in aliases_value.split(",")]
+            elif isinstance(aliases_value, list):
+                aliases = [str(v.get("v", v)) for v in aliases_value if v]
+
             names = [candidate_name] + aliases
+            valid_names = [n for n in names if n and isinstance(n, str)]
+            if not valid_names:
+                continue
             score = max(
-                difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio() for n in names
+                difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio()
+                for n in valid_names
             )
             if score > best_score:
                 best_score, best_match = score, r
@@ -344,21 +376,27 @@ class BangumiClient:
         logger.success(
             f"[Bangumi] 最终匹配品牌: {best_match.get('name')} (ID: {best_match.get('id')}, 相似度: {best_score:.2f})"
         )
-        infobox = best_match.get("infobox", [])
-        links = extract_link_map(infobox)
-        twitter = links.get("brand_twitter") or links.get("Twitter") or ""
-        if twitter.startswith("@"):
-            twitter = f"https://twitter.com/{twitter[1:]}"
 
-        return {
+        infobox_data = await self._process_infobox(best_match.get("infobox", []), BRAND_DB_ID)
+
+        brand_info = {
             "summary": best_match.get("summary", ""),
             "icon": best_match.get("img"),
-            "birthday": extract_first_valid(infobox, FIELD_ALIASES.get("brand_birthday", [])),
-            "company_address": extract_first_valid(infobox, ["公司地址", "地址", "所在地"]),
-            "homepage": links.get("brand_official_url") or links.get("官网"),
-            "twitter": twitter,
             "bangumi_url": (
                 f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
             ),
-            "alias": extract_aliases(infobox, alias_type="brand_alias"),
         }
+        brand_info.update(infobox_data)
+
+        if "官网" in brand_info:
+            brand_info["homepage"] = brand_info.pop("官网")
+        if (
+            "Twitter" in brand_info
+            and isinstance(brand_info["Twitter"], str)
+            and brand_info["Twitter"].startswith("@")
+        ):
+            brand_info["twitter"] = f"https://twitter.com/{brand_info['Twitter'][1:]}"
+        else:
+            brand_info["twitter"] = brand_info.get("Twitter")
+
+        return brand_info

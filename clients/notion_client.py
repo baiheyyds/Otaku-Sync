@@ -37,7 +37,10 @@ class NotionClient:
             r.raise_for_status()
             return r.json()
         except Exception as e:
-            logger.error(f"Notion API request failed: {e}")
+            if hasattr(e, "response") and e.response:
+                logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
+            else:
+                logger.error(f"Notion API 请求失败: {e}")
             return None
 
     async def _request(self, method, url, json_data=None, retries=3, delay=2):
@@ -51,7 +54,6 @@ class NotionClient:
         logger.error("⛔ 最终重试失败，跳过该请求")
         return None
 
-    # ... get_page_title, search_game, check_page_exists, search_brand, get_all_game_titles 无变化 ...
     def get_page_title(self, page):
         try:
             if "properties" not in page:
@@ -109,15 +111,49 @@ class NotionClient:
                 break
         return all_games
 
+    async def get_database_schema(self, db_id: str):
+        url = f"https://api.notion.com/v1/databases/{db_id}"
+        return await self._request("GET", url)
+
+    # --- 核心改动：支持更多常用类型 ---
+    async def add_new_property_to_db(
+        self, db_id: str, prop_name: str, prop_type: str = "rich_text"
+    ) -> bool:
+        """向指定的数据库添加一个指定类型的新属性"""
+        url = f"https://api.notion.com/v1/databases/{db_id}"
+
+        prop_payload = {}
+        if prop_type in ["rich_text", "number", "date", "url", "files", "checkbox"]:
+            prop_payload = {prop_type: {}}
+        elif prop_type == "select":
+            prop_payload = {"select": {"options": []}}
+        elif prop_type == "multi_select":
+            prop_payload = {"multi_select": {"options": []}}
+        else:  # 默认为 rich_text
+            prop_type = "rich_text"
+            prop_payload = {"rich_text": {}}
+
+        payload = {"properties": {prop_name: prop_payload}}
+
+        logger.system(
+            f"正在尝试向 Notion 数据库 ({db_id[-5:]}) 添加新属性 '{prop_name}' (类型: {prop_type})..."
+        )
+        response = await self._request("PATCH", url, payload)
+        if response:
+            logger.success(f"成功向 Notion 添加了新属性: '{prop_name}'")
+            return True
+        else:
+            logger.error(f"向 Notion 添加新属性 '{prop_name}' 失败。请检查 API Token 权限。")
+            return False
+
+    # --- 核心改动结束 ---
+
     async def create_or_update_game(self, info, brand_relation_id=None, page_id=None):
         title = info.get("title") or info.get(FIELDS["game_name"])
         if not page_id:
             existing = await self.search_game(title)
             page_id = existing[0]["id"] if existing else None
-
         props = {FIELDS["game_name"]: {"title": [{"text": {"content": title}}]}}
-
-        # --- 核心改动：支持写入新字段 ---
         if info.get("game_official_url"):
             props[FIELDS["game_official_url"]] = {"url": info["game_official_url"]}
         if info.get("dlsite_link"):
@@ -126,8 +162,6 @@ class NotionClient:
             props[FIELDS["getchu_link"]] = {"url": info["getchu_link"]}
         if info.get("bangumi_url"):
             props[FIELDS["bangumi_url"]] = {"url": info["bangumi_url"]}
-        # --- 核心改动结束 ---
-
         if info.get("游戏别名"):
             props[FIELDS["game_alias"]] = {"rich_text": [{"text": {"content": info["游戏别名"]}}]}
         if info.get("大小"):
@@ -173,7 +207,6 @@ class NotionClient:
             props[FIELDS["brand_relation"]] = {"relation": [{"id": brand_relation_id}]}
         if info.get("资源链接"):
             props[FIELDS["resource_link"]] = {"url": info["资源链接"]}
-
         url = (
             f"https://api.notion.com/v1/pages/{page_id}"
             if page_id
@@ -183,7 +216,6 @@ class NotionClient:
         payload = {"properties": props}
         if not page_id:
             payload["parent"] = {"database_id": self.game_db_id}
-
         resp = await self._request(method, url, payload)
         if resp:
             logger.success(f"{'已更新' if page_id else '已创建'}游戏: {title}")
@@ -203,20 +235,17 @@ class NotionClient:
         birthday=None,
         alias=None,
         twitter=None,
-        ci_en_url=None,  # <- 新增参数
+        ci_en_url=None,
+        **extra_props,
     ):
         existing = await self.search_brand(brand_name)
         page_id = existing[0]["id"] if existing else None
 
         props = {FIELDS["brand_name"]: {"title": [{"text": {"content": brand_name}}]}}
-
-        # --- 核心改动：支持写入 Ci-en 字段 ---
         if official_url:
             props[FIELDS["brand_official_url"]] = {"url": official_url}
         if ci_en_url:
             props[FIELDS["brand_cien"]] = {"url": ci_en_url}
-        # --- 核心改动结束 ---
-
         if icon_url:
             props[FIELDS["brand_icon"]] = {
                 "files": [{"type": "external", "name": "icon", "external": {"url": icon_url}}]
@@ -237,22 +266,20 @@ class NotionClient:
             alias_text = "、".join(alias) if isinstance(alias, (list, set)) else str(alias)
             props[FIELDS["brand_alias"]] = {"rich_text": [{"text": {"content": alias_text}}]}
 
+        for key, value in extra_props.items():
+            if value:
+                props[key] = {"rich_text": [{"text": {"content": str(value)}}]}
+
         if page_id:
             resp = await self._request(
                 "PATCH", f"https://api.notion.com/v1/pages/{page_id}", {"properties": props}
             )
             if resp:
                 logger.info(f"已更新品牌页面: {brand_name}")
-                return page_id
-            else:
-                logger.error(f"更新品牌失败: {brand_name}")
-                return None
+            return page_id if resp else None
         else:
             payload = {"parent": {"database_id": self.brand_db_id}, "properties": props}
             resp = await self._request("POST", "https://api.notion.com/v1/pages", payload)
             if resp:
                 logger.success(f"新建品牌: {brand_name}")
-                return resp.get("id")
-            else:
-                logger.error(f"创建品牌失败: {brand_name}")
-                return None
+            return resp.get("id") if resp else None

@@ -9,7 +9,9 @@ from clients.dlsite_client import DlsiteClient
 from clients.getchu_client import GetchuClient
 from clients.ggbases_client import GGBasesClient
 from clients.notion_client import NotionClient
-from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from core.mapping_manager import BangumiMappingManager
+from core.schema_manager import NotionSchemaManager  # <--- 核心改动
 from utils import logger
 from utils.driver import create_driver
 from utils.similarity_check import hash_titles, load_cache_quick, save_cache
@@ -38,19 +40,29 @@ async def init_context():
 
     async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
 
-    # --- 核心改动：创建两个专属的、长期存在的 driver ---
     dlsite_driver_task = asyncio.to_thread(create_driver)
     ggbases_driver_task = asyncio.to_thread(create_driver)
     dlsite_driver, ggbases_driver = await asyncio.gather(dlsite_driver_task, ggbases_driver_task)
     logger.system("专属 Selenium 驱动池已创建。")
 
+    bgm_mapper = BangumiMappingManager()
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
-    bangumi = BangumiClient(notion, async_client)
+
+    # --- 核心改动：初始化 Schema 管理器 ---
+    schema_manager = NotionSchemaManager(notion)
+    await asyncio.gather(
+        schema_manager.initialize_schema(CHARACTER_DB_ID, "角色数据库"),
+        schema_manager.initialize_schema(BRAND_DB_ID, "厂商数据库"),
+    )
+
+    # 将 Schema 管理器注入 BangumiClient
+    bangumi = BangumiClient(notion, bgm_mapper, schema_manager, async_client)
+    # --- 核心改动结束 ---
+
     dlsite = DlsiteClient(async_client)
     getchu = GetchuClient(async_client)
     ggbases = GGBasesClient(async_client)
 
-    # --- 核心改动：将专属 driver 注入对应的 client ---
     dlsite.set_driver(dlsite_driver)
     ggbases.set_driver(ggbases_driver)
 
@@ -61,7 +73,7 @@ async def init_context():
     asyncio.create_task(update_cache_background(notion, cached_titles))
 
     return {
-        "dlsite_driver": dlsite_driver,  # 将 driver 实例存入 context 以便关闭
+        "dlsite_driver": dlsite_driver,
         "ggbases_driver": ggbases_driver,
         "async_client": async_client,
         "notion": notion,
@@ -76,7 +88,6 @@ async def init_context():
 
 
 async def close_context(context: dict):
-    """优雅地关闭所有资源"""
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     for task in tasks:
         task.cancel()
@@ -86,7 +97,6 @@ async def close_context(context: dict):
         await context["async_client"].aclose()
         logger.system("HTTP 客户端已关闭。")
 
-    # --- 核心改动：关闭两个专属的 driver ---
     close_tasks = []
     if context.get("dlsite_driver"):
         close_tasks.append(asyncio.to_thread(context["dlsite_driver"].quit))

@@ -44,7 +44,9 @@ class BrandCache:
             # 1. Backup old cache
             if os.path.exists(self.cache_file):
                 date_str = datetime.now().strftime("%Y%m%d")
-                backup_file = os.path.join(os.path.dirname(self.cache_file), f"{CACHE_FILE_NAME}.bak_{date_str}")
+                backup_file = os.path.join(
+                    os.path.dirname(self.cache_file), f"{CACHE_FILE_NAME}.bak_{date_str}"
+                )
                 if not os.path.exists(backup_file):
                     shutil.copy2(self.cache_file, backup_file)
                     logger.cache(f"已备份旧缓存为: {os.path.basename(backup_file)}")

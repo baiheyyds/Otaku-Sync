@@ -1,7 +1,7 @@
 # main.py
 import asyncio
 import sys
-import traceback  # <--- 新增导入
+import traceback
 
 from core.brand_handler import handle_brand_info
 from core.game_processor import process_and_sync_game
@@ -75,9 +75,12 @@ async def run_single_game_flow(context: dict):
         if not should_continue:
             return True
 
+        # --- 核心改动：使用用户输入的 original_keyword 进行 GGBases 搜索 ---
         ggbases_candidates = await context["ggbases"].choose_or_parse_popular_url_with_requests(
-            game["title"]
+            original_keyword
         )
+        # --- 核心改动结束 ---
+
         ggbases_url = None
         if ggbases_candidates:
             if manual_mode:
@@ -166,12 +169,9 @@ async def run_single_game_flow(context: dict):
         logger.success(f"游戏 '{game['title']}' 处理流程完成！\n")
 
     except Exception as e:
-        # --- 核心改动：手动格式化并打印 traceback ---
         logger.error(f"处理流程出现严重错误: {e}")
-        # 使用 traceback 模块来打印完整的错误堆栈信息
         traceback_str = traceback.format_exc()
         print(f"\n{Colors.FAIL}{traceback_str}{Colors.ENDC}")
-        # --- 核心改动结束 ---
     return True
 
 
@@ -193,7 +193,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    # 在 main.py 的开头，需要从 logger.py 引入 Colors
     from utils.logger import Colors
 
     try:

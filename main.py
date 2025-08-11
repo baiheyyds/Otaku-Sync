@@ -12,11 +12,11 @@ from utils.similarity_check import check_existing_similar_games
 
 
 async def _select_ggbases_game_interactively(candidates: list) -> str | None:
+    # ... 此函数不变 ...
     print("\n🔍 GGBases 找到以下结果，请手动选择:")
     sorted_candidates = sorted(candidates, key=lambda x: x["popularity"], reverse=True)
     for idx, item in enumerate(sorted_candidates):
         print(f"  [{idx}] 🎮 {item['title']} (热度: {item['popularity']})")
-
     print("  [c] 取消选择")
 
     def _get_input():
@@ -39,35 +39,25 @@ async def _select_ggbases_game_interactively(candidates: list) -> str | None:
 
 async def run_single_game_flow(context: dict):
     try:
+        # --- 阶段 1: 用户输入与游戏选择 (不变) ---
         raw_input = await asyncio.to_thread(
             input, "\n💡 请输入游戏关键词 (追加 -m 进入手动模式，q 退出): "
         )
         raw_input = raw_input.strip()
-
         if not raw_input or raw_input.lower() == "q":
             return False
-
-        manual_mode = False
-        if raw_input.endswith(" -m"):
-            manual_mode = True
-            original_keyword = raw_input[:-3].strip()
-            logger.system(f"已为 '{original_keyword}' 启动单次手动模式。")
-        else:
-            original_keyword = raw_input
-
+        manual_mode = raw_input.endswith(" -m")
+        original_keyword = raw_input[:-3].strip() if manual_mode else raw_input
         if not original_keyword:
             logger.warn("请输入有效的游戏关键词。")
             return True
-
         game, source = await select_game(
             context["dlsite"], context["getchu"], original_keyword, original_keyword
         )
         if not game or source == "cancel":
             logger.info("操作已取消。")
             return True
-
         logger.step(f"已选择来源: {source.upper()}, 游戏: {game['title']}")
-
         should_continue, updated_cache, mode, page_id = await check_existing_similar_games(
             context["notion"], game["title"], context["cached_titles"]
         )
@@ -75,93 +65,76 @@ async def run_single_game_flow(context: dict):
         if not should_continue:
             return True
 
-        # ---------- START: 代码修改核心区域 ----------
-
-        # 步骤 1: 并发获取所有基础信息
-        logger.info("正在并发获取 Dlsite/Getchu, Bangumi, GGBases 的基础信息...")
-
+        # --- 阶段 2: 并发获取所有“非交互式”的基础信息 ---
+        logger.info("正在并发获取 Dlsite/Getchu 详情和 GGBases 候选列表...")
         detail_task = context[source].get_game_detail(game["url"])
-        bangumi_id_task = context["bangumi"].search_and_select_bangumi_id(original_keyword)
-        # GGBases 搜索现在在这里作为任务之一，只执行这一次
         ggbases_candidates_task = context["ggbases"].choose_or_parse_popular_url_with_requests(
             original_keyword
         )
+        detail, ggbases_candidates = await asyncio.gather(detail_task, ggbases_candidates_task)
 
-        # 一次性执行所有基础网络请求
-        detail, bangumi_id, ggbases_candidates = await asyncio.gather(
-            detail_task, bangumi_id_task, ggbases_candidates_task
-        )
-
-        # 步骤 2: 根据上一步获取的 ggbases_candidates，处理并得到 ggbases_url
+        # --- 阶段 3: 处理 GGBases 结果 (可能交互) ---
         ggbases_url = None
         if ggbases_candidates:
             if manual_mode:
                 ggbases_url = await _select_ggbases_game_interactively(ggbases_candidates)
-                if not ggbases_url:
-                    logger.info("已取消GGBases选择。")
             else:
-                # 自动选择热度最高的结果
                 best = max(ggbases_candidates, key=lambda x: x["popularity"])
                 ggbases_url = best["url"]
                 logger.success(f"[GGBases] 自动选择热度最高结果: {best['title']}")
         else:
             logger.warn("[GGBases] 未找到任何结果。")
 
-        # 步骤 3: 准备并执行所有依赖于上一步结果的后续任务（例如Selenium和Bangumi详情）
-        logger.info("正在并发获取依赖的详细信息 (Selenium, Bangumi)...")
+        # --- 阶段 4: 串行获取可能需要交互的 Bangumi 信息 (核心修正) ---
+        logger.info("正在获取 Bangumi 信息 (此过程可能需要您参与交互)...")
+        # 4.1 获取 Bangumi ID (可能交互)
+        bangumi_id = await context["bangumi"].search_and_select_bangumi_id(original_keyword)
+        # 4.2 获取游戏详情 (可能因 infobox 触发交互)
+        bangumi_game_info = await context["bangumi"].fetch_game(bangumi_id) if bangumi_id else {}
+        # 4.3 获取品牌详情 (可能因 infobox 触发交互)
+        brand_name = detail.get("品牌")
+        bangumi_brand_info = (
+            await context["bangumi"].fetch_brand_info_from_bangumi(brand_name) if brand_name else {}
+        )
 
+        # --- 阶段 5: 并发获取所有剩余的、无需交互的后台任务 ---
+        logger.info("正在并发获取所有剩余的后台信息 (Selenium)...")
         selenium_tasks = []
         if ggbases_url:
             selenium_tasks.append(context["ggbases"].get_info_by_url_with_selenium(ggbases_url))
-
         brand_page_url = detail.get("品牌页链接")
         if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
             selenium_tasks.append(
                 context["dlsite"].get_brand_extra_info_with_selenium(brand_page_url)
             )
-        elif source == "dlsite" and brand_page_url:
-            logger.info(f"检测到商业品牌页({brand_page_url.split('/')[-2]})，跳过Selenium抓取。")
 
-        # Bangumi 游戏详情任务依赖于 bangumi_id
-        other_tasks = [
-            context["bangumi"].fetch_game(bangumi_id) if bangumi_id else asyncio.sleep(0, result={})
-        ]
+        ggbases_info, brand_extra_info = {}, {}
+        if selenium_tasks:
+            results = await asyncio.gather(*selenium_tasks, return_exceptions=True)
+            idx = 0
+            if ggbases_url:
+                ggbases_info = results[idx] if not isinstance(results[idx], Exception) else {}
+                idx += 1
+            if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
+                brand_extra_info = results[idx] if not isinstance(results[idx], Exception) else {}
 
-        all_tasks = selenium_tasks + other_tasks
-        results = await asyncio.gather(*all_tasks, return_exceptions=True)
-
-        # 步骤 4: 解析后续任务的结果 (这部分逻辑不变)
-        ggbases_info, brand_extra_info, bangumi_info = {}, {}, {}
-        result_idx = 0
-        if ggbases_url:
-            ggbases_info = (
-                results[result_idx] if not isinstance(results[result_idx], Exception) else {}
-            )
-            result_idx += 1
-        if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
-            brand_extra_info = (
-                results[result_idx] if not isinstance(results[result_idx], Exception) else {}
-            )
-            result_idx += 1
-        bangumi_info = results[result_idx] if not isinstance(results[result_idx], Exception) else {}
-
-        # ---------- END: 代码修改核心区域 ----------
-
-        if brand_extra_info and detail.get("品牌页链接"):
-            context["brand_extra_info_cache"][detail.get("品牌页链接")] = brand_extra_info
         logger.success("所有信息获取完毕！")
 
-        getchu_brand_page_url = detail.get("品牌官网") if source == "getchu" else None
-        brand_id = await handle_brand_info(
-            source=source,
-            dlsite_client=context["dlsite"],
-            notion_client=context["notion"],
-            brand_name=detail.get("品牌"),
-            brand_page_url=detail.get("品牌页链接"),
-            cache=context["brand_extra_info_cache"],
-            bangumi_client=context["bangumi"],
-            getchu_brand_page_url=getchu_brand_page_url,
-        )
+        # --- 阶段 6: 数据处理与提交 (不变) ---
+        if brand_extra_info and brand_page_url:
+            context["brand_extra_info_cache"][brand_page_url] = brand_extra_info
+
+        brand_id = None
+        if brand_name:
+            # handle_brand_info 现在是纯数据处理函数，不涉及网络I/O
+            final_brand_info = await handle_brand_info(
+                bangumi_brand_info=bangumi_brand_info,
+                dlsite_extra_info=brand_extra_info,
+                getchu_brand_page_url=detail.get("品牌官网") if source == "getchu" else None,
+            )
+            brand_id = await context["notion"].create_or_update_brand(
+                brand_name, **final_brand_info
+            )
 
         created_page_id = await process_and_sync_game(
             game=game,
@@ -173,7 +146,7 @@ async def run_single_game_flow(context: dict):
             user_keyword=original_keyword,
             ggbases_detail_url=ggbases_url,
             ggbases_info=ggbases_info,
-            bangumi_info=bangumi_info,
+            bangumi_info=bangumi_game_info,
             source=source,
             selected_similar_page_id=page_id,
         )
@@ -185,8 +158,6 @@ async def run_single_game_flow(context: dict):
     except Exception as e:
         logger.error(f"处理流程出现严重错误: {e}")
         traceback_str = traceback.format_exc()
-        # 假设 logger.py 中定义了 Colors.FAIL 和 Colors.ENDC
-        # 如果没有，可以直接移除颜色代码
         if "Colors" in dir(logger):
             print(f"\n{logger.Colors.FAIL}{traceback_str}{logger.Colors.ENDC}")
         else:
@@ -195,7 +166,7 @@ async def run_single_game_flow(context: dict):
 
 
 async def main():
-    """主函数"""
+    # ... main 函数不变 ...
     context = await init_context()
     try:
         while True:
@@ -212,7 +183,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    # 假设 logger.py 在 utils 文件夹下
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

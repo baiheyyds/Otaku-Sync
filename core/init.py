@@ -49,8 +49,11 @@ async def init_context():
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
 
     # --- 核心改动：初始化 Schema 管理器 ---
+    # --- 核心改动：初始化 Schema 管理器 ---
     schema_manager = NotionSchemaManager(notion)
+    # 【关键修复】确保游戏、角色、厂商三个数据库的结构都被加载
     await asyncio.gather(
+        schema_manager.initialize_schema(GAME_DB_ID, "游戏数据库"),
         schema_manager.initialize_schema(CHARACTER_DB_ID, "角色数据库"),
         schema_manager.initialize_schema(BRAND_DB_ID, "厂商数据库"),
     )

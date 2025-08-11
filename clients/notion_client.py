@@ -111,6 +111,11 @@ class NotionClient:
                 break
         return all_games
 
+    async def get_page(self, page_id: str):
+        """根据页面ID获取完整的页面对象"""
+        url = f"https://api.notion.com/v1/pages/{page_id}"
+        return await self._request("GET", url)
+    
     async def get_database_schema(self, db_id: str):
         url = f"https://api.notion.com/v1/databases/{db_id}"
         return await self._request("GET", url)
@@ -148,65 +153,121 @@ class NotionClient:
 
     # --- 核心改动结束 ---
 
-    async def create_or_update_game(self, info, brand_relation_id=None, page_id=None):
-        title = info.get("title") or info.get(FIELDS["game_name"])
+    # --- 请找到 create_or_update_game 方法并用下面的代码替换它 ---
+
+    async def create_or_update_game(self, page_id=None, **info):
+        # 'info' 是从 game_processor 传入的、包含所有来源信息的合并字典
+        title = info.get("title")  # 处理器已确定最终标题
+        if not title:
+            logger.error("游戏标题为空，无法创建或更新。")
+            return None
+
         if not page_id:
             existing = await self.search_game(title)
             page_id = existing[0]["id"] if existing else None
-        props = {FIELDS["game_name"]: {"title": [{"text": {"content": title}}]}}
-        if info.get("game_official_url"):
-            props[FIELDS["game_official_url"]] = {"url": info["game_official_url"]}
-        if info.get("dlsite_link"):
-            props[FIELDS["dlsite_link"]] = {"url": info["dlsite_link"]}
-        if info.get("getchu_link"):
-            props[FIELDS["getchu_link"]] = {"url": info["getchu_link"]}
-        if info.get("bangumi_url"):
-            props[FIELDS["bangumi_url"]] = {"url": info["bangumi_url"]}
-        if info.get("游戏别名"):
-            props[FIELDS["game_alias"]] = {"rich_text": [{"text": {"content": info["游戏别名"]}}]}
-        if info.get("大小"):
-            props[FIELDS["game_size"]] = {"rich_text": [{"text": {"content": info["大小"]}}]}
-        iso_date = convert_date_jp_to_iso(info.get("发售日"))
-        if iso_date:
-            props[FIELDS["release_date"]] = {"date": {"start": iso_date}}
-        for key, field_key in [
-            ("剧本", "script"),
-            ("原画", "illustrator"),
-            ("声优", "voice_actor"),
-            ("音乐", "music"),
-        ]:
-            val = info.get(key)
-            if val:
-                props[FIELDS[field_key]] = {"multi_select": [{"name": v} for v in val if v.strip()]}
-        if info.get("作品形式"):
-            props[FIELDS["game_type"]] = {
-                "multi_select": [{"name": t} for t in info["作品形式"] if t.strip()]
-            }
-        if info.get("标签"):
-            props[FIELDS["tags"]] = {
-                "multi_select": [{"name": t} for t in info["标签"] if t.strip()]
-            }
-        price_raw = info.get("价格")
-        if price_raw and price_raw != "无":
-            try:
-                price_num = float(re.sub(r"[^\d.]", "", price_raw))
-                props[FIELDS["price"]] = {"number": price_num}
-            except (ValueError, TypeError):
-                pass
-        if info.get("封面图链接"):
-            props[FIELDS["cover_image"]] = {
-                "files": [
-                    {"type": "external", "name": "cover", "external": {"url": info["封面图链接"]}}
-                ]
-            }
-        if info.get("游戏简介"):
-            props[FIELDS["game_summary"]] = {
-                "rich_text": [{"text": {"content": info["游戏简介"][:2000]}}]
-            }
-        if brand_relation_id:
-            props[FIELDS["brand_relation"]] = {"relation": [{"id": brand_relation_id}]}
-        if info.get("资源链接"):
-            props[FIELDS["resource_link"]] = {"url": info["资源链接"]}
+
+        # 获取最新的游戏数据库结构
+        schema = await self.get_database_schema(self.game_db_id)
+        if not schema:
+            logger.error("无法获取游戏数据库结构，更新中止。")
+            return None
+        properties_schema = schema.get("properties", {})
+
+        # 1. 创建一个干净的字典，其键保证是 Notion 数据库中的属性名
+        data_for_notion = {}
+
+        # 2. 首先填充所有从 Bangumi infobox 动态学习到的属性。
+        #    这些属性的键已经是正确的 Notion 属性名。
+        for prop_name in properties_schema:
+            if prop_name in info:
+                data_for_notion[prop_name] = info[prop_name]
+
+        # 3. 创建一个从内部/源键到 Notion 标准属性名的映射表
+        source_to_notion_map = {
+            "title": FIELDS["game_name"],
+            "title_cn": FIELDS["game_alias"],
+            "summary": FIELDS["game_summary"],
+            "url": FIELDS["bangumi_url"],
+            "封面图链接": FIELDS["cover_image"],
+            "发售日": FIELDS["release_date"],
+            "剧本": FIELDS["script"],
+            "原画": FIELDS["illustrator"],
+            "声优": FIELDS["voice_actor"],
+            "音乐": FIELDS["music"],
+            "作品形式": FIELDS["game_type"],
+            "大小": FIELDS["game_size"],
+            "标签": FIELDS["tags"],
+            "价格": FIELDS["price"],
+            "dlsite_link": FIELDS["dlsite_link"],
+            "getchu_link": FIELDS["getchu_link"],
+            "资源链接": FIELDS["resource_link"],
+            "brand_relation_id": FIELDS["brand_relation"],
+        }
+
+        # 4. 使用映射表填充或覆盖 data_for_notion。
+        for source_key, notion_key in source_to_notion_map.items():
+            if source_key in info and info[source_key] is not None:
+                data_for_notion[notion_key] = info[source_key]
+
+        data_for_notion[FIELDS["game_name"]] = title
+
+        # 5. 使用整理好的 data_for_notion 构建 Notion API 请求体
+        props = {}
+        for notion_prop_name, value in data_for_notion.items():
+            if value is None or notion_prop_name == "":
+                continue
+
+            prop_info = properties_schema.get(notion_prop_name)
+            if not prop_info:
+                logger.warn(f"属性 '{notion_prop_name}' 在游戏库中不存在，已跳过。")
+                continue
+
+            prop_type = prop_info.get("type")
+
+            if prop_type == "title":
+                props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
+            elif prop_type == "rich_text":
+                props[notion_prop_name] = {"rich_text": [{"text": {"content": str(value)[:2000]}}]}
+            elif prop_type == "url":
+                props[notion_prop_name] = {"url": str(value)}
+            elif prop_type == "date":
+                iso_date = convert_date_jp_to_iso(str(value))
+                if iso_date:
+                    props[notion_prop_name] = {"date": {"start": iso_date}}
+            elif prop_type == "number":
+                try:
+                    price_num = float(re.sub(r"[^\d.]", "", str(value)))
+                    props[notion_prop_name] = {"number": price_num}
+                except (ValueError, TypeError):
+                    pass
+            elif prop_type == "files":
+                if str(value):
+                    props[notion_prop_name] = {
+                        "files": [
+                            {"type": "external", "name": "cover", "external": {"url": str(value)}}
+                        ]
+                    }
+            elif prop_type == "relation":
+                if value:
+                    props[notion_prop_name] = {"relation": [{"id": str(value)}]}
+
+            # --- 核心修复：添加对 'select' 类型的处理 ---
+            elif prop_type == "select":
+                if str(value).strip():
+                    props[notion_prop_name] = {"select": {"name": str(value)}}
+            # --- 修复结束 ---
+
+            elif prop_type == "multi_select":
+                options = []
+                if isinstance(value, str):
+                    options = [v.strip() for v in re.split(r"[,、/]", value) if v.strip()]
+                elif isinstance(value, list):
+                    options = [v for v in value if v and str(v).strip()]
+                if options:
+                    props[notion_prop_name] = {
+                        "multi_select": [{"name": str(opt)} for opt in options]
+                    }
+
         url = (
             f"https://api.notion.com/v1/pages/{page_id}"
             if page_id
@@ -216,6 +277,7 @@ class NotionClient:
         payload = {"properties": props}
         if not page_id:
             payload["parent"] = {"database_id": self.game_db_id}
+
         resp = await self._request(method, url, payload)
         if resp:
             logger.success(f"{'已更新' if page_id else '已创建'}游戏: {title}")

@@ -100,9 +100,8 @@ class DlsiteClient:
             return []
 
     async def get_game_detail(self, url):
-        # ... 此方法无变化 ...
         try:
-            r = await self.client.get(url, timeout=15)
+            r = await self.client.get(url, timeout=15, headers=self.headers)
             r.raise_for_status()
             soup = BeautifulSoup(r.text, "html.parser")
             brand_tag = soup.select_one("#work_maker .maker_name a")
@@ -110,16 +109,11 @@ class DlsiteClient:
             brand_page_url = brand_tag["href"] if brand_tag and brand_tag.has_attr("href") else None
             if brand_page_url and not brand_page_url.startswith("http"):
                 brand_page_url = self.BASE_URL + brand_page_url
+            
             sale_date, scenario, illustrator, voice_actor, music, genres, work_type, capacity = (
-                None,
-                [],
-                [],
-                [],
-                [],
-                [],
-                [],
-                None,
+                None, [], [], [], [], [], [], None,
             )
+            
             table = soup.find("table", id="work_outline")
             if table:
                 for tr in table.find_all("tr"):
@@ -127,55 +121,56 @@ class DlsiteClient:
                     if not th or not td:
                         continue
                     key = th.get_text(strip=True)
+                    
+                    # --- 核心修复：修改以下四个字段的提取方式 ---
+                    def extract_list_from_td(table_cell):
+                        """从td中提取由'/'分隔的文本列表，兼容链接和纯文本。"""
+                        # 使用<br>作为临时分隔符，然后获取所有文本
+                        for br in table_cell.find_all("br"):
+                            br.replace_with("/")
+                        # get_text会自动处理<a>标签，我们按'/'切分即可
+                        all_text = table_cell.get_text(separator="/", strip=True)
+                        return [name.strip() for name in all_text.split('/') if name.strip()]
+
                     if key == "販売日":
                         sale_date = td.get_text(strip=True)
                     elif key == "シナリオ":
-                        scenario = [a.get_text(strip=True) for a in td.find_all("a")]
+                        scenario = extract_list_from_td(td)
                     elif key == "イラスト":
-                        illustrator = [a.get_text(strip=True) for a in td.find_all("a")]
+                        illustrator = extract_list_from_td(td)
                     elif key == "声優":
-                        voice_actor = [a.get_text(strip=True) for a in td.find_all("a")]
+                        voice_actor = extract_list_from_td(td)
                     elif key == "音楽":
-                        music = [a.get_text(strip=True) for a in td.find_all("a")]
+                        music = extract_list_from_td(td)
+                    # --- 修复结束 ---
+                        
                     elif key == "ジャンル":
                         genres = [a.get_text(strip=True) for a in td.find_all("a")]
                     elif key == "作品形式":
                         spans = td.find_all("span", title=True)
                         mapping = {
-                            "ロールプレイング": "RPG",
-                            "アドベンチャー": "ADV",
-                            "シミュレーション": "模拟",
-                            "アクション": "ACT",
-                            "音声あり": "有声音",
-                            "音楽あり": "有音乐",
-                            "動画あり": "有动画",
+                            "ロールプレイング": "RPG", "アドベンチャー": "ADV",
+                            "シミュレーション": "模拟", "アクション": "ACT",
+                            "音声あり": "有声音", "音楽あり": "有音乐", "動画あり": "有动画",
                         }
-                        work_type = [
-                            mapping.get(s["title"].strip(), s["title"].strip()) for s in spans
-                        ]
+                        work_type = [mapping.get(s["title"].strip(), s["title"].strip()) for s in spans]
                     elif key == "ファイル容量":
                         capacity = td.get_text(strip=True).replace("総計", "").strip()
+
             cover_tag = soup.find("meta", property="og:image")
             cover = cover_tag["content"] if cover_tag else None
             if genres:
                 append_new_tags(TAG_JP_PATH, genres)
+            
             return {
-                "品牌": brand,
-                "发售日": sale_date,
-                "剧本": scenario,
-                "原画": illustrator,
-                "声优": voice_actor,
-                "音乐": music,
-                "标签": genres,
-                "作品形式": work_type,
-                "封面图链接": cover,
-                "品牌页链接": brand_page_url,
-                "容量": capacity,
+                "品牌": brand, "发售日": sale_date, "剧本": scenario,
+                "原画": illustrator, "声优": voice_actor, "音乐": music,
+                "标签": genres, "作品形式": work_type, "封面图链接": cover,
+                "品牌页链接": brand_page_url, "容量": capacity,
             }
         except httpx.RequestError as e:
             logger.error(f"[Dlsite] 获取详情失败: {e}")
             return {}
-
     async def get_brand_extra_info_with_selenium(self, brand_page_url):
         logger.info(f"[Dlsite] 正在用Selenium抓取品牌额外信息...")
         if not self.driver:

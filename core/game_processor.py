@@ -1,6 +1,5 @@
 # core/game_processor.py
-# 该模块用于处理游戏数据的同步和处理逻辑
-import re
+import re  # 确保文件顶部导入 re
 
 from utils import logger
 from utils.tag_mapping import map_and_translate_tags
@@ -21,110 +20,66 @@ async def process_and_sync_game(
     source=None,
     selected_similar_page_id=None,
 ):
-    def split_to_list(text):
-        if not text:
-            return []
-        if isinstance(text, list):
-            return text
-        return [s.strip() for s in re.split(r"[、/\n]", text) if s.strip()]
-
-    def split_work_types(text):
-        if not text:
-            return []
-        text = str(text).replace("[", "").replace("]", "")
-        if isinstance(text, list):
-            return text
-        return [s.strip() for s in re.split(r"[、/・|｜,，\n\.]", text) if s.strip()]
-
     source = (source or game.get("source", "unknown")).lower()
     ggbases_info = ggbases_info or {}
     bangumi_info = bangumi_info or {}
 
-    def choose_cover_url(
-        source_str: str, detail_dict: dict, bangumi_dict: dict, ggbases_dict: dict
-    ) -> str:
-        cover_url = None
-        if source_str == "dlsite":
-            cover_url = (
-                detail_dict.get("封面图链接")
-                or detail_dict.get("封面图")
-                or ggbases_dict.get("封面图链接")
-                or bangumi_dict.get("封面图链接")
-                or bangumi_dict.get("image")
-            )
-        elif source_str == "getchu":
-            cover_url = (
-                bangumi_dict.get("封面图链接")
-                or bangumi_dict.get("image")
-                or ggbases_dict.get("封面图链接")
-                or detail_dict.get("封面图链接")
-                or detail_dict.get("封面图")
-            )
-            if cover_url and not cover_url.startswith("http"):
-                cover_url = "https://www.getchu.com" + cover_url
-        else:
-            cover_url = (
-                bangumi_dict.get("封面图链接")
-                or bangumi_dict.get("image")
-                or ggbases_dict.get("封面图链接")
-                or detail_dict.get("封面图链接")
-                or detail_dict.get("封面图")
-            )
-        return cover_url
+    merged = bangumi_info.copy()
 
-    dlsite_tags_raw = detail.get("标签", [])
-    if not isinstance(dlsite_tags_raw, list):
-        dlsite_tags_raw = [dlsite_tags_raw]
-    ggbases_tags_raw = ggbases_info.get("标签", [])
-    if not isinstance(ggbases_tags_raw, list):
-        ggbases_tags_raw = [ggbases_tags_raw]
-    mapped_dlsite_tags = map_and_translate_tags(dlsite_tags_raw, source="dlsite")
-    mapped_ggbases_tags = map_and_translate_tags(ggbases_tags_raw, source="ggbase")
-    mapped_tags = sorted(set(mapped_dlsite_tags + mapped_ggbases_tags))
-    cover_url = choose_cover_url(source, detail, bangumi_info, ggbases_info)
+    list_fields_to_merge = ["剧本", "原画", "声优", "音乐"]
+    fields_to_overwrite = ["发售日", "作品形式"]
 
-    # --- 核心改动：智能添加 Getchu 默认游戏类型 ---
-    # 1. 先从所有来源正常解析游戏类型
-    scraped_types_raw = detail.get("作品形式") or detail.get("ジャンル") or game.get("类型")
-    final_types = split_work_types(scraped_types_raw)
+    for field in list_fields_to_merge:
+        bangumi_values_raw = merged.get(field, [])
+        bangumi_values = []
+        if isinstance(bangumi_values_raw, str):
+            # --- 核心修复：使用正则表达式处理多种分隔符 ---
+            bangumi_values = [
+                v.strip() for v in re.split(r"[,、/]", bangumi_values_raw) if v.strip()
+            ]
+        elif isinstance(bangumi_values_raw, list):
+            bangumi_values = bangumi_values_raw
 
-    # 2. 如果来源是 Getchu，则添加默认类型
-    if source == "getchu":
-        default_getchu_types = ["ADV", "有声音", "有音乐"]
-        # 使用 set 合并并去重，然后转回有序列表
-        combined_set = set(final_types + default_getchu_types)
-        final_types = sorted(list(combined_set))
-        logger.info("[Getchu] 已自动添加默认游戏类型: ADV, 有声音, 有音乐")
-    # --- 核心改动结束 ---
+        detail_values = detail.get(field, [])
 
-    merged = {
-        "title": (
-            bangumi_info.get("title")
-            or bangumi_info.get("title_cn")
-            or game.get("notion_title")
-            or game.get("title")
-        ),
-        "游戏别名": bangumi_info.get("title_cn") or "",
-        "dlsite_link": game.get("url") if source == "dlsite" else None,
-        "getchu_link": game.get("url") if source == "getchu" else None,
-        "game_official_url": None,
-        "bangumi_url": bangumi_info.get("url"),
-        "价格": game.get("价格") or game.get("price"),
-        "品牌": detail.get("品牌"),
-        "封面图链接": cover_url,
-        "发售日": detail.get("发售日") or detail.get("発売日"),
-        "剧本": split_to_list(detail.get("剧本") or detail.get("シナリオ")),
-        "原画": split_to_list(detail.get("原画") or detail.get("原画家")),
-        "声优": split_to_list(detail.get("声优") or detail.get("CV")),
-        "音乐": split_to_list(detail.get("音乐") or detail.get("音楽")),
-        "作品形式": final_types,  # 使用我们最终处理好的类型列表
-        "大小": size,
-        "资源链接": ggbases_detail_url,
-        "标签": mapped_tags,
-        "游戏简介": bangumi_info.get("summary") or "",
-    }
+        combined_set = set(bangumi_values) | set(detail_values)
+        # 过滤掉空的字符串
+        merged[field] = sorted([item for item in list(combined_set) if item])
 
-    page_id = await notion_client.create_or_update_game(
-        merged, brand_relation_id=brand_id, page_id=selected_similar_page_id
+    for field in fields_to_overwrite:
+        if detail.get(field):
+            merged[field] = detail[field]
+
+    if ggbases_info.get("容量"):
+        merged["大小"] = ggbases_info.get("容量")
+
+    dlsite_tags = map_and_translate_tags(detail.get("标签", []), source="dlsite")
+    ggbases_tags = map_and_translate_tags(ggbases_info.get("标签", []), source="ggbase")
+    bangumi_tags_raw = merged.get("标签", [])
+    bangumi_tags = []
+    if isinstance(bangumi_tags_raw, str):
+        bangumi_tags = [t.strip() for t in bangumi_tags_raw.split(",")]
+    elif isinstance(bangumi_tags_raw, list):
+        bangumi_tags = bangumi_tags_raw
+
+    merged["标签"] = sorted(list(set(dlsite_tags + ggbases_tags + bangumi_tags)))
+
+    merged["title"] = bangumi_info.get("title") or detail.get("标题") or game.get("title")
+    merged["title_cn"] = bangumi_info.get("name_cn") or ""
+
+    merged["封面图链接"] = (
+        bangumi_info.get("封面图链接") or ggbases_info.get("封面图链接") or detail.get("封面图链接")
     )
+
+    merged["dlsite_link"] = game.get("url") if source == "dlsite" else None
+    merged["getchu_link"] = game.get("url") if source == "getchu" else None
+    merged["资源链接"] = ggbases_detail_url
+    merged["价格"] = game.get("价格") or game.get("price")
+    merged["brand_relation_id"] = brand_id
+
+    # 简介的key在bangumi_info中是summary, Notion中是"游戏简介"
+    if not merged.get("summary") and bangumi_info.get("summary"):
+        merged["summary"] = bangumi_info.get("summary")
+
+    page_id = await notion_client.create_or_update_game(page_id=selected_similar_page_id, **merged)
     return page_id

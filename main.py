@@ -52,7 +52,7 @@ async def run_single_game_flow(context: dict):
             logger.warn("请输入有效的游戏关键词。")
             return True
         game, source = await select_game(
-            context["dlsite"], context["getchu"], original_keyword, original_keyword
+            context["dlsite"], context["fanza"], original_keyword, original_keyword
         )
         if not game or source == "cancel":
             logger.info("操作已取消。")
@@ -66,7 +66,7 @@ async def run_single_game_flow(context: dict):
             return True
 
         # --- 阶段 2: 并发获取所有“非交互式”的基础信息 ---
-        logger.info("正在并发获取 Dlsite/Getchu 详情和 GGBases 候选列表...")
+        logger.info(f"正在并发获取 {source.upper()} 详情和 GGBases 候选列表...")
         detail_task = context[source].get_game_detail(game["url"])
         ggbases_candidates_task = context["ggbases"].choose_or_parse_popular_url_with_requests(
             original_keyword

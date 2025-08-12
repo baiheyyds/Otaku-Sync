@@ -6,7 +6,7 @@ import httpx
 from clients.bangumi_client import BangumiClient
 from clients.brand_cache import BrandCache
 from clients.dlsite_client import DlsiteClient
-from clients.getchu_client import GetchuClient
+from clients.fanza_client import FanzaClient  # <-- 添加这一行
 from clients.ggbases_client import GGBasesClient
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
@@ -63,7 +63,7 @@ async def init_context():
     # --- 核心改动结束 ---
 
     dlsite = DlsiteClient(async_client)
-    getchu = GetchuClient(async_client)
+    fanza = FanzaClient(async_client)
     ggbases = GGBasesClient(async_client)
 
     dlsite.set_driver(dlsite_driver)
@@ -82,7 +82,7 @@ async def init_context():
         "notion": notion,
         "bangumi": bangumi,
         "dlsite": dlsite,
-        "getchu": getchu,
+        "fanza": fanza,
         "ggbases": ggbases,
         "brand_cache": brand_cache,
         "brand_extra_info_cache": brand_extra_info_cache,

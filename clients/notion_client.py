@@ -115,7 +115,7 @@ class NotionClient:
         """根据页面ID获取完整的页面对象"""
         url = f"https://api.notion.com/v1/pages/{page_id}"
         return await self._request("GET", url)
-    
+
     async def get_database_schema(self, db_id: str):
         url = f"https://api.notion.com/v1/databases/{db_id}"
         return await self._request("GET", url)
@@ -156,8 +156,7 @@ class NotionClient:
     # --- 请找到 create_or_update_game 方法并用下面的代码替换它 ---
 
     async def create_or_update_game(self, page_id=None, **info):
-        # 'info' 是从 game_processor 传入的、包含所有来源信息的合并字典
-        title = info.get("title")  # 处理器已确定最终标题
+        title = info.get("title")
         if not title:
             logger.error("游戏标题为空，无法创建或更新。")
             return None
@@ -166,23 +165,18 @@ class NotionClient:
             existing = await self.search_game(title)
             page_id = existing[0]["id"] if existing else None
 
-        # 获取最新的游戏数据库结构
         schema = await self.get_database_schema(self.game_db_id)
         if not schema:
             logger.error("无法获取游戏数据库结构，更新中止。")
             return None
         properties_schema = schema.get("properties", {})
 
-        # 1. 创建一个干净的字典，其键保证是 Notion 数据库中的属性名
         data_for_notion = {}
-
-        # 2. 首先填充所有从 Bangumi infobox 动态学习到的属性。
-        #    这些属性的键已经是正确的 Notion 属性名。
         for prop_name in properties_schema:
             if prop_name in info:
                 data_for_notion[prop_name] = info[prop_name]
 
-        # 3. 创建一个从内部/源键到 Notion 标准属性名的映射表
+        # --- 核心修复：在这里更新映射表 ---
         source_to_notion_map = {
             "title": FIELDS["game_name"],
             "title_cn": FIELDS["game_alias"],
@@ -199,29 +193,27 @@ class NotionClient:
             "标签": FIELDS["tags"],
             "价格": FIELDS["price"],
             "dlsite_link": FIELDS["dlsite_link"],
-            "getchu_link": FIELDS["getchu_link"],
+            # 将 getchu_link 替换为 fanza_link
+            "fanza_link": FIELDS["fanza_link"],
             "资源链接": FIELDS["resource_link"],
             "brand_relation_id": FIELDS["brand_relation"],
         }
+        # --- 修复结束 ---
 
-        # 4. 使用映射表填充或覆盖 data_for_notion。
         for source_key, notion_key in source_to_notion_map.items():
             if source_key in info and info[source_key] is not None:
                 data_for_notion[notion_key] = info[source_key]
 
         data_for_notion[FIELDS["game_name"]] = title
 
-        # 5. 使用整理好的 data_for_notion 构建 Notion API 请求体
         props = {}
         for notion_prop_name, value in data_for_notion.items():
             if value is None or notion_prop_name == "":
                 continue
-
             prop_info = properties_schema.get(notion_prop_name)
             if not prop_info:
                 logger.warn(f"属性 '{notion_prop_name}' 在游戏库中不存在，已跳过。")
                 continue
-
             prop_type = prop_info.get("type")
 
             if prop_type == "title":
@@ -231,13 +223,11 @@ class NotionClient:
             elif prop_type == "url":
                 props[notion_prop_name] = {"url": str(value)}
             elif prop_type == "date":
-                iso_date = convert_date_jp_to_iso(str(value))
-                if iso_date:
+                if iso_date := convert_date_jp_to_iso(str(value)):
                     props[notion_prop_name] = {"date": {"start": iso_date}}
             elif prop_type == "number":
                 try:
-                    price_num = float(re.sub(r"[^\d.]", "", str(value)))
-                    props[notion_prop_name] = {"number": price_num}
+                    props[notion_prop_name] = {"number": float(re.sub(r"[^\d.]", "", str(value)))}
                 except (ValueError, TypeError):
                     pass
             elif prop_type == "files":
@@ -250,13 +240,9 @@ class NotionClient:
             elif prop_type == "relation":
                 if value:
                     props[notion_prop_name] = {"relation": [{"id": str(value)}]}
-
-            # --- 核心修复：添加对 'select' 类型的处理 ---
             elif prop_type == "select":
                 if str(value).strip():
                     props[notion_prop_name] = {"select": {"name": str(value)}}
-            # --- 修复结束 ---
-
             elif prop_type == "multi_select":
                 options = []
                 if isinstance(value, str):

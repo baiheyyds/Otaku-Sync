@@ -7,7 +7,7 @@ FIELDS = {
     "game_summary": "游戏简介",
     "game_official_url": "游戏官网",  # <- 重命名
     "dlsite_link": "DLsite链接",  # <- 新增
-    "getchu_link": "Getchu链接",  # <- 新增
+    "fanza_link": "Fanza链接",  # <- 将 getchu_link 修改为此行
     "game_size": "游戏大小",
     "release_date": "发售时间",
     "script": "剧本",

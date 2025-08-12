@@ -1,11 +1,10 @@
 # core/mapping_manager.py
-# 该模块用于动态管理 Bangumi 属性映射
 import asyncio
 import json
 import os
+import re
 from typing import Dict, List
 
-# --- 核心修正：导入所有需要的数据库 ID ---
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID
 from utils import logger
 
@@ -39,10 +38,7 @@ class BangumiMappingManager:
             try:
                 with open(self.file_path, "r", encoding="utf-8") as f:
                     content = f.read()
-                    if not content:
-                        self._mapping = {}
-                    else:
-                        self._mapping = json.loads(content)
+                    self._mapping = json.loads(content) if content else {}
             except (json.JSONDecodeError, IOError) as e:
                 logger.error(f"加载 Bangumi 映射文件失败: {e}")
                 self._mapping = {}
@@ -55,9 +51,7 @@ class BangumiMappingManager:
                 self._reverse_mapping[key] = notion_prop
 
     def get_notion_prop(self, bangumi_key: str) -> str | None:
-        if bangumi_key in self._ignored_keys:
-            return None
-        return self._reverse_mapping.get(bangumi_key)
+        return None if bangumi_key in self._ignored_keys else self._reverse_mapping.get(bangumi_key)
 
     def add_new_mapping(self, bangumi_key: str, notion_prop: str):
         current_mapping_on_disk = {}
@@ -84,14 +78,20 @@ class BangumiMappingManager:
 
         self._mapping = current_mapping_on_disk
         self._build_reverse_mapping()
-        logger.success(f"已更新映射表: '{bangumi_key}' -> '{notion_prop}'")
+        # --- 核心修复：修正日志输出，确保映射关系清晰无误 ---
+        logger.success(f"已更新映射表: Bangumi 属性 '{bangumi_key}' -> Notion 属性 '{notion_prop}'")
 
     def ignore_key_session(self, bangumi_key: str):
         self._ignored_keys.add(bangumi_key)
         logger.info(f"属性 '{bangumi_key}' 将在本次运行中被忽略。")
 
     async def _create_and_map_new_property(
-        self, bangumi_key: str, new_prop_name: str, notion_client, schema_manager, target_db_id: str
+        self,
+        new_prop_name: str,
+        bangumi_key_to_map: str,
+        notion_client,
+        schema_manager,
+        target_db_id: str,
     ) -> str | None:
         def _get_type_input():
             type_prompt = f"   请为新属性 '{new_prop_name}' 选择 Notion 中的类型:\n"
@@ -106,7 +106,6 @@ class BangumiMappingManager:
             if type_choice == "c":
                 logger.info("已取消创建新属性。")
                 return None
-
             selected_type = TYPE_SELECTION_MAP.get(type_choice or "1")
             if selected_type:
                 notion_type, _ = selected_type
@@ -118,7 +117,6 @@ class BangumiMappingManager:
             target_db_id, new_prop_name, notion_type
         )
         if success:
-            # 同样在这里修正 db_name 的判断逻辑
             db_name = "未知数据库"
             if target_db_id == GAME_DB_ID:
                 db_name = "游戏数据库"
@@ -128,7 +126,7 @@ class BangumiMappingManager:
                 db_name = "角色数据库"
 
             await schema_manager.initialize_schema(target_db_id, db_name)
-            self.add_new_mapping(bangumi_key, new_prop_name)
+            self.add_new_mapping(bangumi_key_to_map, new_prop_name)
             return new_prop_name
         else:
             logger.error(f"自动创建 Notion 属性 '{new_prop_name}' 失败，将跳过此属性。")
@@ -137,7 +135,6 @@ class BangumiMappingManager:
     async def handle_new_key(
         self, bangumi_key: str, notion_client, schema_manager, target_db_id: str
     ) -> str | None:
-
         db_name = "未知数据库"
         if target_db_id == GAME_DB_ID:
             db_name = "游戏数据库"
@@ -148,13 +145,13 @@ class BangumiMappingManager:
 
         def _get_action_input():
             mappable_props = schema_manager.get_mappable_properties(target_db_id)
+            prompt_header = f"\n❓ [Bangumi] 在【{db_name}】中发现新属性: '{bangumi_key}'\n   请选择如何处理:\n\n   --- 映射到现有 Notion 属性 ---\n"
+            prop_lines, prop_map = [], {}
+            COLUMNS, COLUMN_WIDTH = 3, 25
 
-            # --- 核心修复：引入一个函数来计算字符串的“视觉宽度” ---
             def get_visual_width(s: str) -> int:
-                """计算字符串在终端中的视觉宽度，CJK字符算2，其他算1。"""
                 width = 0
                 for char in s:
-                    # 匹配 CJK 统一表意文字、全角拉丁字母/数字、日文假名等常见全角字符
                     if (
                         "\u4e00" <= char <= "\u9fff"
                         or "\u3040" <= char <= "\u30ff"
@@ -165,21 +162,6 @@ class BangumiMappingManager:
                         width += 1
                 return width
 
-            # --- 修复结束 ---
-
-            prompt_header = (
-                f"\n❓ [Bangumi] 在【{db_name}】中发现新属性: '{bangumi_key}'\n"
-                f"   请选择如何处理:\n\n"
-                f"   --- 映射到现有 Notion 属性 ---\n"
-            )
-
-            prop_lines = []
-            prop_map = {}
-            # 你可以根据自己的屏幕宽度调整这里的参数
-            COLUMNS = 3
-            # COLUMN_WIDTH 现在代表视觉宽度，25通常是个不错的值
-            COLUMN_WIDTH = 25
-
             for i in range(0, len(mappable_props), COLUMNS):
                 line_parts = []
                 for j in range(COLUMNS):
@@ -188,32 +170,14 @@ class BangumiMappingManager:
                         prop_name = mappable_props[idx]
                         prop_map[str(idx + 1)] = prop_name
                         display_text = f"[{idx + 1}] {prop_name}"
-
-                        # --- 使用新方法计算并添加正确的填充 ---
-                        current_width = get_visual_width(display_text)
-                        padding_needed = COLUMN_WIDTH - current_width
-                        # 确保填充不为负数
-                        padding = " " * max(0, padding_needed)
+                        padding = " " * max(0, COLUMN_WIDTH - get_visual_width(display_text))
                         line_parts.append(display_text + padding)
-                        # --- 调整结束 ---
-
                 prop_lines.append("   " + "".join(line_parts))
-
             prompt_body = "\n".join(prop_lines)
-
-            prompt_footer = (
-                f"\n\n   --- 或执行其他操作 ---\n"
-                f"     [y] 在 Notion 中创建同名新属性 '{bangumi_key}' (默认)\n"
-                f"     [n] 本次运行中忽略此属性\n"
-                f"     [c] 自定义新属性名称并创建\n"
-                f"\n请输入您的选择 (数字或字母): "
-            )
-
-            prompt = prompt_header + prompt_body + prompt_footer
-            choice = input(prompt).strip().lower()
+            prompt_footer = f"\n\n   --- 或执行其他操作 ---\n     [y] 在 Notion 中创建同名新属性 '{bangumi_key}' (默认)\n     [n] 本次运行中忽略此属性\n     [c] 自定义新属性名称并创建\n\n请输入您的选择 (数字或字母): "
+            choice = input(prompt_header + prompt_body + prompt_footer).strip().lower()
             return choice, prop_map
 
-        # ... (后续逻辑与之前版本完全相同) ...
         action, prop_map = await asyncio.to_thread(_get_action_input)
 
         if action.isdigit() and action in prop_map:
@@ -221,7 +185,6 @@ class BangumiMappingManager:
             logger.info(f"已选择映射到现有属性: '{selected_prop}'")
             self.add_new_mapping(bangumi_key, selected_prop)
             return selected_prop
-
         if action == "n":
             self.ignore_key_session(bangumi_key)
             return None
@@ -234,6 +197,9 @@ class BangumiMappingManager:
         if action == "c":
             custom_name = await asyncio.to_thread(input, "请输入要创建的自定义 Notion 属性名: ")
             if custom_name:
+                # --- 核心修复：交换这里的参数顺序！ ---
+                # 第一个参数是要在 Notion 创建的属性名 (你的输入)
+                # 第二个参数是要被映射的 Bangumi 键名 (原始键)
                 return await self._create_and_map_new_property(
                     custom_name.strip(), bangumi_key, notion_client, schema_manager, target_db_id
                 )

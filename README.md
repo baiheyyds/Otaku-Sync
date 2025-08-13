@@ -11,7 +11,7 @@
       <img src="https://img.shields.io/github/actions/workflow/status/baiheyyds/Otaku-Sync/CI.yml?branch=main" alt="Build Status">
     </a>
     <a href="https://github.com/baiheyyds/Otaku-Sync/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/baiheyyds/Otaku-Sync" alt="License">
+      <img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg" alt="License: CC BY-NC-SA 4.0">
     </a>
     <img src="https://img.shields.io/github/stars/baiheyyds/Otaku-Sync?style=social" alt="Stars">
     <img src="https://img.shields.io/github/issues/baiheyyds/Otaku-Sync" alt="Issues">
@@ -238,9 +238,18 @@ python main.py
 -  如果你发现了 Bug，请在 [Issues](https://github.com/baiheyyds/Otaku-Sync/issues) 中提交详细报告。
 -  如果你有新功能或改进建议，也欢迎提出 Issue 或提交 Pull Request。
 
-## 📜 授权协议
+## 📜 授权协议 (License)
 
-本项目基于 [MIT License](https://github.com/baiheyyds/Otaku-Sync/blob/main/LICENSE) 开源。
+本项目基于 [Creative Commons BY-NC-SA 4.0](LICENSE) 国际许可协议进行许可。
+
+简单来说，你可以：
+- **分享** — 在任何媒介以任何形式复制、发行本作品
+- **演绎** — 修改、转换或以本作品为基础进行创作
+
+只要你遵守以下条件：
+- **署名 (BY)** — 您必须给出适当的署名，提供指向本许可协议的链接。
+- **非商业性使用 (NC)** — 您不得将本作品用于商业目的。
+- **相同方式共享 (SA)** — 如果您再混合、转换或者基于本作品进行创作，您必须基于与原先许可协议相同的许可协议分发您贡献的作
 
 ## ⚠️ 免责声明
 

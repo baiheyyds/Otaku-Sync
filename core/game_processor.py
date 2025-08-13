@@ -76,7 +76,7 @@ async def process_and_sync_game(
     merged["价格"] = game.get("价格") or game.get("price")
     merged["brand_relation_id"] = brand_id
     if not merged.get("summary") and bangumi_info.get("summary"):
-        merged["summary"] = bang_info.get("summary")
+        merged["summary"] = bangumi_info.get("summary")
 
     page_id = await notion_client.create_or_update_game(page_id=selected_similar_page_id, **merged)
     return page_id

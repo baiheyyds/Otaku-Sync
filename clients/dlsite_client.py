@@ -109,11 +109,9 @@ class DlsiteClient:
             brand_page_url = brand_tag["href"] if brand_tag and brand_tag.has_attr("href") else None
             if brand_page_url and not brand_page_url.startswith("http"):
                 brand_page_url = self.BASE_URL + brand_page_url
-            
-            sale_date, scenario, illustrator, voice_actor, music, genres, work_type, capacity = (
-                None, [], [], [], [], [], [], None,
-            )
-            
+
+            details = {}
+
             table = soup.find("table", id="work_outline")
             if table:
                 for tr in table.find_all("tr"):
@@ -121,56 +119,73 @@ class DlsiteClient:
                     if not th or not td:
                         continue
                     key = th.get_text(strip=True)
-                    
-                    # --- 核心修复：修改以下四个字段的提取方式 ---
+
                     def extract_list_from_td(table_cell):
-                        """从td中提取由'/'分隔的文本列表，兼容链接和纯文本。"""
-                        # 使用<br>作为临时分隔符，然后获取所有文本
                         for br in table_cell.find_all("br"):
                             br.replace_with("/")
-                        # get_text会自动处理<a>标签，我们按'/'切分即可
                         all_text = table_cell.get_text(separator="/", strip=True)
-                        return [name.strip() for name in all_text.split('/') if name.strip()]
+                        return [name.strip() for name in all_text.split("/") if name.strip()]
 
                     if key == "販売日":
-                        sale_date = td.get_text(strip=True)
+                        details["发售日"] = td.get_text(strip=True)
                     elif key == "シナリオ":
-                        scenario = extract_list_from_td(td)
+                        details["剧本"] = extract_list_from_td(td)
                     elif key == "イラスト":
-                        illustrator = extract_list_from_td(td)
+                        details["原画"] = extract_list_from_td(td)
                     elif key == "声優":
-                        voice_actor = extract_list_from_td(td)
+                        details["声优"] = extract_list_from_td(td)
                     elif key == "音楽":
-                        music = extract_list_from_td(td)
-                    # --- 修复结束 ---
-                        
+                        details["音乐"] = extract_list_from_td(td)
                     elif key == "ジャンル":
-                        genres = [a.get_text(strip=True) for a in td.find_all("a")]
+                        details["标签"] = [a.get_text(strip=True) for a in td.find_all("a")]
                     elif key == "作品形式":
                         spans = td.find_all("span", title=True)
                         mapping = {
-                            "ロールプレイング": "RPG", "アドベンチャー": "ADV",
-                            "シミュレーション": "模拟", "アクション": "ACT",
-                            "音声あり": "有声音", "音楽あり": "有音乐", "動画あり": "有动画",
+                            "ロールプレイング": "RPG",
+                            "アドベンチャー": "ADV",
+                            "シミュレーション": "模拟",
+                            "アクション": "ACT",
+                            "音声あり": "有声音",
+                            "音楽あり": "有音乐",
+                            "動画あり": "有动画",
                         }
-                        work_type = [mapping.get(s["title"].strip(), s["title"].strip()) for s in spans]
+                        details["作品形式"] = [
+                            mapping.get(s["title"].strip(), s["title"].strip()) for s in spans
+                        ]
+
+                    # --- 核心修复：使用更健壮的选择器提取文件容量 ---
                     elif key == "ファイル容量":
-                        capacity = td.get_text(strip=True).replace("総計", "").strip()
+                        # 优先查找新版结构中的 .main_genre div，如果找不到，则回退到直接获取 td 的文本 (兼容旧版)
+                        value_container = td.select_one(".main_genre") or td
+                        details["容量"] = (
+                            value_container.get_text(strip=True).replace("総計", "").strip()
+                        )
+                    # --- 修复结束 ---
 
             cover_tag = soup.find("meta", property="og:image")
-            cover = cover_tag["content"] if cover_tag else None
-            if genres:
-                append_new_tags(TAG_JP_PATH, genres)
-            
+            if cover_tag:
+                details["封面图链接"] = cover_tag["content"]
+            if details.get("标签"):
+                append_new_tags(TAG_JP_PATH, details["标签"])
+
+            # 统一返回结构
             return {
-                "品牌": brand, "发售日": sale_date, "剧本": scenario,
-                "原画": illustrator, "声优": voice_actor, "音乐": music,
-                "标签": genres, "作品形式": work_type, "封面图链接": cover,
-                "品牌页链接": brand_page_url, "容量": capacity,
+                "品牌": details.get("品牌"),
+                "发售日": details.get("发售日"),
+                "剧本": details.get("剧本", []),
+                "原画": details.get("原画", []),
+                "声优": details.get("声优", []),
+                "音乐": details.get("音乐", []),
+                "标签": details.get("标签", []),
+                "作品形式": details.get("作品形式", []),
+                "封面图链接": details.get("封面图链接"),
+                "品牌页链接": brand_page_url,
+                "容量": details.get("容量"),
             }
         except httpx.RequestError as e:
             logger.error(f"[Dlsite] 获取详情失败: {e}")
             return {}
+
     async def get_brand_extra_info_with_selenium(self, brand_page_url):
         logger.info(f"[Dlsite] 正在用Selenium抓取品牌额外信息...")
         if not self.driver:
@@ -181,22 +196,18 @@ class DlsiteClient:
         def _blocking_task():
             try:
                 # 直接使用 self.driver，不再创建新的
-                self.driver.get(brand_page_url) 
+                self.driver.get(brand_page_url)
                 wait = WebDriverWait(self.driver, self.selenium_timeout)
                 link_block_element = wait.until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
                 )
-                soup = BeautifulSoup(
-                    link_block_element.get_attribute("outerHTML"), "html.parser"
-                )
+                soup = BeautifulSoup(link_block_element.get_attribute("outerHTML"), "html.parser")
                 cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
                 icon_img_tag = soup.select_one(".creator_icon img[src]")
 
                 cien_url = cien_link_tag["href"].strip() if cien_link_tag else None
                 icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
-                logger.success(
-                    f"[Dlsite] (Selenium)获取成功: Ci-en={cien_url}, 图标={icon_url}"
-                )
+                logger.success(f"[Dlsite] (Selenium)获取成功: Ci-en={cien_url}, 图标={icon_url}")
                 return {"ci_en_url": cien_url, "icon_url": icon_url}
             except Exception as e:
                 logger.error(f"[Dlsite] (Selenium)抓取品牌信息失败 {brand_page_url}: {e}")

@@ -139,7 +139,6 @@ async def run_single_game_flow(context: dict):
         created_page_id = await process_and_sync_game(
             game=game,
             detail=detail,
-            size=ggbases_info.get("容量"),
             notion_client=context["notion"],
             brand_id=brand_id,
             ggbases_client=context["ggbases"],
@@ -150,7 +149,6 @@ async def run_single_game_flow(context: dict):
             source=source,
             selected_similar_page_id=page_id,
         )
-
         if created_page_id and bangumi_id:
             await context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)
         logger.success(f"游戏 '{game['title']}' 处理流程完成！\n")

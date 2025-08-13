@@ -130,7 +130,6 @@ async def run_single_game_flow(context: dict):
             final_brand_info = await handle_brand_info(
                 bangumi_brand_info=bangumi_brand_info,
                 dlsite_extra_info=brand_extra_info,
-                getchu_brand_page_url=detail.get("品牌官网") if source == "getchu" else None,
             )
             brand_id = await context["notion"].create_or_update_brand(
                 brand_name, **final_brand_info

@@ -1,26 +1,19 @@
-# Python 缓存
+# .gitignore
+
+# 忽略Python的缓存文件
 __pycache__/
 *.pyc
 
-# 缓存目录
+# 忽略敏感的配置文件
+.env
+
+# 忽略程序生成的缓存和备份文件
 cache/
-
-# 配置文件（防止敏感信息泄露）
-config/config_token.py
-
-# 日志文件
-*.log
-
-# 临时文件
 *.tmp
-*.bak
+*.bak_*
 
-# Jupyter Notebook 检查点
-.ipynb_checkpoints/
+# 忽略虚拟环境文件夹（如果使用）
+venv/
+.venv/
 
-# 系统文件
-.DS_Store
-Thumbs.db
-
-
-test.py
+generate_requirements

@@ -1,295 +1,249 @@
-
------
 <div align="center">
   <br>
   <img width="120" src="https://youke1.picui.cn/s1/2025/07/25/68829b028b263.png" alt="Otaku-Sync Logo">
   <br>
   <h2 align="center">Otaku-Sync</h2>
+  <p align="center">
+    一款能自动同步二次元游戏、品牌、角色信息到 Notion 数据库的高效工具
+  </p>
+  <p align="center">
+    <a href="https://github.com/baiheyyds/Otaku-Sync/actions">
+      <img src="https://img.shields.io/github/actions/workflow/status/baiheyyds/Otaku-Sync/CI.yml?branch=main" alt="Build Status">
+    </a>
+    <a href="https://github.com/baiheyyds/Otaku-Sync/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/baiheyyds/Otaku-Sync" alt="License">
+    </a>
+    <img src="https://img.shields.io/github/stars/baiheyyds/Otaku-Sync?style=social" alt="Stars">
+    <img src="https://img.shields.io/github/issues/baiheyyds/Otaku-Sync" alt="Issues">
+    <img src="https://img.shields.io/github/last-commit/baiheyyds/Otaku-Sync" alt="Last Commit">
+  </p>
 </div>
 
-<p align="center" style="color:#6a737d">
-自动同步二次元游戏、品牌、角色信息到 Notion 数据库的高效工具
-</p>
-
-<p align="center">
-  <a href="https://github.com/baiheyyds/Otaku-Sync/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/baiheyyds/Otaku-Sync/CI.yml?branch=main" alt="Build Status">
-  </a>
-  <img src="https://img.shields.io/github/license/baiheyyds/Otaku-Sync" alt="License">
-  <img src="https://img.shields.io/github/stars/baiheyyds/Otaku-Sync?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/issues/baiheyyds/Otaku-Sync" alt="Issues">
-  <img src="https://img.shields.io/github/last-commit/baiheyyds/Otaku-Sync" alt="Last Commit">
-</p>
-
 ---
 
-## ✨ 项目简介
+**Otaku-Sync** 是一个为 Galgame 和同人游戏爱好者打造的自动化信息管理解决方案。它能够从 **DLsite**, **Fanza**, **GGBases**, 以及 **Bangumi** 等主流平台抓取丰富的数据，并将其智能、规范地同步到你的个人 Notion 数据库中。
 
-Otaku-Sync 是一个自动化同步 Galgame 和同人游戏及其品牌、角色信息到 Notion 数据库的工具。它支持从 **DLsite**、**Getchu**、**GGBases** 等平台抓取数据，并通过标签映射、品牌归一等机制，保证多平台数据格式统一、内容规范。
+无论你是想建立一个私人的游戏资料库，还是希望高效地归档和管理自己的收藏，Otaku-Sync 都能为你节省大量手动录入的时间，并通过其强大的数据整合与映射能力，确保你的数据库信息高度统一和规范。
 
-这个工具特别适合需要批量管理和归档游戏信息的用户，尤其是对 Notion 数据库有需求的二次元爱好者。
+## ✨ 项目特性
 
----
+-  **多源数据聚合**: 同时从 DLsite, Fanza, GGBases, Bangumi 等多个权威平台获取游戏、品牌和角色信息。
+-  **全周期信息同步**: 覆盖从游戏基本信息、发售日期、价格，到剧本、原画、声优、标签等全方位数据。
+-  **智能数据处理**:
+   -  **重复检测**: 在添加新游戏前进行智能相似度比对，避免重复录入。
+   -  **品牌归一**: 自动将不同平台的同一品牌（如「ゆずソフト」和「YUZUSOFT」）映射为统一记录。
+   -  **标签映射**: 自动翻译日文标签，并将同义标签（如「NTR」和「寝取られ」）进行归类合并。
+-  **角色信息关联**: 自动从 Bangumi 抓取游戏关联的角色、声优等信息，并建立关系链接。
+-  **高度可定制**: 通过独立的映射文件和配置文件，你可以轻松自定义 Notion 字段、标签体系和品牌别名。
+-  **交互式命令行**: 在关键步骤（如选择搜索结果、处理新属性）提供清晰的交互式提示，让你完全掌控同步过程。
+-  **高效稳定**: 采用异步 IO 和共享浏览器驱动等技术，显著提升抓取效率，节约系统资源。
 
-## 📖 目录
+## 📂 项目结构
 
-- [快速开始](#快速开始)
-- [Notion 数据库准备](#notion-数据库准备)
-- [Notion 字段设置指引（必看）](#notion-字段设置指引必看)
-- [主要配置文件说明](#主要配置文件说明)
-- [使用流程](#使用流程)
-- [常见问题与解决](#常见问题与解决)
-- [维护建议](#维护建议)
-- [免责声明与安全提醒](#免责声明与安全提醒)
-- [参考文档](#参考文档)
+```
+Otaku-Sync/
+├── cache/                # 自动生成的缓存文件
+├── clients/              # 各个平台（DLsite, Fanza等）的抓取客户端
+├── config/               # 项目配置
+│   ├── config_fields.py  # Notion 数据库字段名映射
+│   └── config_token.py   # 从 .env 加载 API Token 和 DB ID
+├── core/                 # 核心业务逻辑（数据处理、同步流程等）
+├── mapping/              # 品牌、标签等映射文件（可自定义）
+├── utils/                # 通用工具（日志、驱动、相似度检查等）
+├── .env.example          # 环境变量模板（重要）
+├── .gitignore            # Git 忽略文件配置
+├── main.py               # 🚀 主程序入口
+├── README.md             # 你正在阅读的文档
+└── requirements.txt      # Python 依赖库
+```
 
----
+## 🚀 快速开始
 
-## 快速开始
+### 1. 环境准备
 
-### 1. 安装 Python
+-  **Python**: 推荐版本 `3.8` 或更高。
+-  **Google Chrome**: 请确保你的电脑上已安装最新版的 Chrome 浏览器。
 
--   推荐 **Python 3.8** 及以上版本。
--   可在 [Python 官网](https://www.python.org/downloads/) 下载并安装。
+### 2. 下载与安装
 
-### 2. 安装依赖库
+首先，克隆本项目到本地：
 
-本项目**强烈推荐使用 `requirements.txt` 文件**来安装所有依赖。
-在项目根目录下打开终端，执行：
+```bash
+git clone https://github.com/baiheyyds/Otaku-Sync.git
+cd Otaku-Sync
+```
+
+接着，安装所有必需的 Python 依赖库：
 
 ```bash
 pip install -r requirements.txt
-````
-
-如果没有 `requirements.txt` 文件（请检查项目仓库，通常会提供），你也可以手动安装核心依赖：
-
-```bash
-pip install requests selenium beautifulsoup4 undetected-chromedriver notion-client
 ```
 
-### 3\. 配置 Chrome 浏览器驱动
+### 3. Notion 数据库准备（关键步骤）
 
-Otaku-Sync 使用 `undetected-chromedriver`，它通常可以**自动下载和管理**与你本地 Chrome 浏览器版本匹配的驱动。大多数情况下，你无需手动下载和配置 ChromeDriver。
+#### ① 创建数据库
 
-如果程序运行出现驱动相关问题，你可以尝试：
+登录你的 [Notion](https://www.notion.so/)，创建 **3 个** 新的数据库页面，分别用于存储游戏、品牌和角色信息。例如：
 
-  * **确保 Chrome 浏览器已更新到最新版本。**
-  * **手动下载 ChromeDriver：** 从 [ChromeDriver 官网](https://chromedriver.chromium.org/downloads) 下载与你本地 Chrome 浏览器**完全一致**版本的 `chromedriver.exe`（Windows）或对应平台的文件。
-  * **放置驱动文件：** 将下载的 `chromedriver.exe` 文件**放到本项目根目录**（即 `main.py` 所在的文件夹），或将其添加到你的系统 PATH 环境变量中（后者对于初学者可能稍复杂）。
+-  `我的游戏收藏`
+-  `游戏厂商信息`
+-  `游戏角色库`
 
------
+#### ② 获取 Notion API Token
 
-## Notion 数据库准备
+1. 访问 [Notion 集成页面](https://www.notion.so/my-integrations)。
+2. 点击 **"+ New integration"**，为你的集成命名（如 `Otaku-Sync Bot`），提交创建。
+3. 复制生成的 **"Internal Integration Token"**，它看起来像 `secret_xxxxxxxx`。
 
-### 1\. 注册并新建数据库
+#### ③ 关联数据库与集成
 
-  - 注册并登录 [Notion](https://www.notion.so/)。
-  - 新建三个数据库页面，例如分别命名为：
-      - **游戏信息数据库**（如：“游戏记录”）
-      - **品牌信息数据库**（如：“厂商信息”）
-      - **角色信息数据库**（如：“角色记录”）
+回到你创建的每一个数据库页面（游戏、品牌、角色），点击右上角的 `...` 菜单，选择 **"Add connections" / "添加连接"**，然后搜索并选择你刚刚创建的集成（如 `Otaku-Sync Bot`）。**每个数据库都需要执行此操作**。
 
-### 2\. 获取数据库 ID 和 API Token
+#### ④ 获取数据库 ID
 
-1.  **获取 Notion API Token (集成令牌)：**
+在浏览器中打开你的每个数据库页面，其 URL 格式如下：
+`https://www.notion.so/你的工作区/THIS_IS_YOUR_DATABASE_ID?v=...`
+复制链接中那串 32 位的字符串，这就是你的数据库 ID。
 
-      * 登录 Notion。
-      * 访问 [Notion 集成页面](https://www.google.com/search?q=https://www.notion.so/my-integrations)。
-      * 点击 **“+ New integration”**。
-      * 为你的集成命名（例如：`Otaku-Sync Integration`），选择你希望关联的**工作区**，然后点击 **“Submit”**。
-      * 复制生成的 **“Internal Integration Token”**（这是你的 `NOTION_TOKEN`）。
+### 4. 配置项目
 
-2.  **分享数据库给集成：**
+1. 在项目根目录，将 `.env.example` 文件复制一份并重命名为 `.env`。
 
-      * 打开你新建的**每个数据库页面**（游戏、品牌、角色数据库）。
-      * 点击页面右上角的 `...` 菜单。
-      * 向下滚动找到 **“Add connections”** 或 **“添加连接”**。
-      * 在弹出的搜索框中找到并选择你刚刚创建的集成名称（例如：`Otaku-Sync Integration`）。
+   -  在 Windows (CMD) 上: `copy .env.example .env`
+   -  在 Linux / macOS / Git Bash 上: `cp .env.example .env`
 
-3.  **获取数据库 ID：**
+2. 打开新建的 `.env` 文件，填入你在上一步获取到的信息：
 
-      * 在 Notion 浏览器中打开你的**每个数据库页面**。
-      * 复制页面链接中的数据库 ID。它通常是链接中 `notion.so/` 后面一串由 32 位字符组成的字符串，位于数据库名称之前，例如：`https://www.notion.so/你的用户名/d8f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0?v=...` 中的 `d8f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0`。
+   ```ini
+   # .env
+   # --- Notion API 配置 ---
+   NOTION_TOKEN="secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   GAME_DB_ID="你的游戏数据库ID"
+   BRAND_DB_ID="你的厂商数据库ID"
+   CHARACTER_DB_ID="你的角色数据库ID"
 
-4.  **填写配置文件：**
+   # --- Bangumi API 配置 (可选, 但强烈推荐) ---
+   BANGUMI_TOKEN="你的Bangumi API Token"
+   ```
 
-      * 将获取到的 Token 和数据库 ID 填入项目根目录下的 `config/config_token.py` 文件：
+   > ⚠️ **安全警告**: `.env` 文件包含了你的私密信息，已被添加到 `.gitignore` 中。**绝对不要**将此文件上传到任何公共仓库！
 
-    <!-- end list -->
+### 5. 配置 Notion 字段（必读）
 
-    ```python
-    NOTION_TOKEN = "你的 Notion API Token"
-    GAME_DB_ID = "你的游戏数据库ID"
-    BRAND_DB_ID = "你的品牌数据库ID"
-    CHARACTER_DB_ID = "你的角色数据库ID"
-    ```
+为了让程序能正确写入数据，你的 Notion 数据库需要包含特定的字段。请严格按照下表创建或修改你的数据库属性。
 
-### 3\. 配置字段名
+<details>
+<summary><b>展开查看 ✅ 游戏数据库 字段要求</b></summary>
 
-  - 检查 `config/config_fields.py` 文件，确保其中定义的字段名与你的 Notion 数据库中实际创建的字段名**完全一致**（包括大小写、空格）。
-  - 如需自定义字段，你可以在 Notion 数据库页面右上角点击 **“+ 属性”** 添加或修改字段，并同步更新 `config/config_fields.py` 文件。
+| 字段名称 (需与 `config_fields.py` 保持一致) | 类型 (Type)              | 说明                       |
+| :------------------------------------------ | :----------------------- | :------------------------- |
+| `游戏名称`                                  | **标题 (Title)**         | **必需**，游戏主标题       |
+| `游戏别名`                                  | 文本 (Rich Text)         | 游戏的其他常用名           |
+| `游戏简介`                                  | 文本 (Rich Text)         | 游戏的故事梗概             |
+| `游戏官网`                                  | 网址 (URL)               | 游戏的官方网站             |
+| `DLsite链接`                                | 网址 (URL)               |                            |
+| `Fanza链接`                                 | 网址 (URL)               |                            |
+| `游戏大小`                                  | 文本 (Rich Text)         | 如 `1.2GB`                 |
+| `发售时间`                                  | **日期 (Date)**          |                            |
+| `剧本`                                      | **多选 (Multi-select)**  |                            |
+| `原画`                                      | **多选 (Multi-select)**  |                            |
+| `声优`                                      | **多选 (Multi-select)**  |                            |
+| `音乐`                                      | **多选 (Multi-select)**  |                            |
+| `标签`                                      | **多选 (Multi-select)**  |                            |
+| `价格`                                      | **数字 (Number)**        |                            |
+| `游戏封面`                                  | **文件 (Files & media)** |                            |
+| `游戏厂商`                                  | **关系 (Relation)**      | **必需**，关联到品牌数据库 |
+| `GGBases资源`                               | 网址 (URL)               |                            |
+| `游戏类型`                                  | **多选 (Multi-select)**  | 如 `RPG`, `ADV`            |
+| `Bangumi链接`                               | 网址 (URL)               |                            |
+| `游戏角色`                                  | **关系 (Relation)**      | **必需**，关联到角色数据库 |
 
------
+</details>
 
-## Notion 字段设置指引（必看）
+<details>
+<summary><b>展开查看 ✅ 品牌数据库 字段要求</b></summary>
 
-为了保证程序正常运行，请严格按照以下字段要求设置你的 Notion 数据库。以下为每个数据库的字段设置方法：
+| 字段名称 (需与 `config_fields.py` 保持一致) | 类型 (Type)              | 说明                 |
+| :------------------------------------------ | :----------------------- | :------------------- |
+| `厂商名`                                    | **标题 (Title)**         | **必需**，品牌主名称 |
+| `官网`                                      | 网址 (URL)               |                      |
+| `图标`                                      | **文件 (Files & media)** | 品牌 Logo            |
+| `别名`                                      | 文本 (Rich Text)         |                      |
+| `简介`                                      | 文本 (Rich Text)         |                      |
+| `Ci-en`                                     | 网址 (URL)               |                      |
+| `Twitter`                                   | 网址 (URL)               |                      |
+| `生日`                                      | 文本 (Rich Text)         |                      |
+| `bangumi链接`                               | 网址 (URL)               |                      |
+| `公司地址`                                  | 文本 (Rich Text)         |                      |
 
-### ✅ 游戏信息数据库（游戏记录）
+</details>
 
-| 字段名称 | 类型 | 说明 |
-| :----------- | :------------- | :----------------------------------- |
-| 游戏名称 | **标题 (Title)** | 游戏的主标题 |
-| 官方网站 | **URL** | 官网地址 |
-| 游戏大小 | **文本 (Text)** | 格式不限，程序会自动识别 GB 单位 |
-| 发售时间 | **日期 (Date)** | 支持日期选择器 |
-| 剧本 | **多选 (Multi-select)** | 支持多个作者名 |
-| 原画 | **多选 (Multi-select)** | 支持多个原画师名 |
-| 声优 | **多选 (Multi-select)** | 角色配音演员 |
-| 音乐 | **多选 (Multi-select)** | BGM 或 OP 等音乐创作者 |
-| 标签 | **多选 (Multi-select)** | 游戏标签，支持程序自动同步 |
-| 价格 | **数字 (Number)** | 单位为日元 |
-| 游戏封面 | **文件和媒体 (Files & Media)** | 游戏主图，用于展示 |
-| 游戏厂商 | **关系 (Relation)** | 关联到“厂商信息”数据库 |
-| GGBases资源 | **URL** | 链接到 GGBases 或其他资源页 |
-| 游戏类型 | **多选 (Multi-select)** | 如 RPG、ACT、ADV 等 |
-| Bangumi链接 | **URL** | 游戏在 Bangumi 的页面链接 |
-| 游戏角色 | **关系 (Relation)** | 关联到“角色记录”数据库 |
+<details>
+<summary><b>展开查看 ✅ 角色数据库 字段要求</b></summary>
 
-💡 **提示：** 其他字段如评分、计算字段等可以根据你的需求自由设置，程序不会自动写入，但可用来自定义 Notion 视图和排序。
+| 字段名称 (需与 `config_fields.py` 保持一致) | 类型 (Type)              | 说明                 |
+| :------------------------------------------ | :----------------------- | :------------------- |
+| `角色名称`                                  | **标题 (Title)**         | **必需**，角色主名称 |
+| `别名`                                      | 文本 (Rich Text)         |                      |
+| `声优`                                      | 文本 (Rich Text)         |                      |
+| `性别`                                      | **单选 (Select)**        |                      |
+| `头像`                                      | **文件 (Files & media)** |                      |
+| `BWH`                                       | 文本 (Rich Text)         | 三围                 |
+| `身高`                                      | 文本 (Rich Text)         |                      |
+| `简介`                                      | 文本 (Rich Text)         |                      |
+| `详情页面`                                  | 网址 (URL)               |                      |
+| `生日`                                      | 文本 (Rich Text)         |                      |
+| `血型`                                      | **单选 (Select)**        |                      |
 
-### ✅ 品牌信息数据库（厂商信息）
+</details>
 
-| 字段名称 | 类型 | 说明 |
-| :--------- | :------------- | :---------------------------------- |
-| 厂商名 | **标题 (Title)** | 品牌主名，程序主键 |
-| 图标 | **文件和媒体 (Files & Media)** | 品牌 Logo，可选 |
-| 官网 | **URL** | 官方网站链接 |
-| 别名 | **文本 (Text)** | 可填写日文名、缩写等别称 |
-| 简介 | **文本 (Text)** | 简要介绍品牌信息 |
-| Ci-en | **URL** | 支持者平台页面（如有） |
-| Twitter | **URL** | 官方社交媒体 |
-| Bangumi链接 | **URL** | 品牌在 Bangumi 的页面链接 |
-| 公司地址 | **文本 (Text)** | 可填写品牌所在地区 |
-| 生日 | **文本 (Text)** | 创建时间或初次发布作品的日期 |
+> 💡 **提示**: 如果你想修改 Notion 中的字段名，请务必同步修改 `config/config_fields.py` 文件中对应的字符串。
 
-### ✅ 角色信息数据库（角色记录）
+## 🎮 如何使用
 
-| 字段名称 | 类型 | 说明 |
-| :--------- | :------------- | :------------------------------ |
-| 角色名称 | **标题 (Title)** | 角色主名 |
-| 别名 | **文本 (Text)** | 英文名、昵称、其他别称等 |
-| 声优 | **文本 (Text)** | 配音演员名 |
-| 性别 | **单选 (Select)** | 男 / 女 / 不明 |
-| 头像 | **文件和媒体 (Files & Media)** | 角色图像 |
-| BWH | **文本 (Text)** | 三围，格式自由 |
-| 身高 | **文本 (Text)** | 身高信息，如 160cm |
-| 简介 | **文本 (Text)** | 简要介绍 |
-| 详情页面 | **URL** | Bangumi 角色详情页链接 |
-| 生日 | **文本 (Text)** | 出生日期 |
-| 血型 | **单选 (Select)** | A/B/O/AB/不明等 |
-| 所属游戏 | **关系 (Relation)** | 关联到“游戏记录”数据库 |
-
-### ⚙ 字段命名与映射说明（自动匹配逻辑）
-
-  - 程序通过 `config/config_fields.py` 文件中的字段名定义来与 Notion 数据库字段对应。
-  - 如果你对字段名进行了修改，请**务必同步更新该文件中的映射**。
-  - 程序只会写入已配置字段，未配置的字段将被跳过。
-  - **推荐在创建数据库时直接复制上述表格中的字段名和类型**，以避免大小写、空格或类型不匹配导致写入失败。
-
------
-
-## 主要配置文件说明
-
-| 文件路径 | 作用 |
-| :---------------------------------- | :----------------------------------- |
-| `config/config_token.py` | 填写 Notion API Token 和数据库 ID |
-| `config/config_fields.py` | 定义各字段名，需与 Notion 数据库一致 |
-| `mapping/brand_mapping.json` | 品牌名称映射，统一多平台品牌名 |
-| `mapping/tag_jp_to_cn.json` | DLsite 日文标签到中文标签的翻译表 |
-| `mapping/tag_ggbase.json` | GGBases 标签到中文标签的映射表 |
-| `mapping/tag_mapping_dict.json` | 标签归一化映射，合并同义标签 |
-| `cache/brand_extra_info_cache.json` | 品牌信息本地缓存，自动维护 |
-
------
-
-## 使用流程
-
-### 1\. 启动主程序
-
-在 VS Code 终端或命令行中运行：
+一切准备就绪后，在项目根目录运行主程序：
 
 ```bash
 python main.py
 ```
 
-### 2\. 输入关键词抓取游戏
+程序启动后，会提示你输入游戏关键词。
 
-  - 按提示输入游戏关键词（支持日文/中文）。
-  - 可在关键词后加 `-m`，进入 GGBases 手动选择模式。
-  - 程序会自动在 DLsite、Getchu 搜索并展示结果，让你手动选择目标游戏。
+-  **普通模式**: 直接输入游戏名（日文或中文）并回车。
+-  **手动模式**: 在关键词后追加 ` -m`（例如：`抜きゲーみたいな島に住んでる貧乳はどうすりゃいいですか？ -m`），这会在 GGBases 搜索后让你手动选择结果，而不是自动选择热度最高的。
+-  **退出**: 输入 `q` 或直接按 Ctrl+C。
 
-### 3\. 查重与同步
+程序将引导你完成游戏选择、查重、信息同步等所有步骤。
 
-  - 程序自动检测 Notion 数据库中是否有相似游戏条目。
-  - 你可以选择**新建**、**覆盖**或**跳过**。
-  - 程序会自动抓取详情页信息、品牌信息、标签、角色等，并写入 Notion。
+## 🔧 核心概念与维护
 
-### 4\. 标签与品牌映射维护
+### 映射系统 (`mapping/` 目录)
 
-  - 新标签会自动追加到 `mapping/tag_jp_to_cn.json` 或 `mapping/tag_ggbase.json`。这些新标签**需你定期人工补充中文翻译**。
-  - 品牌名会自动归一到 `mapping/brand_mapping.json`，保证多平台一致。你可以根据需要手动调整这些映射。
+这是 Otaku-Sync 的灵魂。通过维护该目录下的 JSON 文件，你可以实现高度自动化的数据整理。
 
-### 5\. 辅助脚本（可选）
+-  `brand_mapping.json`: **品牌归一**。将不同写法（如 `YUZUSOFT` 和 `ゆずソフト`）映射到同一个品牌记录。
+-  `tag_jp_to_cn.json`: **日文标签翻译**。程序发现未翻译的 DLsite 标签会自动追加到此文件，键值为空（`"新しいタグ": ""`）。你需要手动为其添加中文翻译。
+-  `tag_ggbase.json`: **GGBases 标签映射**。同上，用于处理 GGBases 的标签。
+-  `tag_mapping_dict.json`: **标签同义词合并**。将多个相似标签（如 `巨乳`, `爆乳`）归类到一个主标签下（如 `巨乳/爆乳`）。
 
-项目还提供了辅助脚本（在 `scripts/` 目录下），能帮助你更好地管理数据：
+**维护建议**:
 
-  - `auto_tag_completer.py`：批量补全 Notion 中已存在条目的标签，自动写入。
-  - `extract_brands.py`：导出所有已识别的品牌名到 txt 文件。
-  - `export_all_tags.py`：导出所有已识别的标签到 txt 文件。
+-  **定期维护**: 每次同步一批游戏后，花几分钟检查 `mapping/` 目录下的文件，为新出现的标签补充翻译或归类。
+-  **备份**: `mapping/` 目录是你个性化配置的核心，建议定期备份。
 
-运行方式示例：
+## 🤝 贡献
 
-```bash
-python scripts/auto_tag_completer.py
-```
+欢迎任何形式的贡献！
 
------
+-  如果你发现了 Bug，请在 [Issues](https://github.com/baiheyyds/Otaku-Sync/issues) 中提交详细报告。
+-  如果你有新功能或改进建议，也欢迎提出 Issue 或提交 Pull Request。
 
-## 常见问题与解决
+## 📜 授权协议
 
-  - **标签未翻译/归类**：请定期检查并更新 `mapping/tag_jp_to_cn.json` 和 `mapping/tag_ggbase.json`，补充中文翻译和标签归类。
-  - **品牌信息不全**：可在 `mapping/brand_mapping.json` 中手动补充或修正，或完善 Bangumi、DLsite、Getchu 等源平台的品牌信息。
-  - **角色信息缺失**：请确保 `CHARACTER_DB_ID` 已在 `config/config_token.py` 中正确配置，并检查角色相关字段设置。
-  - **Notion API 报错**：请仔细检查 `NOTION_TOKEN` 和数据库 ID 是否正确、完整，以及你的网络连接是否畅通。同时，确认你已将 Notion 数据库**分享给你的集成**。
-  - **浏览器驱动异常**：请确保你的 Chrome 浏览器已是最新版本。如果问题依旧，尝试手动下载与 Chrome 版本匹配的 ChromeDriver，并将其放入项目根目录。
-  - **字段名不一致**：请再次核对 `config/config_fields.py` 中的字段名是否与你的 Notion 数据库中**完全一致**。
+本项目基于 [MIT License](https://github.com/baiheyyds/Otaku-Sync/blob/main/LICENSE) 开源。
 
------
+## ⚠️ 免责声明
 
-## 维护建议
-
-  - 每次同步后，请检查 `mapping` 文件夹下的映射文件，及时补充和维护标签、品牌、角色信息，以确保数据准确、统一。
-  - 定期备份 `cache` 文件和 `mapping` 文件，防止数据丢失，这对于你的自定义配置非常重要。
-  - 你可以根据实际需求，扩展标签归类、品牌补全等逻辑，让工具更贴合你的使用习惯。
-
------
-
-## 免责声明与安全提醒
-
-  - 本项目旨在提供一个自动化数据归档和技术交流的工具。请用户遵守所在地的法律法规，合理使用本工具。
-  - 本项目部分标签可能包含 NSFW（不适宜在工作场合观看）内容，**仅供个人数据归档和技术研究使用**。
-  - **请勿**将任何敏感 Token 或个人隐私信息（如 `config_token.py` 文件）上传到公共仓库，这可能会导致你的 Notion 账户被他人访问。建议将其添加到 `.gitignore` 文件中。
-  - 如有任何疑问或改进建议，欢迎随时在项目 Issues 区反馈！
-
------
-
-## 参考文档
-
-  - [Notion API 官方文档](https://developers.notion.com/)
-  - [Bangumi API](https://bangumi.github.io/api/)
-
-<!-- end list -->
-
-```
-```
+-  本项目仅供个人学习、技术研究和数据归档使用。请在遵守当地法律法规的前提下使用本工具。
+-  项目抓取的部分内容可能包含 **NSFW** (不适宜在工作场合观看) 元素，请谨慎使用。
+-  请妥善保管你的 `.env` 文件和 Notion Token，切勿泄露。

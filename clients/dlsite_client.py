@@ -170,7 +170,7 @@ class DlsiteClient:
 
             # 统一返回结构
             return {
-                "品牌": details.get("品牌"),
+                "品牌": brand,  # 使用正确的局部变量 brand
                 "发售日": details.get("发售日"),
                 "剧本": details.get("剧本", []),
                 "原画": details.get("原画", []),

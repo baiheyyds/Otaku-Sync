@@ -12,7 +12,9 @@ except FileNotFoundError:
     brand_mapping = {}
 
 
-# 函数签名简化
+# --- 请用下面的代码替换整个 handle_brand_info 函数 ---
+
+
 async def handle_brand_info(
     bangumi_brand_info: dict, dlsite_extra_info: dict, getchu_brand_page_url: str = None
 ) -> dict:
@@ -28,24 +30,25 @@ async def handle_brand_info(
 
     # 整合官网
     combined_info["official_url"] = first_nonempty(
-        combined_info.get("homepage"),
+        combined_info.get("homepage"),  # Bangumi 返回的官网键可能是 homepage
         getchu_brand_page_url,
     )
 
     # 整合 Ci-en
     combined_info["ci_en_url"] = first_nonempty(
-        combined_info.get("Ci-en"),
-        dlsite_extra_info.get("ci_en_url") if dlsite_extra_info else None,
+        combined_info.get("Ci-en"),  # 尝试从 Bangumi 获取
+        dlsite_extra_info.get("ci_en_url") if dlsite_extra_info else None,  # 其次从 Dlsite 获取
     )
 
     # 整合图标
     combined_info["icon_url"] = first_nonempty(
-        combined_info.get("icon"),
-        dlsite_extra_info.get("icon_url") if dlsite_extra_info else None,
+        combined_info.get("icon"),  # 尝试从 Bangumi 获取
+        dlsite_extra_info.get("icon_url") if dlsite_extra_info else None,  # 其次从 Dlsite 获取
     )
 
-    # 清理临时键
+    # 【核心修复】清理掉旧的、不统一的键名，避免下游冲突
     combined_info.pop("homepage", None)
+    combined_info.pop("Ci-en", None)
     combined_info.pop("icon", None)
 
     return combined_info

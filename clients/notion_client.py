@@ -282,8 +282,8 @@ class NotionClient:
             return None
         properties_schema = schema_data.get("properties", {})
 
-        # 步骤 1: 将所有 info 中的内部键，映射到 Notion 字段名
-        # 这是一个 key -> value 的映射，key是Notion字段名，value是对应的值
+        # 【核心修复】简化映射逻辑，直接使用清晰的 info 字典
+        # 我们相信传入的 info 字典已经是经过 handle_brand_info 清理过的
         notion_data_map = {
             FIELDS["brand_name"]: brand_name,
             FIELDS["brand_official_url"]: info.get("official_url"),
@@ -297,33 +297,15 @@ class NotionClient:
             FIELDS["brand_cien"]: info.get("ci_en_url"),
         }
 
-        # 将 info 中所有其他未明确映射的键值对也添加进来
-        # (例如未来新增的 'DLsite' 等)
-        for key, value in info.items():
-            if (
-                key
-                not in [
-                    "official_url",
-                    "icon_url",
-                    "summary",
-                    "bangumi_url",
-                    "company_address",
-                    "birthday",
-                    "alias",
-                    "twitter",
-                    "ci_en_url",
-                ]
-                and value
-            ):
-                notion_data_map[key] = value
+        # 【核心修复】移除了之前导致问题的、多余的覆盖循环
+        # 不再需要遍历 info.items()，因为上面的映射已经处理了所有已知字段
 
-        # 步骤 2: 动态构建属性 payload
+        # 动态构建属性 payload
         props = {}
         for notion_prop_name, value in notion_data_map.items():
-            if not value or not notion_prop_name:
+            if value is None or notion_prop_name == "":
                 continue
 
-            # 使用正确的 Notion 属性名进行查询
             prop_info = properties_schema.get(notion_prop_name)
             if not prop_info:
                 logger.warn(f"属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
@@ -331,7 +313,6 @@ class NotionClient:
 
             prop_type = prop_info.get("type")
 
-            # 根据属性类型构建 payload (这部分逻辑不变)
             if prop_type == "title":
                 props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
             elif prop_type == "rich_text":
@@ -344,10 +325,10 @@ class NotionClient:
                     "files": [{"type": "external", "name": "icon", "external": {"url": str(value)}}]
                 }
             elif prop_type == "select":
-                props[notion_prop_name] = {"select": {"name": str(value)}}
-            # ... 其他类型 ...
+                if str(value).strip():
+                    props[notion_prop_name] = {"select": {"name": str(value)}}
 
-        # 步骤 3: 发送请求 (逻辑不变)
+        # 发送请求 (逻辑不变)
         if page_id:
             resp = await self._request(
                 "PATCH", f"https://api.notion.com/v1/pages/{page_id}", {"properties": props}

@@ -171,42 +171,70 @@ class BangumiClient:
         processed = {}
         if not infobox:
             return processed
-        for item in infobox:
-            bangumi_key, bangumi_value = item.get("key"), item.get("value")
-            if not bangumi_key or not bangumi_value:
-                continue
-            is_key_value_list = (
-                isinstance(bangumi_value, list)
-                and bangumi_value
-                and isinstance(bangumi_value[0], dict)
-                and "k" in bangumi_value[0]
-                and "v" in bangumi_value[0]
-            )
-            if is_key_value_list:
-                for sub_item in bangumi_value:
-                    sub_key, sub_value = sub_item.get("k"), sub_item.get("v")
-                    if not sub_key or not sub_value:
-                        continue
-                    notion_prop = self.mapper.get_notion_prop(sub_key, target_db_id)
-                    if not notion_prop:
-                        notion_prop = await self.mapper.handle_new_key(
-                            sub_key, self.notion, self.schema, target_db_id
-                        )
-                    if notion_prop:
-                        processed[notion_prop] = str(sub_value).strip()
-                continue
-            value_str = (
-                ", ".join([v.get("v", v) if isinstance(v, dict) else str(v) for v in bangumi_value])
-                if isinstance(bangumi_value, list)
-                else str(bangumi_value)
-            )
-            notion_prop = self.mapper.get_notion_prop(bangumi_key, target_db_id)
+
+        # 定义一个内部辅助函数，避免代码重复
+        # 它的作用是：拿到一个key-value对，完成映射，然后设置到processed字典中
+        async def _map_and_set_prop(key, value):
+            if not key or not value:
+                return
+
+            # 1. 找到这个 Bangumi key 对应的 Notion 属性名
+            notion_prop = self.mapper.get_notion_prop(key, target_db_id)
+
+            # 2. 如果找不到，则触发交互流程让用户处理这个新key
             if not notion_prop:
                 notion_prop = await self.mapper.handle_new_key(
-                    bangumi_key, self.notion, self.schema, target_db_id
+                    key, self.notion, self.schema, target_db_id
                 )
+
+            # 3. 如果成功获得了 Notion 属性名，就将数据存入结果字典
             if notion_prop:
-                processed[notion_prop] = value_str.strip()
+                # 如果一个 Notion 属性已经有值了（比如别名有多个），就追加
+                if notion_prop in processed and isinstance(processed[notion_prop], list):
+                    if isinstance(value, list):
+                        processed[notion_prop].extend(value)
+                    else:
+                        processed[notion_prop].append(value)
+                else:
+                    processed[notion_prop] = value
+
+        # --- 主循环，遍历 infobox 的每一项 ---
+        for item in infobox:
+            bangumi_key, bangumi_value = item.get("key"), item.get("value")
+            if not bangumi_key or bangumi_value is None:
+                continue
+
+            # 核心逻辑：判断 value 是否为列表
+            if isinstance(bangumi_value, list):
+                # 是列表，说明可能包含混合类型，需要特殊处理
+                v_only_values = []  # 用于收集所有只有 "v" 的值
+
+                for sub_item in bangumi_value:
+                    if isinstance(sub_item, dict):
+                        sub_key = sub_item.get("k")
+                        sub_value = sub_item.get("v")
+
+                        if sub_key and sub_value is not None:
+                            # 情况A：这是一个 "k"-"v" 对，是独立属性
+                            # 立即处理这个独立属性
+                            await _map_and_set_prop(sub_key, str(sub_value).strip())
+
+                        elif sub_value is not None:
+                            # 情况B：这是一个只有 "v" 的值，属于外层 bangumi_key
+                            v_only_values.append(str(sub_value).strip())
+
+                    elif isinstance(sub_item, str):
+                        # 情况C：列表里直接是字符串（罕见但兼容）
+                        v_only_values.append(sub_item.strip())
+
+                # 在遍历完整个列表后，统一处理所有收集到的 "v-only" 值
+                if v_only_values:
+                    await _map_and_set_prop(bangumi_key, v_only_values)
+
+            else:
+                # value 不是列表，就是一个简单的 key-value 字符串
+                await _map_and_set_prop(bangumi_key, str(bangumi_value).strip())
+
         return processed
 
     async def fetch_characters(self, subject_id: str) -> list:

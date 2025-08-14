@@ -176,7 +176,6 @@ class NotionClient:
             if prop_name in info:
                 data_for_notion[prop_name] = info[prop_name]
 
-        # --- 核心修复：在这里更新映射表 ---
         source_to_notion_map = {
             "title": FIELDS["game_name"],
             "title_cn": FIELDS["game_alias"],
@@ -193,12 +192,10 @@ class NotionClient:
             "标签": FIELDS["tags"],
             "价格": FIELDS["price"],
             "dlsite_link": FIELDS["dlsite_link"],
-            # 将 getchu_link 替换为 fanza_link
             "fanza_link": FIELDS["fanza_link"],
             "资源链接": FIELDS["resource_link"],
             "brand_relation_id": FIELDS["brand_relation"],
         }
-        # --- 修复结束 ---
 
         for source_key, notion_key in source_to_notion_map.items():
             if source_key in info and info[source_key] is not None:
@@ -210,6 +207,14 @@ class NotionClient:
         for notion_prop_name, value in data_for_notion.items():
             if value is None or notion_prop_name == "":
                 continue
+
+            # --- 核心修复：增加对空字符串和空列表的判断 ---
+            # 如果值是字符串或列表，但内容为空，则跳过该字段，避免用空值覆盖Notion中已有的数据。
+            # 这不会影响值为数字 0 的情况。
+            if isinstance(value, (str, list)) and not value:
+                continue
+            # --- 修复结束 ---
+
             prop_info = properties_schema.get(notion_prop_name)
             if not prop_info:
                 logger.warn(f"属性 '{notion_prop_name}' 在游戏库中不存在，已跳过。")

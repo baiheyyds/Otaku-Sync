@@ -12,8 +12,6 @@ cache/
 *.tmp
 *.bak_*
 
-# 忽略虚拟环境文件夹（如果使用）
+# 忽略虚拟环境文件夹
 venv/
 .venv/
-
-generate_requirements

@@ -1,8 +1,9 @@
 # core/game_processor.py
 import re
+
+from core.name_splitter import name_splitter  # <--- 导入新工具
 from utils import logger
 from utils.tag_mapping import map_and_translate_tags
-from core.name_splitter import name_splitter  # <--- 导入新工具
 
 
 async def process_and_sync_game(
@@ -28,10 +29,9 @@ async def process_and_sync_game(
 
     # ... (list_fields_to_merge 和 fields_to_overwrite 的逻辑不变) ...
     list_fields_to_merge = ["剧本", "原画", "声优", "音乐"]
-    fields_to_overwrite = ["发售时间", "作品形式"]  # 确保这里是“发售时间”
+    fields_to_overwrite = ["发售日", "作品形式"]
 
     for field in list_fields_to_merge:
-        # ... (循环内部逻辑不变)
         bangumi_values_raw = merged.get(field, [])
         bangumi_values = []
         if isinstance(bangumi_values_raw, str):

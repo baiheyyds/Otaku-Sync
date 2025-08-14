@@ -197,7 +197,7 @@ class DlsiteClient:
         def _blocking_task():
             try:
                 self.driver.get(brand_page_url)
-                
+
                 # 尝试处理年龄验证，这是一个常见的阻碍
                 try:
                     age_check_wait = WebDriverWait(self.driver, 3)
@@ -216,27 +216,35 @@ class DlsiteClient:
                     link_block_element = wait.until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
                     )
-                    
+
                     # 如果能找到元素，才继续解析
-                    soup = BeautifulSoup(link_block_element.get_attribute("outerHTML"), "html.parser")
+                    soup = BeautifulSoup(
+                        link_block_element.get_attribute("outerHTML"), "html.parser"
+                    )
                     cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
                     icon_img_tag = soup.select_one(".creator_icon img[src]")
 
                     cien_url = cien_link_tag["href"].strip() if cien_link_tag else None
                     icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
-                    
-                    logger.success(f"[Dlsite] (Selenium) 获取成功: Ci-en={cien_url}, 图标={icon_url}")
+
+                    logger.success(
+                        f"[Dlsite] (Selenium) 获取成功: Ci-en={cien_url}, 图标={icon_url}"
+                    )
                     return {"ci_en_url": cien_url, "icon_url": icon_url}
 
                 except TimeoutException:
                     # 这就是你想要的“智能提示”
                     # 如果等待超时，说明页面上就是没有这个部分，我们只打印一个温和的提示
-                    logger.warn(f"[Dlsite] (Selenium) 在品牌页面未找到 Ci-en 等额外链接信息，这可能是正常的。")
-                    return {} # 返回空字典，程序继续运行
+                    logger.warn(
+                        f"[Dlsite] (Selenium) 在品牌页面未找到 Ci-en 等额外链接信息，这可能是正常的。"
+                    )
+                    return {}  # 返回空字典，程序继续运行
 
             except Exception as e:
                 # 捕获其他意外错误，比如网络问题
-                logger.error(f"[Dlsite] (Selenium) 抓取品牌信息时发生未知错误 {brand_page_url}: {e}")
+                logger.error(
+                    f"[Dlsite] (Selenium) 抓取品牌信息时发生未知错误 {brand_page_url}: {e}"
+                )
                 return {}
 
         return await asyncio.to_thread(_blocking_task)

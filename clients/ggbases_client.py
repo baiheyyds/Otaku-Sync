@@ -17,7 +17,7 @@ TAG_GGBASE_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_
 
 
 class GGBasesClient:
-    BASE_URL = "https://ggbases.dlgal.com"
+    BASE_URL = "https://www.ggbases.com/"
 
     def __init__(self, client: httpx.AsyncClient):
         self.client = client

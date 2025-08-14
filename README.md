@@ -156,7 +156,7 @@ pip install -r requirements.txt
 | `游戏封面`                                  | **文件 (Files & media)** |                            |
 | `游戏厂商`                                  | **关系 (Relation)**      | **必需**，关联到品牌数据库 |
 | `GGBases资源`                               | 网址 (URL)               |                            |
-| `游戏类型`                                  | **多选 (Multi-select)**  | 如 `RPG`, `ADV`            |
+| `游戏类别`                                  | **多选 (Multi-select)**  | 如 `RPG`, `ADV`            |
 | `Bangumi链接`                               | 网址 (URL)               |                            |
 | `游戏角色`                                  | **关系 (Relation)**      | **必需**，关联到角色数据库 |
 

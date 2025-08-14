@@ -19,7 +19,7 @@ FIELDS = {
     "cover_image": "游戏封面",
     "brand_relation": "游戏厂商",
     "resource_link": "GGBases资源",
-    "game_type": "游戏类型",
+    "game_type": "游戏类别",
     "bangumi_url": "Bangumi链接",
     "game_characters": "游戏角色",
     ##游戏厂商数据库

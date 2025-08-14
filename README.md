@@ -25,6 +25,8 @@
 
 无论你是想建立一个私人的游戏资料库，还是希望高效地归档和管理自己的收藏，Otaku-Sync 都能为你节省大量手动录入的时间，并通过其强大的数据整合与映射能力，确保你的数据库信息高度统一和规范。
 
+![Otaku-Sync 统计页面](https://raw.githubusercontent.com/baiheyyds/Otaku-Sync/main/assets/statistics.png)
+
 ## ✨ 项目特性
 
 -  **多源数据聚合**: 同时从 DLsite, Fanza, GGBases, Bangumi 等多个权威平台获取游戏、品牌和角色信息。

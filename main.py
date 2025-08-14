@@ -83,7 +83,8 @@ async def run_single_game_flow(context: dict):
                 ggbases_url = best["url"]
                 logger.success(f"[GGBases] 自动选择热度最高结果: {best['title']}")
         else:
-            logger.warn("[GGBases] 未找到任何结果。")
+            # logger.warn("[GGBases] 未找到任何结果。")
+            pass
 
         # --- 阶段 4: 串行获取可能需要交互的 Bangumi 信息 (核心修正) ---
         logger.info("正在获取 Bangumi 信息 (此过程可能需要您参与交互)...")

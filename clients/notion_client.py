@@ -282,42 +282,54 @@ class NotionClient:
             return None
         properties_schema = schema_data.get("properties", {})
 
-        # 【核心修复】简化映射逻辑，直接使用清晰的 info 字典
-        # 我们相信传入的 info 字典已经是经过 handle_brand_info 清理过的
-        notion_data_map = {
-            FIELDS["brand_name"]: brand_name,
-            FIELDS["brand_official_url"]: info.get("official_url"),
-            FIELDS["brand_icon"]: info.get("icon_url"),
-            FIELDS["brand_summary"]: info.get("summary"),
-            FIELDS["brand_bangumi_url"]: info.get("bangumi_url"),
-            FIELDS["brand_company_address"]: info.get("company_address"),
-            FIELDS["brand_birthday"]: info.get("birthday"),
-            FIELDS["brand_alias"]: info.get("alias"),
-            FIELDS["brand_twitter"]: info.get("twitter"),
-            FIELDS["brand_cien"]: info.get("ci_en_url"),
+        # 准备一个字典，用来存放所有要提交给 Notion 的数据
+        # 键是 Notion 属性名，值是对应的数据
+        data_to_build = {}
+
+        # 1. 首先处理标准化的、预先定义好的字段
+        # 这个映射将我们内部的 key (如 'official_url') 转换为 Notion 的属性名
+        standard_key_map = {
+            "official_url": FIELDS["brand_official_url"],
+            "icon_url": FIELDS["brand_icon"],
+            "summary": FIELDS["brand_summary"],
+            "bangumi_url": FIELDS["brand_bangumi_url"],
+            "twitter": FIELDS["brand_twitter"],
+            "ci_en_url": FIELDS["brand_cien"],
         }
 
-        # 【核心修复】移除了之前导致问题的、多余的覆盖循环
-        # 不再需要遍历 info.items()，因为上面的映射已经处理了所有已知字段
+        for info_key, notion_prop in standard_key_map.items():
+            if info_key in info and info[info_key]:
+                data_to_build[notion_prop] = info[info_key]
 
-        # 动态构建属性 payload
+        # 2. 处理那些动态添加的、key 和 Notion 属性名一致的字段
+        # 比如 "成立时间", "公司地址", "别名" 等
+        for key, value in info.items():
+            # 如果 key 已经是 Notion 属性名 (且不在上面的 map 里)，就直接用
+            if key not in standard_key_map and key in properties_schema:
+                if value:
+                    data_to_build[key] = value
+
+        # 3. 不要忘记最重要的主标题
+        data_to_build[FIELDS["brand_name"]] = brand_name
+
+        # 4. 动态构建最终的 props payload
         props = {}
-        for notion_prop_name, value in notion_data_map.items():
-            if value is None or notion_prop_name == "":
+        for notion_prop_name, value in data_to_build.items():
+            # 跳过空值和不存在的属性
+            if value is None or notion_prop_name not in properties_schema:
+                if notion_prop_name not in properties_schema:
+                    logger.warn(f"属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
                 continue
 
-            prop_info = properties_schema.get(notion_prop_name)
-            if not prop_info:
-                logger.warn(f"属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
-                continue
+            prop_type = properties_schema.get(notion_prop_name, {}).get("type")
 
-            prop_type = prop_info.get("type")
-
+            # 根据属性类型格式化数据
             if prop_type == "title":
                 props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
             elif prop_type == "rich_text":
+                # 如果值是列表（比如别名），就用 '、' 连接
                 val_str = "、".join(value) if isinstance(value, (list, set)) else str(value)
-                props[notion_prop_name] = {"rich_text": [{"text": {"content": val_str}}]}
+                props[notion_prop_name] = {"rich_text": [{"text": {"content": val_str[:2000]}}]}
             elif prop_type == "url":
                 props[notion_prop_name] = {"url": str(value)}
             elif prop_type == "files":
@@ -328,7 +340,11 @@ class NotionClient:
                 if str(value).strip():
                     props[notion_prop_name] = {"select": {"name": str(value)}}
 
-        # 发送请求 (逻辑不变)
+        # 发送请求 (这部分逻辑不变)
+        if not props:
+            logger.warn(f"没有可为品牌 '{brand_name}' 更新的数据，跳过。")
+            return page_id if page_id else None
+
         if page_id:
             resp = await self._request(
                 "PATCH", f"https://api.notion.com/v1/pages/{page_id}", {"properties": props}

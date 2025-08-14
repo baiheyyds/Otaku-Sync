@@ -416,22 +416,25 @@ class BangumiClient:
             f"[Bangumi] 最终匹配品牌: {best_match.get('name')} (ID: {best_match.get('id')}, 相似度: {best_score:.2f})"
         )
         infobox_data = await self._process_infobox(best_match.get("infobox", []), BRAND_DB_ID)
-        brand_info = {
-            "summary": best_match.get("summary", ""),
-            "icon": best_match.get("img"),
-            "bangumi_url": (
-                f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
-            ),
-        }
-        brand_info.update(infobox_data)
+        # 这里的 infobox_data 已经包含了所有动态映射的字段
+        brand_info = infobox_data
+
+        # --- 将 Bangumi 的特定字段统一到我们的内部表示 ---
+        brand_info["summary"] = best_match.get("summary", "")
+        brand_info["icon"] = best_match.get("img")  # 'img' -> 'icon'
+        brand_info["bangumi_url"] = (
+            f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
+        )
+
+        # 将 infobox 中的 "官网" 键统一为 'homepage'
         if "官网" in brand_info:
             brand_info["homepage"] = brand_info.pop("官网")
-        if (
-            "Twitter" in brand_info
-            and isinstance(brand_info["Twitter"], str)
-            and brand_info["Twitter"].startswith("@")
-        ):
-            brand_info["twitter"] = f"https://twitter.com/{brand_info['Twitter'][1:]}"
-        else:
-            brand_info["twitter"] = brand_info.get("Twitter")
+
+        # 将 infobox 中的 "Twitter" 键统一为 'twitter'
+        twitter_handle = brand_info.get("Twitter")
+        if isinstance(twitter_handle, str) and twitter_handle.startswith("@"):
+            brand_info["twitter"] = f"https://twitter.com/{twitter_handle[1:]}"
+        elif twitter_handle:  # 如果不是@开头的，可能就是完整链接
+            brand_info["twitter"] = twitter_handle
+
         return brand_info

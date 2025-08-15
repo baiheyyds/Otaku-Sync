@@ -14,6 +14,7 @@ async def process_and_sync_game(
     brand_id,
     ggbases_client,
     user_keyword,
+    notion_game_schema, 
     interactive=False,
     ggbases_detail_url=None,
     ggbases_info=None,
@@ -78,5 +79,9 @@ async def process_and_sync_game(
     if not merged.get("summary") and bangumi_info.get("summary"):
         merged["summary"] = bangumi_info.get("summary")
 
-    page_id = await notion_client.create_or_update_game(page_id=selected_similar_page_id, **merged)
+    page_id = await notion_client.create_or_update_game(
+        properties_schema=notion_game_schema,  
+        page_id=selected_similar_page_id,
+        **merged
+    )
     return page_id

@@ -9,6 +9,7 @@ from core.init import close_context, init_context
 from core.selector import select_game
 from utils import logger
 from utils.similarity_check import check_existing_similar_games
+from config.config_token import GAME_DB_ID
 
 
 async def _select_ggbases_game_interactively(candidates: list) -> str | None:
@@ -39,7 +40,7 @@ async def _select_ggbases_game_interactively(candidates: list) -> str | None:
 
 async def run_single_game_flow(context: dict):
     try:
-        # --- 阶段 1: 用户输入与游戏选择 (不变) ---
+        # --- 阶段 1: 用户输入与游戏选择 (无变化) ---
         raw_input = await asyncio.to_thread(
             input, "\n💡 请输入游戏关键词 (追加 -m 进入手动模式，q 退出): "
         )
@@ -65,15 +66,41 @@ async def run_single_game_flow(context: dict):
         if not should_continue:
             return True
 
-        # --- 阶段 2: 并发获取所有“非交互式”的基础信息 ---
-        logger.info(f"正在并发获取 {source.upper()} 详情和 GGBases 候选列表...")
-        detail_task = context[source].get_game_detail(game["url"])
-        ggbases_candidates_task = context["ggbases"].choose_or_parse_popular_url_with_requests(
+        # --- 阶段 2: 交互式获取 Bangumi ID (这是流程中的第一个潜在阻塞点) ---
+        logger.info("正在获取 Bangumi 信息 (此过程可能需要您参与交互)...")
+        bangumi_id = await context["bangumi"].search_and_select_bangumi_id(original_keyword)
+
+        # --- 阶段 3: 创建一个并发任务池 ---
+        logger.info("正在并发获取所有来源的详细信息...")
+        tasks = {}
+
+        # 3.1 添加主要来源 (DLsite/Fanza) 的详情任务
+        tasks["detail"] = context[source].get_game_detail(game["url"])
+
+        # 3.2 添加 GGBases 的搜索任务
+        tasks["ggbases_candidates"] = context["ggbases"].choose_or_parse_popular_url_with_requests(
             original_keyword
         )
-        detail, ggbases_candidates = await asyncio.gather(detail_task, ggbases_candidates_task)
 
-        # --- 阶段 3: 处理 GGBases 结果 (可能交互) ---
+        # 3.3 如果有 Bangumi ID，添加 Bangumi 游戏详情任务 (可能触发交互)
+        if bangumi_id:
+            tasks["bangumi_game_info"] = context["bangumi"].fetch_game(bangumi_id)
+
+        # --- 阶段 4: 执行第一轮并发，获取后续任务所需的前置信息 ---
+        results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+
+        # 将结果从列表解包回字典
+        task_results = {
+            key: res for key, res in zip(tasks.keys(), results) if not isinstance(res, Exception)
+        }
+
+        detail = task_results.get("detail", {})
+        ggbases_candidates = task_results.get("ggbases_candidates", [])
+        bangumi_game_info = task_results.get("bangumi_game_info", {})
+
+        # --- 阶段 5: 处理需要前置信息的后续并发任务 ---
+
+        # 5.1 处理 GGBases (可能交互)
         ggbases_url = None
         if ggbases_candidates:
             if manual_mode:
@@ -82,52 +109,55 @@ async def run_single_game_flow(context: dict):
                 best = max(ggbases_candidates, key=lambda x: x["popularity"])
                 ggbases_url = best["url"]
                 logger.success(f"[GGBases] 自动选择热度最高结果: {best['title']}")
-        else:
-            # logger.warn("[GGBases] 未找到任何结果。")
-            pass
 
-        # --- 阶段 4: 串行获取可能需要交互的 Bangumi 信息 (核心修正) ---
-        logger.info("正在获取 Bangumi 信息 (此过程可能需要您参与交互)...")
-        # 4.1 获取 Bangumi ID (可能交互)
-        bangumi_id = await context["bangumi"].search_and_select_bangumi_id(original_keyword)
-        # 4.2 获取游戏详情 (可能因 infobox 触发交互)
-        bangumi_game_info = await context["bangumi"].fetch_game(bangumi_id) if bangumi_id else {}
-        # 4.3 获取品牌详情 (可能因 infobox 触发交互)
-        brand_name = detail.get("品牌")
-        bangumi_brand_info = (
-            await context["bangumi"].fetch_brand_info_from_bangumi(brand_name) if brand_name else {}
-        )
-
-        # --- 阶段 5: 并发获取所有剩余的、无需交互的后台任务 ---
-        logger.info("正在并发获取所有剩余的后台信息 (Selenium)...")
-        selenium_tasks = []
+        # 5.2 准备第二轮并发任务 (Selenium 和 Bangumi 品牌)
+        selenium_tasks = {}
         if ggbases_url:
-            selenium_tasks.append(context["ggbases"].get_info_by_url_with_selenium(ggbases_url))
-        brand_page_url = detail.get("品牌页链接")
-        if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
-            selenium_tasks.append(
-                context["dlsite"].get_brand_extra_info_with_selenium(brand_page_url)
+            selenium_tasks["ggbases_info"] = context["ggbases"].get_info_by_url_with_selenium(
+                ggbases_url
             )
 
-        ggbases_info, brand_extra_info = {}, {}
+        brand_name = detail.get("品牌")
+        brand_page_url = detail.get("品牌页链接")
+
+        # 只有 DLsite 的品牌页链接才用于 Selenium
+        if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
+            selenium_tasks["brand_extra_info"] = context[
+                "dlsite"
+            ].get_brand_extra_info_with_selenium(brand_page_url)
+
+        # Bangumi 品牌信息获取 (可能触发交互)
+        if brand_name:
+            selenium_tasks["bangumi_brand_info"] = context["bangumi"].fetch_brand_info_from_bangumi(
+                brand_name
+            )
+
+        # 5.3 执行第二轮并发
         if selenium_tasks:
-            results = await asyncio.gather(*selenium_tasks, return_exceptions=True)
-            idx = 0
-            if ggbases_url:
-                ggbases_info = results[idx] if not isinstance(results[idx], Exception) else {}
-                idx += 1
-            if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
-                brand_extra_info = results[idx] if not isinstance(results[idx], Exception) else {}
+            logger.info("正在并发获取剩余的后台信息 (Selenium & Bangumi Brand)...")
+            selenium_results_list = await asyncio.gather(
+                *selenium_tasks.values(), return_exceptions=True
+            )
+            selenium_results = {
+                key: res
+                for key, res in zip(selenium_tasks.keys(), selenium_results_list)
+                if not isinstance(res, Exception)
+            }
+
+            ggbases_info = selenium_results.get("ggbases_info", {})
+            brand_extra_info = selenium_results.get("brand_extra_info", {})
+            bangumi_brand_info = selenium_results.get("bangumi_brand_info", {})
+        else:
+            ggbases_info, brand_extra_info, bangumi_brand_info = {}, {}, {}
 
         logger.success("所有信息获取完毕！")
 
-        # --- 阶段 6: 数据处理与提交 (不变) ---
+        # --- 阶段 6: 数据处理与提交 (与原逻辑基本一致) ---
         if brand_extra_info and brand_page_url:
             context["brand_extra_info_cache"][brand_page_url] = brand_extra_info
 
         brand_id = None
         if brand_name:
-            # handle_brand_info 现在是纯数据处理函数，不涉及网络I/O
             final_brand_info = await handle_brand_info(
                 bangumi_brand_info=bangumi_brand_info,
                 dlsite_extra_info=brand_extra_info,
@@ -143,6 +173,8 @@ async def run_single_game_flow(context: dict):
             brand_id=brand_id,
             ggbases_client=context["ggbases"],
             user_keyword=original_keyword,
+            # 2. 从 context 中取出 schema_manager，并用 GAME_DB_ID 获取游戏数据库的结构
+            notion_game_schema=context["schema_manager"]._schemas[GAME_DB_ID],
             ggbases_detail_url=ggbases_url,
             ggbases_info=ggbases_info,
             bangumi_info=bangumi_game_info,

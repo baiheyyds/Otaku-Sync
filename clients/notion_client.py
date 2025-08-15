@@ -155,7 +155,7 @@ class NotionClient:
 
     # --- 请找到 create_or_update_game 方法并用下面的代码替换它 ---
 
-    async def create_or_update_game(self, page_id=None, **info):
+    async def create_or_update_game(self, properties_schema: dict, page_id=None, **info):
         title = info.get("title")
         if not title:
             logger.error("游戏标题为空，无法创建或更新。")
@@ -165,11 +165,11 @@ class NotionClient:
             existing = await self.search_game(title)
             page_id = existing[0]["id"] if existing else None
 
-        schema = await self.get_database_schema(self.game_db_id)
-        if not schema:
-            logger.error("无法获取游戏数据库结构，更新中止。")
-            return None
-        properties_schema = schema.get("properties", {})
+        # schema = await self.get_database_schema(self.game_db_id)
+        # if not schema:
+        #     logger.error("无法获取游戏数据库结构，更新中止。")
+        #     return None
+        # properties_schema = schema.get("properties", {})
 
         data_for_notion = {}
         for prop_name in properties_schema:

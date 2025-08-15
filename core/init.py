@@ -87,6 +87,7 @@ async def init_context():
         "brand_cache": brand_cache,
         "brand_extra_info_cache": brand_extra_info_cache,
         "cached_titles": cached_titles,
+        "schema_manager": schema_manager,
     }
 
 

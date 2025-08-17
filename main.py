@@ -10,6 +10,7 @@ from core.selector import select_game
 from utils import logger
 from utils.similarity_check import check_existing_similar_games
 from config.config_token import GAME_DB_ID
+from utils.driver import create_driver
 
 
 async def _select_ggbases_game_interactively(candidates: list) -> str | None:
@@ -36,6 +37,20 @@ async def _select_ggbases_game_interactively(candidates: list) -> str | None:
                 logger.error("序号超出范围，请重试。")
         except (ValueError, IndexError):
             logger.error("无效输入，请输入数字或'c'。")
+
+
+async def get_or_create_driver(context: dict, driver_key: str):
+    if context[driver_key] is None:
+        logger.system(f"正在按需创建 {driver_key}...")
+        driver = await asyncio.to_thread(create_driver)
+        context[driver_key] = driver
+        # 别忘了将 driver 设置到对应的 client 中
+        if driver_key == "dlsite_driver":
+            context["dlsite"].set_driver(driver)
+        elif driver_key == "ggbases_driver":
+            context["ggbases"].set_driver(driver)
+        logger.success(f"{driver_key} 已成功创建并设置。")
+    return context[driver_key]
 
 
 async def run_single_game_flow(context: dict):
@@ -113,6 +128,8 @@ async def run_single_game_flow(context: dict):
         # 5.2 准备第二轮并发任务 (Selenium 和 Bangumi 品牌)
         selenium_tasks = {}
         if ggbases_url:
+            # 【修改】调用前确保 driver 存在
+            await get_or_create_driver(context, "ggbases_driver")
             selenium_tasks["ggbases_info"] = context["ggbases"].get_info_by_url_with_selenium(
                 ggbases_url
             )
@@ -122,6 +139,8 @@ async def run_single_game_flow(context: dict):
 
         # 只有 DLsite 的品牌页链接才用于 Selenium
         if source == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
+            # 【修改】调用前确保 driver 存在
+            await get_or_create_driver(context, "dlsite_driver")
             selenium_tasks["brand_extra_info"] = context[
                 "dlsite"
             ].get_brand_extra_info_with_selenium(brand_page_url)

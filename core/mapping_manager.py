@@ -132,6 +132,9 @@ class BangumiMappingManager:
             target_db_id, new_prop_name, notion_type
         )
         if success:
+            # 新属性已在 Notion 端创建成功。
+            # 立即刷新内存中的数据库结构缓存，以便本次运行能识别并使用这个新属性。
+            logger.system(f"新属性已创建，正在刷新数据库结构缓存...")
             db_name = DB_ID_TO_NAMESPACE.get(target_db_id, "未知数据库")
             await schema_manager.initialize_schema(target_db_id, db_name)
             self.add_new_mapping(bangumi_key_to_map, new_prop_name, target_db_id)  # 传递 db_id

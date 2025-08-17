@@ -68,7 +68,11 @@ async def run_single_game_flow(context: dict):
             logger.warn("请输入有效的游戏关键词。")
             return True
         game, source = await select_game(
-            context["dlsite"], context["fanza"], original_keyword, original_keyword
+            context["dlsite"],
+            context["fanza"],
+            original_keyword,
+            original_keyword,
+            manual_mode=manual_mode,  # <-- 添加这一行
         )
         if not game or source == "cancel":
             logger.info("操作已取消。")

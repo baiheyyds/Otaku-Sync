@@ -108,7 +108,6 @@ class BangumiMappingManager:
         schema_manager,
         target_db_id: str,
     ) -> str | None:
-        # ... 此方法内部逻辑不变 ...
         def _get_type_input():
             type_prompt = f"   请为新属性 '{new_prop_name}' 选择 Notion 中的类型:\n"
             for key, (api_type, display_name) in TYPE_SELECTION_MAP.items():
@@ -128,25 +127,34 @@ class BangumiMappingManager:
                 break
             else:
                 logger.error("无效的类型选项，请重新输入。")
+
         success = await notion_client.add_new_property_to_db(
             target_db_id, new_prop_name, notion_type
         )
+
         if success:
             # 新属性已在 Notion 端创建成功。
             # 立即刷新内存中的数据库结构缓存，以便本次运行能识别并使用这个新属性。
             logger.system(f"新属性已创建，正在刷新数据库结构缓存...")
             db_name = DB_ID_TO_NAMESPACE.get(target_db_id, "未知数据库")
             await schema_manager.initialize_schema(target_db_id, db_name)
-            self.add_new_mapping(bangumi_key_to_map, new_prop_name, target_db_id)  # 传递 db_id
+
+            # 缓存刷新后，再添加映射关系并返回
+            self.add_new_mapping(bangumi_key_to_map, new_prop_name, target_db_id)
             return new_prop_name
         else:
             logger.error(f"自动创建 Notion 属性 '{new_prop_name}' 失败。")
             return None
 
     async def handle_new_key(
-        self, bangumi_key: str, notion_client, schema_manager, target_db_id: str
+        self,
+        bangumi_key: str,
+        bangumi_value: any,  # <--- 新增参数
+        bangumi_url: str,  # <--- 新增参数
+        notion_client,
+        schema_manager,
+        target_db_id: str,
     ) -> str | None:
-        # ... 此方法大部分逻辑不变，只需修改 add_new_mapping 的调用 ...
         db_name = "未知数据库"
         namespace = DB_ID_TO_NAMESPACE.get(target_db_id)
         if namespace == "games":
@@ -156,12 +164,21 @@ class BangumiMappingManager:
         elif namespace == "brands":
             db_name = "厂商数据库"
 
-        # ... (_get_action_input 内部函数不变) ...
         def _get_action_input():
             mappable_props = schema_manager.get_mappable_properties(target_db_id)
-            prompt_header = f"\n❓ [Bangumi] 在【{db_name}】中发现新属性: '{bangumi_key}'\n   请选择如何处理:\n\n   --- 映射到现有 Notion 属性 ---\n"
+
+            # --- [核心修改] 增强提示信息 ---
+            prompt_header = (
+                f"\n❓ [Bangumi] 在【{db_name}】中发现新属性:\n"
+                f"   - 键 (Key)  : '{bangumi_key}'\n"
+                f"   - 值 (Value): {bangumi_value}\n"
+                f"   - 来源 (URL) : {bangumi_url}\n\n"
+                f"   请选择如何处理:\n\n   --- 映射到现有 Notion 属性 ---\n"
+            )
+            # --- 修改结束 ---
+
             prop_lines, prop_map = [], {}
-            COLUMNS, COLUMN_WIDTH = 3, 25
+            COLUMNS, COLUMN_WIDTH = 6, 25
 
             def get_visual_width(s: str) -> int:
                 width = 0
@@ -197,7 +214,7 @@ class BangumiMappingManager:
         if action.isdigit() and action in prop_map:
             selected_prop = prop_map[action]
             logger.info(f"已选择映射到现有属性: '{selected_prop}'")
-            self.add_new_mapping(bangumi_key, selected_prop, target_db_id)  # 传递 db_id
+            self.add_new_mapping(bangumi_key, selected_prop, target_db_id)
             return selected_prop
         if action == "n":
             self.ignore_key_session(bangumi_key)
@@ -216,4 +233,6 @@ class BangumiMappingManager:
                 logger.warn("未输入名称，已取消操作。")
                 return None
         logger.error("输入无效，请在提供的选项中选择。")
-        return await self.handle_new_key(bangumi_key, notion_client, schema_manager, target_db_id)
+        return await self.handle_new_key(
+            bangumi_key, bangumi_value, bangumi_url, notion_client, schema_manager, target_db_id
+        )

@@ -154,7 +154,10 @@ class BangumiClient:
         if r.status_code != 200:
             return {}
         d = r.json()
-        infobox_data = await self._process_infobox(d.get("infobox", []), self.notion.game_db_id)
+        bangumi_url = f"https://bangumi.tv/subject/{subject_id}"
+        infobox_data = await self._process_infobox(
+            d.get("infobox", []), self.notion.game_db_id, bangumi_url
+        )
         cover_url = d.get("images", {}).get("large") or d.get("image") or ""
         game_data = {
             "title": d.get("name"),
@@ -167,29 +170,21 @@ class BangumiClient:
         game_data.update(infobox_data)
         return game_data
 
-    async def _process_infobox(self, infobox: list, target_db_id: str) -> dict:
+    async def _process_infobox(self, infobox: list, target_db_id: str, bangumi_url: str) -> dict:
         processed = {}
         if not infobox:
             return processed
 
-        # 定义一个内部辅助函数，避免代码重复
-        # 它的作用是：拿到一个key-value对，完成映射，然后设置到processed字典中
         async def _map_and_set_prop(key, value):
             if not key or not value:
                 return
-
-            # 1. 找到这个 Bangumi key 对应的 Notion 属性名
             notion_prop = self.mapper.get_notion_prop(key, target_db_id)
-
-            # 2. 如果找不到，则触发交互流程让用户处理这个新key
             if not notion_prop:
+                # 将 value 和 bangumi_url 传递给 handle_new_key
                 notion_prop = await self.mapper.handle_new_key(
-                    key, self.notion, self.schema, target_db_id
+                    key, value, bangumi_url, self.notion, self.schema, target_db_id
                 )
-
-            # 3. 如果成功获得了 Notion 属性名，就将数据存入结果字典
             if notion_prop:
-                # 如果一个 Notion 属性已经有值了（比如别名有多个），就追加
                 if notion_prop in processed and isinstance(processed[notion_prop], list):
                     if isinstance(value, list):
                         processed[notion_prop].extend(value)
@@ -198,42 +193,54 @@ class BangumiClient:
                 else:
                     processed[notion_prop] = value
 
-        # --- 主循环，遍历 infobox 的每一项 ---
         for item in infobox:
             bangumi_key, bangumi_value = item.get("key"), item.get("value")
             if not bangumi_key or bangumi_value is None:
                 continue
 
-            # 核心逻辑：判断 value 是否为列表
+            # --- 核心逻辑强化 ---
+            # 检查 value 是否为一个列表
             if isinstance(bangumi_value, list):
-                # 是列表，说明可能包含混合类型，需要特殊处理
-                v_only_values = []  # 用于收集所有只有 "v" 的值
+                # 进一步判断列表内容：是简单的值列表，还是复杂的 "k-v" 结构化列表
+                # 通过检查第一个元素是否是包含 'k' 键的字典来判断
+                is_structured_list = (
+                    bangumi_value and isinstance(bangumi_value[0], dict) and "k" in bangumi_value[0]
+                )
 
-                for sub_item in bangumi_value:
-                    if isinstance(sub_item, dict):
-                        sub_key = sub_item.get("k")
-                        sub_value = sub_item.get("v")
+                if is_structured_list:
+                    # 情况 A: 这是一个结构化列表，如“发行日期”
+                    # 遍历子项，将外部键和内部键组合成新键
+                    for sub_item in bangumi_value:
+                        if isinstance(sub_item, dict):
+                            sub_key = sub_item.get("k")
+                            sub_value = sub_item.get("v")
+                            if sub_key and sub_value is not None:
+                                # 创建组合键，例如："发行日期-ダウンロード版"
+                                combined_key = f"{bangumi_key}-{sub_key}"
+                                # 使用这个全新的、唯一的键来处理数据
+                                await _map_and_set_prop(combined_key, str(sub_value).strip())
+                else:
+                    # 情况 B: 这是一个简单的值列表，如多个“别名”
+                    # 沿用原有的逻辑，收集所有值
+                    v_only_values = []
+                    for sub_item in bangumi_value:
+                        value_to_add = None
+                        if isinstance(sub_item, dict) and "v" in sub_item:
+                            value_to_add = sub_item.get("v")
+                        elif isinstance(sub_item, str):
+                            value_to_add = sub_item
 
-                        if sub_key and sub_value is not None:
-                            # 情况A：这是一个 "k"-"v" 对，是独立属性
-                            # 立即处理这个独立属性
-                            await _map_and_set_prop(sub_key, str(sub_value).strip())
+                        if value_to_add is not None:
+                            v_only_values.append(str(value_to_add).strip())
 
-                        elif sub_value is not None:
-                            # 情况B：这是一个只有 "v" 的值，属于外层 bangumi_key
-                            v_only_values.append(str(sub_value).strip())
-
-                    elif isinstance(sub_item, str):
-                        # 情况C：列表里直接是字符串（罕见但兼容）
-                        v_only_values.append(sub_item.strip())
-
-                # 在遍历完整个列表后，统一处理所有收集到的 "v-only" 值
-                if v_only_values:
-                    await _map_and_set_prop(bangumi_key, v_only_values)
+                    if v_only_values:
+                        await _map_and_set_prop(bangumi_key, v_only_values)
 
             else:
-                # value 不是列表，就是一个简单的 key-value 字符串
+                # 情况 C: value 不是列表，就是一个简单的 key-value 字符串
+                # 沿用原有逻辑
                 await _map_and_set_prop(bangumi_key, str(bangumi_value).strip())
+        # --- 逻辑强化结束 ---
 
         return processed
 
@@ -255,7 +262,10 @@ class BangumiClient:
             if isinstance(detail_resp, Exception) or detail_resp.status_code != 200:
                 continue
             detail = detail_resp.json()
-            infobox_data = await self._process_infobox(detail.get("infobox", []), CHARACTER_DB_ID)
+            char_url = f"https://bangumi.tv/character/{detail['id']}"
+            infobox_data = await self._process_infobox(
+                detail.get("infobox", []), CHARACTER_DB_ID, char_url
+            )
             voice_actor = (
                 char_summary["actors"][0].get("name") if char_summary.get("actors") else None
             )
@@ -443,7 +453,10 @@ class BangumiClient:
         logger.success(
             f"[Bangumi] 最终匹配品牌: {best_match.get('name')} (ID: {best_match.get('id')}, 相似度: {best_score:.2f})"
         )
-        infobox_data = await self._process_infobox(best_match.get("infobox", []), BRAND_DB_ID)
+        brand_url = f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
+        infobox_data = await self._process_infobox(
+            best_match.get("infobox", []), BRAND_DB_ID, brand_url
+        )
         # 这里的 infobox_data 已经包含了所有动态映射的字段
         brand_info = infobox_data
 

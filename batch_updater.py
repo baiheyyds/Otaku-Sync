@@ -1,8 +1,8 @@
 # batch_updater.py
 import asyncio
 import re
-import sys
-from tqdm.asyncio import tqdm
+from tqdm import tqdm
+from typing import List, Dict, Any
 
 from core.init import init_context, close_context
 from utils import logger
@@ -10,6 +10,7 @@ from config.config_token import GAME_DB_ID, BRAND_DB_ID, CHARACTER_DB_ID
 from config.config_fields import FIELDS
 
 # --- 可配置项 ---
+# 这现在是每一批次并发处理的数量
 CONCURRENCY_LIMIT = 8
 
 DB_CONFIG = {
@@ -26,7 +27,6 @@ DB_CONFIG = {
     },
 }
 
-# [新增] 反向映射，用于在猴子补丁中根据ID查找名字
 DB_ID_TO_KEY_MAP = {v["id"]: k for k, v in DB_CONFIG.items()}
 
 
@@ -37,63 +37,126 @@ def extract_id_from_url(url: str) -> str | None:
     return match.group(2) if match else None
 
 
-async def process_item(context, page, db_key, semaphore, interaction_lock):
-    notion_client = context["notion"]
-    bangumi_client = context["bangumi"]
+def chunker(seq, size):
+    """将一个列表分割成指定大小的块"""
+    return (seq[pos : pos + size] for pos in range(0, len(seq), size))
 
-    page_id = page["id"]
-    page_title = notion_client.get_page_title(page)
+
+async def check_if_dirty(context, bangumi_data: Dict[str, Any], db_id: str) -> bool:
+    """
+    预检查从Bangumi获取的数据是否包含任何未被映射的新属性。
+    这是避免不必要锁定的关键。
+    """
+    mapper = context["bangumi"].mapper
+    schema = context["schema_manager"].get_schema(db_id)
+    if not schema:
+        return True  # 如果没有schema，保守地认为所有都是新属性
+
+    # Bangumi数据中的所有潜在key
+    keys_to_check = set(bangumi_data.keys())
+
+    # _process_infobox 会创建组合key，我们也需要模拟检查它们
+    # (这是一个简化的模拟，但已能覆盖绝大多数情况)
+    if "infobox" in bangumi_data and isinstance(bangumi_data["infobox"], list):
+        for item in bangumi_data["infobox"]:
+            key = item.get("key")
+            value = item.get("value")
+            if not key:
+                continue
+
+            keys_to_check.add(key)
+            if isinstance(value, list):
+                for sub_item in value:
+                    if isinstance(sub_item, dict) and "k" in sub_item:
+                        sub_key = sub_item.get("k")
+                        keys_to_check.add(f"{key}-{sub_key}")
+                        if key == "链接":
+                            keys_to_check.add(sub_key)
+
+    for key in keys_to_check:
+        if not mapper.get_notion_prop(key, db_id):
+            return True  # 发现一个未映射的key，标记为dirty
+
+    return False
+
+
+async def preprocess_item(context, page: Dict[str, Any], db_key: str) -> Dict[str, Any] | None:
+    """
+    第一阶段：并发获取数据并进行预处理。
+    """
+    bangumi_client = context["bangumi"]
     config = DB_CONFIG[db_key]
 
-    async with semaphore:
-        try:
-            bangumi_url_prop = page.get("properties", {}).get(config["bangumi_url_prop"], {})
-            bangumi_url = bangumi_url_prop.get("url")
+    try:
+        bangumi_url_prop = page.get("properties", {}).get(config["bangumi_url_prop"], {})
+        bangumi_url = bangumi_url_prop.get("url")
+        bangumi_id = extract_id_from_url(bangumi_url)
 
-            bangumi_id = extract_id_from_url(bangumi_url)
-            if not bangumi_id:
-                return
+        if not bangumi_id:
+            return None
 
-            async with interaction_lock:
-                if db_key == "games":
-                    bangumi_data = await bangumi_client.fetch_game(bangumi_id)
-                    if not bangumi_data:
-                        raise ValueError("从Bangumi获取游戏数据失败")
+        bangumi_data = {}
+        if db_key == "games":
+            bangumi_data = await bangumi_client.fetch_game(bangumi_id)
+        elif db_key == "brands":
+            bangumi_data = await bangumi_client.fetch_person_by_id(bangumi_id)
+        elif db_key == "characters":
+            # 对于角色，我们需要更完整的数据结构用于写入
+            bangumi_data = await bangumi_client.fetch_and_prepare_character_data(bangumi_id)
 
-                    schema = context["schema_manager"].get_schema(config["id"])
-                    await notion_client.create_or_update_game(
-                        properties_schema=schema, page_id=page_id, **bangumi_data
-                    )
+        if not bangumi_data:
+            return None
 
-                elif db_key == "brands":
-                    # [关键修复] 使用 bangumi_id 直接获取数据，而不是搜索
-                    bangumi_data = await bangumi_client.fetch_person_by_id(bangumi_id)
-                    if not bangumi_data:
-                        logger.warn(
-                            f"无法通过ID {bangumi_id} 获取品牌 '{page_title}' 的信息，已跳过。"
-                        )
-                        return
+        # is_dirty = await check_if_dirty(context, bangumi_data, config["id"])
+        # 简化逻辑：我们假设任何需要交互的步骤都应该串行化。
+        # fetch_and_prepare_character_data 内部已经调用了 _process_infobox,
+        # 我们在这里再次调用来检查新属性，而不是重新实现检查逻辑。
+        temp_processed = await bangumi_client._process_infobox(
+            bangumi_data.get("infobox", []), config["id"], ""
+        )
+        is_dirty = any(
+            prop not in context["schema_manager"].get_schema(config["id"])
+            for prop in temp_processed.keys()
+        )
 
-                    brand_name = page_title
-                    # [关键修复] 传入已知的 page_id，避免重复搜索，提高效率
-                    await notion_client.create_or_update_brand(
-                        brand_name, page_id=page_id, **bangumi_data
-                    )
-
-                elif db_key == "characters":
-                    char_data = await bangumi_client.fetch_and_prepare_character_data(bangumi_id)
-                    if not char_data:
-                        raise ValueError(f"准备角色 {bangumi_id} 数据失败")
-
-                    warned_keys = set()
-                    await bangumi_client.create_or_update_character(char_data, warned_keys)
-
-        except Exception as e:
-            logger.error(f"处理页面 '{page_title}' ({page_id}) 时出错: {e}")
+        return {
+            "page": page,
+            "bangumi_data": bangumi_data,
+            "is_dirty": is_dirty,  # 关键标记
+        }
+    except Exception as e:
+        page_title = context["notion"].get_page_title(page)
+        logger.warn(f"预处理 '{page_title}' 时失败: {e}")
+        return None
 
 
-async def batch_update(context, dbs_to_update):
-    semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
+async def write_item_to_notion(context, item_data: Dict[str, Any], db_key: str):
+    """
+    第二阶段：将预处理好的数据写入Notion。
+    """
+    notion_client = context["notion"]
+    config = DB_CONFIG[db_key]
+    page = item_data["page"]
+    page_id = page["id"]
+    page_title = notion_client.get_page_title(page)
+    bangumi_data = item_data["bangumi_data"]
+
+    try:
+        if db_key == "games":
+            schema = context["schema_manager"].get_schema(config["id"])
+            await notion_client.create_or_update_game(
+                properties_schema=schema, page_id=page_id, **bangumi_data
+            )
+        elif db_key == "brands":
+            await notion_client.create_or_update_brand(page_title, page_id=page_id, **bangumi_data)
+        elif db_key == "characters":
+            warned_keys = set()
+            await context["bangumi"].create_or_update_character(bangumi_data, warned_keys)
+    except Exception as e:
+        logger.error(f"写入页面 '{page_title}' ({page_id}) 时出错: {e}")
+
+
+async def batch_update(context, dbs_to_update: List[str]):
     interaction_lock = asyncio.Lock()
     notion_client = context["notion"]
 
@@ -106,15 +169,85 @@ async def batch_update(context, dbs_to_update):
             logger.warn(f"{config['name']} 中没有找到任何页面。")
             continue
 
-        logger.info(f"共找到 {len(all_pages)} 个条目，将并发处理...")
+        logger.info(f"共找到 {len(all_pages)} 个条目，将以每批 {CONCURRENCY_LIMIT} 个并发处理...")
 
-        tasks = [
-            process_item(context, page, db_key, semaphore, interaction_lock) for page in all_pages
-        ]
-        await tqdm.gather(*tasks, desc=f"更新 {config['name']}")
+        # 使用tqdm包装分块器，以批次为单位显示进度
+        for page_chunk in tqdm(
+            list(chunker(all_pages, CONCURRENCY_LIMIT)), desc=f"更新 {config['name']}", unit="批"
+        ):
+            # --- 阶段一：并发获取和预处理 ---
+            preprocess_tasks = [preprocess_item(context, page, db_key) for page in page_chunk]
+            processed_items = await asyncio.gather(*preprocess_tasks)
+            processed_items = [item for item in processed_items if item]  # 过滤掉失败的
+
+            # --- 任务分离 ---
+            clean_items = [item for item in processed_items if not item["is_dirty"]]
+            dirty_items = [item for item in processed_items if item["is_dirty"]]
+
+            # --- 阶段二(A)：并发写入“干净”的条目 ---
+            if clean_items:
+                write_clean_tasks = [
+                    write_item_to_notion(context, item, db_key) for item in clean_items
+                ]
+                await asyncio.gather(*write_clean_tasks)
+
+            # --- 阶段二(B)：串行写入“有问题”的条目以处理交互 ---
+            if dirty_items:
+                for item in dirty_items:
+                    async with interaction_lock:
+                        await write_item_to_notion(context, item, db_key)
+
         logger.success(f"{config['name']} 处理完成！")
 
 
+async def main():
+    dbs_to_update = get_user_choice()
+    if not dbs_to_update:
+        logger.info("用户选择退出。")
+        return
+
+    context = await init_context()
+
+    from core.mapping_manager import BangumiMappingManager
+
+    original_handle_new_key = BangumiMappingManager.handle_new_key
+
+    async def new_handle_new_key_wrapper(
+        self, bangumi_key, bangumi_value, bangumi_url, notion_client, schema_manager, target_db_id
+    ):
+        result = await original_handle_new_key(
+            self,
+            bangumi_key,
+            bangumi_value,
+            bangumi_url,
+            notion_client,
+            schema_manager,
+            target_db_id,
+        )
+        if result and result not in schema_manager.get_schema(target_db_id):
+            logger.system(f"检测到新属性 '{result}' 已创建，正在刷新数据库结构...")
+            db_key = DB_ID_TO_KEY_MAP.get(target_db_id)
+            if db_key:
+                await schema_manager.initialize_schema(target_db_id, DB_CONFIG[db_key]["name"])
+                logger.success("数据库结构缓存已刷新！")
+        return result
+
+    BangumiMappingManager.handle_new_key = new_handle_new_key_wrapper
+
+    try:
+        await batch_update(context, dbs_to_update)
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        logger.warn("\n接收到中断信号，正在退出...")
+    except Exception as e:
+        logger.error(f"批量更新流程出现未捕获的严重错误: {e}")
+    finally:
+        logger.system("正在清理资源...")
+        await close_context(context)
+        context["brand_cache"].save_cache(context["brand_extra_info_cache"])
+        logger.system("批量更新程序已安全退出。")
+
+
+# get_user_choice() 和 __main__ 部分保持不变
 def get_user_choice():
     print("\n请选择要批量更新的数据库：\n")
     db_options = list(DB_CONFIG.keys())
@@ -137,58 +270,6 @@ def get_user_choice():
                 print("无效的数字，请重新输入。")
         except ValueError:
             print("无效输入，请输入数字或 'q'。")
-
-
-async def main():
-    dbs_to_update = get_user_choice()
-    if not dbs_to_update:
-        logger.info("用户选择退出。")
-        return
-
-    context = await init_context()
-
-    # [已修复] 猴子补丁现在能正确工作了
-    # 我们用一个包装函数临时替换原始的 handle_new_key
-    from core.mapping_manager import BangumiMappingManager
-
-    original_handle_new_key = BangumiMappingManager.handle_new_key
-
-    async def new_handle_new_key_wrapper(
-        self, bangumi_key, bangumi_value, bangumi_url, notion_client, schema_manager, target_db_id
-    ):
-        result = await original_handle_new_key(
-            self,
-            bangumi_key,
-            bangumi_value,
-            bangumi_url,
-            notion_client,
-            schema_manager,
-            target_db_id,
-        )
-        if result:
-            schema = schema_manager.get_schema(target_db_id)
-            # 只有当创建了一个schema中没有的属性时才刷新
-            if result not in schema:
-                logger.system(f"检测到新属性 '{result}' 已创建，正在刷新数据库结构...")
-                db_key = DB_ID_TO_KEY_MAP.get(target_db_id)
-                if db_key:
-                    await schema_manager.initialize_schema(target_db_id, DB_CONFIG[db_key]["name"])
-                    logger.success("数据库结构缓存已刷新！")
-        return result
-
-    BangumiMappingManager.handle_new_key = new_handle_new_key_wrapper
-
-    try:
-        await batch_update(context, dbs_to_update)
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        logger.warn("\n接收到中断信号，正在退出...")
-    except Exception as e:
-        logger.error(f"批量更新流程出现未捕获的严重错误: {e}")
-    finally:
-        logger.system("正在清理资源...")
-        await close_context(context)
-        context["brand_cache"].save_cache(context["brand_extra_info_cache"])
-        logger.system("批量更新程序已安全退出。")
 
 
 if __name__ == "__main__":

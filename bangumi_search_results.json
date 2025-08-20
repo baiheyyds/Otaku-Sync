@@ -1,827 +1,93 @@
 [
   {
-    "date": "2023-04-28",
+    "date": "2015-12-04",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/a5/10/416869_eH700.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/a5/10/416869_eH700.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/a5/10/416869_eH700.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/a5/10/416869_eH700.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/a5/10/416869_eH700.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/35/f0/223858_f83ZD.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/35/f0/223858_f83ZD.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/35/f0/223858_f83ZD.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/35/f0/223858_f83ZD.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/35/f0/223858_f83ZD.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/a5/10/416869_eH700.jpg",
-    "summary": "ストーリー：\r\n黒猫亭が開店する、すこし前のこと。\r\n新年を迎えたアルタリア共和国。皇軍の駐屯するこの国で、リリアはその身を追われていた。窮地を救ってくれたのは、のほほんとした雰囲気の自律人形。彼女の名前【灰桜】。ローベリアに渡りたいというリリアの願いを手助けしてくれることになり……？（冬空花火編）\r\n\r\nメンテナンスから目覚めた【鴉羽】。そこは皇軍の保養地である小さな島で、彼女を直した人形師【遠間ナギ】から新しい役目を与えられる。それはまるでメイド人形のような仕事で、不本意ながらも日々を過ごしていく。春の雪解けが近づく中、戦争の足音も少しずつ近づいてくる。（雪華文様編）\r\n\r\n公式サイトにて連載され、大好評を博した灰桜・鴉羽前日譚エピソードをキネティックノベル化。",
-    "name": "プリマドール：冬空花火／雪華文様",
-    "name_cn": "天籁人偶：冬穹烟火/雪华纹样",
-    "tags": [
-      {
-        "name": "key",
-        "count": 54,
-        "total_cont": 17878
-      },
-      {
-        "name": "Galgame",
-        "count": 44,
-        "total_cont": 373171
-      },
-      {
-        "name": "全年龄",
-        "count": 32,
-        "total_cont": 25778
-      },
-      {
-        "name": "短篇",
-        "count": 25,
-        "total_cont": 7025
-      },
-      {
-        "name": "2023",
-        "count": 15,
-        "total_cont": 6235
-      },
-      {
-        "name": "PC",
-        "count": 12,
-        "total_cont": 236810
-      },
-      {
-        "name": "na-ga",
-        "count": 11,
-        "total_cont": 429
-      },
-      {
-        "name": "萝莉",
-        "count": 11,
-        "total_cont": 13768
-      },
-      {
-        "name": "丘野塔也",
-        "count": 11,
-        "total_cont": 68
-      },
-      {
-        "name": "水月陵",
-        "count": 9,
-        "total_cont": 4076
-      },
-      {
-        "name": "废萌",
-        "count": 5,
-        "total_cont": 17604
-      },
-      {
-        "name": "折户伸治",
-        "count": 4,
-        "total_cont": 79
-      },
-      {
-        "name": "汉化",
-        "count": 4,
-        "total_cont": 31653
-      },
-      {
-        "name": "游戏",
-        "count": 2,
-        "total_cont": 88229
-      },
-      {
-        "name": "GAL",
-        "count": 2,
-        "total_cont": 42958
-      },
-      {
-        "name": "naga",
-        "count": 2,
-        "total_cont": 2
-      },
-      {
-        "name": "粉毛",
-        "count": 2,
-        "total_cont": 167
-      },
-      {
-        "name": "存盘",
-        "count": 2,
-        "total_cont": 162
-      },
-      {
-        "name": "ADV",
-        "count": 2,
-        "total_cont": 38268
-      },
-      {
-        "name": "番改gal",
-        "count": 1,
-        "total_cont": 2
-      },
-      {
-        "name": "视觉小说",
-        "count": 1,
-        "total_cont": 2912
-      },
-      {
-        "name": "轻百合",
-        "count": 1,
-        "total_cont": 31
-      },
-      {
-        "name": "2023打完",
-        "count": 1,
-        "total_cont": 63
-      },
-      {
-        "name": "冬",
-        "count": 1,
-        "total_cont": 200
-      },
-      {
-        "name": "机器人",
-        "count": 1,
-        "total_cont": 891
-      },
-      {
-        "name": "催泪",
-        "count": 1,
-        "total_cont": 6463
-      },
-      {
-        "name": "日本",
-        "count": 1,
-        "total_cont": 2881
-      },
-      {
-        "name": "loli",
-        "count": 1,
-        "total_cont": 665
-      },
-      {
-        "name": "已汉化",
-        "count": 1,
-        "total_cont": 211
-      },
-      {
-        "name": "分割商法",
-        "count": 1,
-        "total_cont": 4745
-      }
-    ],
-    "infobox": [
-      {
-        "key": "中文名",
-        "value": "天籁人偶：冬穹烟火/雪华纹样"
-      },
-      {
-        "key": "别名",
-        "value": [
-          {
-            "v": "プリマドール　ふゆぞらはなび／せっかもんよう"
-          },
-          {
-            "v": "プリマドール キネティックノベル版 第一巻"
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "Kinetic Novel"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "发行日期",
-        "value": "2023年4月28日"
-      },
-      {
-        "key": "website",
-        "value": "https://primadoll.jp/kineticnovel.html"
-      },
-      {
-        "key": "剧本",
-        "value": "丘野塔也"
-      },
-      {
-        "key": "官方网站",
-        "value": "https://primadoll.jp/kineticnovel/01/index.html"
-      },
-      {
-        "key": "原案",
-        "value": "VISUAL ARTS / Key"
-      },
-      {
-        "key": "原作",
-        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "原画",
-        "value": "バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "人物设定",
-        "value": "Na-Ga、藤ちょこ、まろやか"
-      }
-    ],
-    "rating": {
-      "rank": 8075,
-      "total": 120,
-      "count": {
-        "1": 0,
-        "2": 2,
-        "3": 6,
-        "4": 7,
-        "5": 22,
-        "6": 47,
-        "7": 26,
-        "8": 7,
-        "9": 1,
-        "10": 2
-      },
-      "score": 5.9
-    },
-    "collection": {
-      "on_hold": 11,
-      "dropped": 8,
-      "wish": 99,
-      "collect": 149,
-      "doing": 10
-    },
-    "id": 416869,
-    "eps": 0,
-    "meta_tags": [
-      "PC",
-      "galgame",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": null,
-    "platform": "游戏",
-    "images": {
-      "small": "",
-      "grid": "",
-      "large": "",
-      "medium": "",
-      "common": ""
-    },
-    "image": "",
-    "summary": "ストーリー：\r\n灰神楽の暴走事件から数ヶ月後。メンテナンスのため、灰桜が長い眠りについている頃――いまだ頻発する人形の暴走事件に対応するため、密かに奔走するのは自律人形【月下】と【レーツェル】。哀しい運命にある人形たちを救うべく、夜の皇都を駆ける。\r\n\r\n新規書き下ろしとなる、TVアニメ『プリマドール』後日譚のエピソード。",
-    "name": "プリマドール：皇都探偵",
-    "name_cn": "天籁人偶：皇都探侦",
-    "tags": [
-      {
-        "name": "PC",
-        "count": 4,
-        "total_cont": 220814
-      },
-      {
-        "name": "GAL",
-        "count": 4,
-        "total_cont": 41505
-      },
-      {
-        "name": "key",
-        "count": 3,
-        "total_cont": 16993
-      },
-      {
-        "name": "2023",
-        "count": 2,
-        "total_cont": 5722
-      },
-      {
-        "name": "ADV",
-        "count": 2,
-        "total_cont": 34793
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 78506
-      },
-      {
-        "name": "丘野塔也",
-        "count": 1,
-        "total_cont": 66
-      }
-    ],
-    "infobox": [
-      {
-        "key": "中文名",
-        "value": "天籁人偶：皇都探侦"
-      },
-      {
-        "key": "别名",
-        "value": [
-          {
-            "v": "プリマドール キネティックノベル版 第三巻"
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "Kinetic Novel"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "website",
-        "value": "https://primadoll.jp/kineticnovel.html"
-      },
-      {
-        "key": "剧本",
-        "value": "丘野塔也"
-      },
-      {
-        "key": "原案",
-        "value": "VISUAL ARTS / Key"
-      },
-      {
-        "key": "原作",
-        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "原画",
-        "value": "バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "人物设定",
-        "value": "Na-Ga、原悠衣、lack"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 0,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 0,
-        "7": 0,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 0
-    },
-    "collection": {
-      "on_hold": 2,
-      "dropped": 0,
-      "wish": 19,
-      "collect": 1,
-      "doing": 0
-    },
-    "id": 421874,
-    "eps": 0,
-    "meta_tags": [
-      "PC",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": null,
-    "platform": "游戏",
-    "images": {
-      "small": "",
-      "grid": "",
-      "large": "",
-      "medium": "",
-      "common": ""
-    },
-    "image": "",
-    "summary": "ストーリー：\r\n論理機関を初期化して以来、歌が歌えなくなってしまった灰桜。彼女ともう一度ステージに立ちたい。そう願った黒猫亭の人形たちは、一縷の望みをかけて海を渡ることに。そこはかつての敵国ローベリア。桜花と同じ性能を持つ第一世代自律人形【シアナス】に会うため、平和式典の舞台でショーを披露することに。もう一度灰桜は歌声を響かせることが出来るのか……？\r\n\r\n黒猫亭のその後を描く、ファイナルエピソード。",
-    "name": "プリマドール・アンコール",
-    "name_cn": "天籁人偶・encore",
-    "tags": [
-      {
-        "name": "PC",
-        "count": 3,
-        "total_cont": 220814
-      },
-      {
-        "name": "GAL",
-        "count": 3,
-        "total_cont": 41505
-      },
-      {
-        "name": "key",
-        "count": 3,
-        "total_cont": 16993
-      },
-      {
-        "name": "2024",
-        "count": 2,
-        "total_cont": 5003
-      },
-      {
-        "name": "ADV",
-        "count": 2,
-        "total_cont": 34793
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 78506
-      },
-      {
-        "name": "丘野塔也",
-        "count": 1,
-        "total_cont": 66
-      },
-      {
-        "name": "折户伸治",
-        "count": 1,
-        "total_cont": 76
-      },
-      {
-        "name": "Galgame",
-        "count": 1,
-        "total_cont": 342837
-      }
-    ],
-    "infobox": [
-      {
-        "key": "中文名",
-        "value": "天籁人偶・encore"
-      },
-      {
-        "key": "别名",
-        "value": [
-          {
-            "v": "プリマドール キネティックノベル版 第四巻"
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "Kinetic Novel"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "website",
-        "value": "https://primadoll.jp/kineticnovel.html"
-      },
-      {
-        "key": "剧本",
-        "value": "丘野塔也"
-      },
-      {
-        "key": "原案",
-        "value": "VISUAL ARTS / Key"
-      },
-      {
-        "key": "原作",
-        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "原画",
-        "value": "バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "人物设定",
-        "value": "Na-Ga"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 0,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 0,
-        "7": 0,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 0
-    },
-    "collection": {
-      "on_hold": 1,
-      "dropped": 0,
-      "wish": 16,
-      "collect": 0,
-      "doing": 0
-    },
-    "id": 422031,
-    "eps": 0,
-    "meta_tags": [
-      "PC",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": "2024-05-31",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/4d/2e/417994_wjE5T.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/4d/2e/417994_wjE5T.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/4d/2e/417994_wjE5T.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/4d/2e/417994_wjE5T.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/4d/2e/417994_wjE5T.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/4d/2e/417994_wjE5T.jpg",
-    "summary": "箒星の過去。\r\nそして現在へと紡がれる\r\n名もなき物語。\r\n\r\nストーリー：\r\n桜花の暴走により、機械人形に支配された戦場。\r\nある目的のために、\r\n密かに潜入する名も無き皇軍兵の姿があった。\r\n生者の存在しない市街で、彼が出会ったのは\r\n奇跡的に暴走を免れた支援用人形【箒星】。\r\n二人は手を取り合って、\r\nこの地獄から逃れようとするが……？\r\n\r\n新規書き下ろしとなる、箒星の前日譚エピソード。",
-    "name": "プリマドール：無名典礼",
-    "name_cn": "天籁人偶：无名典礼",
-    "tags": [
-      {
-        "name": "Galgame",
-        "count": 41,
-        "total_cont": 373596
-      },
-      {
-        "name": "key",
-        "count": 38,
-        "total_cont": 17897
-      },
-      {
-        "name": "全年龄",
-        "count": 29,
-        "total_cont": 25848
-      },
-      {
-        "name": "丘野塔也",
-        "count": 14,
-        "total_cont": 68
-      },
-      {
-        "name": "ADV",
-        "count": 12,
-        "total_cont": 38339
-      },
-      {
-        "name": "短篇",
-        "count": 11,
-        "total_cont": 7048
-      },
-      {
-        "name": "PC",
-        "count": 11,
-        "total_cont": 237024
-      },
-      {
-        "name": "GAL",
-        "count": 8,
-        "total_cont": 42983
-      },
-      {
-        "name": "2024",
-        "count": 8,
-        "total_cont": 5702
-      },
-      {
-        "name": "2024-05",
-        "count": 6,
-        "total_cont": 30
-      },
-      {
-        "name": "纯爱",
-        "count": 5,
-        "total_cont": 26318
-      },
-      {
-        "name": "催泪",
-        "count": 3,
-        "total_cont": 6471
-      },
-      {
-        "name": "田园",
-        "count": 3,
-        "total_cont": 178
-      },
-      {
-        "name": "汉化",
-        "count": 2,
-        "total_cont": 31688
-      },
-      {
-        "name": "游戏",
-        "count": 2,
-        "total_cont": 88566
-      },
-      {
-        "name": "第三档Gal",
-        "count": 1,
-        "total_cont": 193
-      },
-      {
-        "name": "第一档Gal",
-        "count": 1,
-        "total_cont": 294
-      },
-      {
-        "name": "机器人",
-        "count": 1,
-        "total_cont": 894
-      },
-      {
-        "name": "2023",
-        "count": 1,
-        "total_cont": 6250
-      },
-      {
-        "name": "na-ga",
-        "count": 1,
-        "total_cont": 429
-      },
-      {
-        "name": "分割商法",
-        "count": 1,
-        "total_cont": 4748
-      },
-      {
-        "name": "视觉小说",
-        "count": 1,
-        "total_cont": 2918
-      }
-    ],
-    "infobox": [
-      {
-        "key": "中文名",
-        "value": "天籁人偶：无名典礼"
-      },
-      {
-        "key": "别名",
-        "value": [
-          {
-            "v": "プリマドール 無名典礼(むめいてんれい)"
-          },
-          {
-            "v": "プリマドール キネティックノベル版 第二巻"
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "Kinetic Novel"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "发行日期",
-        "value": "2024年5月31日"
-      },
-      {
-        "key": "website",
-        "value": "https://primadoll.jp/kineticnovel/02/"
-      },
-      {
-        "key": "剧本",
-        "value": "丘野塔也"
-      },
-      {
-        "key": "原案",
-        "value": "VISUAL ARTS / Key"
-      },
-      {
-        "key": "原作",
-        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
-      },
-      {
-        "key": "原画",
-        "value": "バイブリーアニメーションスタジオ / 株式会社ジーアングル"
-      },
-      {
-        "key": "人物设定",
-        "value": "Na-Ga、森倉円"
-      }
-    ],
-    "rating": {
-      "rank": 6730,
-      "total": 85,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 2,
-        "4": 6,
-        "5": 13,
-        "6": 30,
-        "7": 23,
-        "8": 6,
-        "9": 1,
-        "10": 4
-      },
-      "score": 6.3
-    },
-    "collection": {
-      "on_hold": 6,
-      "dropped": 6,
-      "wish": 80,
-      "collect": 111,
-      "doing": 12
-    },
-    "id": 417994,
-    "eps": 0,
-    "meta_tags": [
-      "PC",
-      "galgame",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": "2023-08-06",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/4e/47/450479_9isQc.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/4e/47/450479_9isQc.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/4e/47/450479_9isQc.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/4e/47/450479_9isQc.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/4e/47/450479_9isQc.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/4e/47/450479_9isQc.jpg",
-    "summary": "今をときめく売れっ子アイドルの小鳥。気持ち悪いアイドルオタクが大嫌いだが、表面上はバレないように接してるつもり。\r\n次第に金払いの良いファンと、キモオタ扱いしているファンとで露骨な対応差がある事が広まってしまい、反感を買ったキモオタ達の手により拉致監禁。\r\n理不尽な脱出ゲームを強要される。\r\n\r\n◆ゲーム概要◆\r\n昔懐かしなフラッシュゲーム風システムで室内を捜索し、各部屋の謎解きや仕掛けを解いて脱出を目指します。\r\n\r\n◆Hシーンのウリ◆\r\n等身大のアイドル感を出す為に業界で経験しそうな事、を盛り込んでみました。\r\n枕、セクハラ、イメプ、盗撮配信といったシチュエーションがあります。\r\n\r\n◆こんなHのシチュエーションがあります◆\r\n配信されてると知らずに一人エッチにふける\r\n断れない密室状況でファンにエッチ強要\r\n電車風内装で痴漢趣味の男に付き合わされる\r\n台本を使って学生時代の青春イメージプレイ\r\n\r\n◆こだわりポイント◆\r\n小生意気な少女が嫌々性行為を行う\r\nファンが望む理不尽なアイドル像との軋轢\r\n度重なる淫辱による精神屈服\r\n\r\n◆キャラクター紹介◆\r\n小鳥(主人公)\r\nアイドル業で外面は良いが、ファンの事は内心馬鹿にしがち。\r\n芝居への興味やメジャーデビュー願望等、仕事に対しては積極的。\r\nファンには内緒だがエッチの経験は人並み。\r\n\r\nメガネリン\r\n敬虔なアイドルオタク。パソコンは得意\r\n\r\nマフィア風の男\r\n水商売系の事をしている。痴漢が趣味\r\n\r\n元マネージャー\r\n担当のアイドルに手を出すのが夢\r\n\r\nマッドオタク\r\n薬物開発をしている。青春に憧れがある",
-    "name": "ぷりずんあいどる!",
+    "image": "https://lain.bgm.tv/pic/cover/l/35/f0/223858_f83ZD.jpg",
+    "summary": "魔族軍で奴隷扱いで虐げられる日々を送っていた主人公だったが、\r\nある日偶然から幻惑催眠の魔術を修得する。\r\n\r\n散々自分を虐げてきた魔将姫ティルアーナにこれを試し、\r\nその処女を捧げさせることに成功する。\r\n\r\nこうして主人公は、尊大で横柄な魔将姫を、騙し、操り、\r\n弄んではハメ倒す愉快な日々を送ることになるのだった。",
+    "name": "魔将姫ティルアーナ孕ませ催眠 ～人間を虐げる魔族の姫が暗示一つで肉玩具になる～",
     "name_cn": "",
     "tags": [
       {
-        "name": "ADV",
-        "count": 2,
-        "total_cont": 37894
+        "name": "Miel",
+        "count": 6,
+        "total_cont": 894
       },
       {
-        "name": "PC",
+        "name": "2015-12",
         "count": 2,
-        "total_cont": 235768
+        "total_cont": 79
       },
       {
-        "name": "EROGE",
+        "name": "盘1",
+        "count": 2,
+        "total_cont": 2040
+      },
+      {
+        "name": "有修正",
         "count": 1,
-        "total_cont": 2083
+        "total_cont": 360
+      },
+      {
+        "name": "CG通关",
+        "count": 1,
+        "total_cont": 1225
+      },
+      {
+        "name": "Cybele",
+        "count": 1,
+        "total_cont": 152
+      },
+      {
+        "name": "盘4",
+        "count": 1,
+        "total_cont": 931
+      },
+      {
+        "name": "合集",
+        "count": 1,
+        "total_cont": 4111
       },
       {
         "name": "游戏",
         "count": 1,
-        "total_cont": 87415
+        "total_cont": 79943
       },
       {
-        "name": "RPG",
+        "name": "PC",
         "count": 1,
-        "total_cont": 71318
+        "total_cont": 223301
+      },
+      {
+        "name": "拔作",
+        "count": 1,
+        "total_cont": 74494
+      },
+      {
+        "name": "ADV",
+        "count": 1,
+        "total_cont": 35380
+      },
+      {
+        "name": "催眠",
+        "count": 1,
+        "total_cont": 1092
+      },
+      {
+        "name": "R18",
+        "count": 1,
+        "total_cont": 21041
+      },
+      {
+        "name": "Galgame",
+        "count": 1,
+        "total_cont": 348653
       }
     ],
     "infobox": [
@@ -838,51 +104,51 @@
         "value": "ADV"
       },
       {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
         "key": "发行日期",
-        "value": "2023-08-06"
+        "value": "2015年12月04日"
       },
       {
-        "key": "售价",
-        "value": "1,430円"
+        "key": "website",
+        "value": "http://www.miel-soft.com/saiminmazoku.html"
       },
       {
-        "key": "DLsite",
-        "value": "https://www.dlsite.com/maniax/work/=/product_id/RJ01082494.html"
+        "key": "原画",
+        "value": "saxasa"
+      },
+      {
+        "key": "剧本",
+        "value": "天戸祐輝"
       },
       {
         "key": "开发",
-        "value": "プリンシア"
+        "value": "Miel"
       }
     ],
     "rating": {
       "rank": 0,
-      "total": 0,
+      "total": 5,
       "count": {
         "1": 0,
         "2": 0,
         "3": 0,
         "4": 0,
         "5": 0,
-        "6": 0,
-        "7": 0,
+        "6": 1,
+        "7": 4,
         "8": 0,
         "9": 0,
         "10": 0
       },
-      "score": 0
+      "score": 6.8
     },
     "collection": {
-      "on_hold": 1,
+      "on_hold": 5,
       "dropped": 0,
-      "wish": 2,
-      "collect": 1,
+      "wish": 6,
+      "collect": 11,
       "doing": 0
     },
-    "id": 450479,
+    "id": 223858,
     "eps": 0,
     "meta_tags": [
       "ADV",
@@ -896,144 +162,493 @@
     "type": 4
   },
   {
-    "date": "2020-09-08",
+    "date": "2024-10-25",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/15/b7/318849_T224n.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/15/b7/318849_T224n.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/15/b7/318849_T224n.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/15/b7/318849_T224n.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/15/b7/318849_T224n.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/f2/75/520638_OK78T.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/f2/75/520638_OK78T.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/f2/75/520638_OK78T.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/f2/75/520638_OK78T.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/f2/75/520638_OK78T.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/15/b7/318849_T224n.jpg",
-    "summary": "この作品は「Lovelydoll/Wildmachine」(game/19199)本編\r\nノーマルエンドのアフターストーリー構成になっています。\r\nある日突然人形の身体を奪われてしまった主人公が\r\n新たに生まれ変わるほのぼの日常アドベンチャーです。",
-    "name": "ばぶりーどーる/わいるどましーん -すいーとぷらす,かろりーおふ-",
+    "image": "https://lain.bgm.tv/pic/cover/l/f2/75/520638_OK78T.jpg",
+    "summary": "性欲が強く怠け者の主人公は、村人から敬愛されている美人シスターソフィーの下でムラムラしながら働く日々を送っていた。\r\n\r\nある日、催●の魔導書を入手した彼は、ソフィーに下品な言動を教え込みながら処女を奪うことに成功！\r\n\r\nこうして欲望の赴くまま、時には村中を巻き込んで！\r\n下品な変態シスターと化したソフィーに中出し種付けしまくる日々が始まった！",
+    "name": "済民!シスター・ソフィーは孕ませオナホ～ 合図一つで巨根崇拝者に成り下がる爆乳性職者～",
     "name_cn": "",
     "tags": [
       {
-        "name": "華里",
-        "count": 1,
-        "total_cont": 0
+        "name": "Galgame",
+        "count": 5,
+        "total_cont": 373168
       },
       {
-        "name": "spice+",
-        "count": 1,
-        "total_cont": 0
+        "name": "ADV",
+        "count": 5,
+        "total_cont": 38267
       },
       {
-        "name": "乙女ゲーム",
-        "count": 1,
-        "total_cont": 0
+        "name": "拔作",
+        "count": 4,
+        "total_cont": 79800
       },
       {
-        "name": "乙女向",
-        "count": 1,
-        "total_cont": 0
+        "name": "催眠",
+        "count": 3,
+        "total_cont": 1354
       },
       {
-        "name": "同人",
+        "name": "2024",
+        "count": 3,
+        "total_cont": 5674
+      },
+      {
+        "name": "T-28",
+        "count": 3,
+        "total_cont": 46
+      },
+      {
+        "name": "Miel",
+        "count": 3,
+        "total_cont": 932
+      },
+      {
+        "name": "修女",
+        "count": 3,
+        "total_cont": 156
+      },
+      {
+        "name": "肛交",
+        "count": 2,
+        "total_cont": 110
+      },
+      {
+        "name": "R18",
+        "count": 2,
+        "total_cont": 24564
+      },
+      {
+        "name": "PC",
+        "count": 2,
+        "total_cont": 236809
+      },
+      {
+        "name": "游戏",
+        "count": 2,
+        "total_cont": 88227
+      },
+      {
+        "name": "狩野景",
+        "count": 2,
+        "total_cont": 8
+      },
+      {
+        "name": "汉化",
         "count": 1,
-        "total_cont": 0
+        "total_cont": 31653
+      },
+      {
+        "name": "Windows",
+        "count": 1,
+        "total_cont": 4064
       }
     ],
     "infobox": [
       {
+        "key": "别名",
+        "value": [
+          {
+            "v": "修女索菲的秘密花园"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": "PC"
+      },
+      {
         "key": "游戏类型",
-        "value": "ほのぼのファンタジー×お人形ライフアフター"
+        "value": "ADV"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
       },
       {
         "key": "发行日期",
-        "value": "2020-09-08"
+        "value": "2024年10月25日"
+      },
+      {
+        "key": "售价",
+        "value": "3,150円(税込)"
+      },
+      {
+        "key": "开发",
+        "value": "Miel"
+      },
+      {
+        "key": "剧本",
+        "value": "狩野景"
       },
       {
         "key": "website",
-        "value": "https://www.freem.ne.jp/win/game/23901"
+        "value": "https://miel-soft.com/saiminsophie.html"
+      },
+      {
+        "key": "原画",
+        "value": "T-28"
       }
     ],
     "rating": {
       "rank": 0,
-      "total": 1,
+      "total": 11,
       "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
+        "1": 1,
+        "2": 2,
+        "3": 2,
+        "4": 3,
         "5": 0,
-        "6": 0,
+        "6": 2,
         "7": 1,
         "8": 0,
         "9": 0,
         "10": 0
       },
-      "score": 7
+      "score": 3.8
     },
     "collection": {
-      "on_hold": 1,
+      "on_hold": 3,
       "dropped": 0,
-      "wish": 2,
-      "collect": 2,
+      "wish": 7,
+      "collect": 18,
       "doing": 0
     },
-    "id": 318849,
+    "id": 520638,
     "eps": 0,
     "meta_tags": [
+      "Windows",
+      "Galgame",
+      "PC",
+      "游戏",
+      "ADV",
+      "R18"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": true,
+    "type": 4
+  },
+  {
+    "date": "2021-12-24",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/c7/0e/363426_1p5lO.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/c7/0e/363426_1p5lO.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/c7/0e/363426_1p5lO.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/c7/0e/363426_1p5lO.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/c7/0e/363426_1p5lO.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/c7/0e/363426_1p5lO.jpg",
+    "summary": "巨乳海贼和海军军官的H事情！\r\n世界已经进入一个由海盗主导的时代。\r\n主人公是海盗界的後起之秀在短短一年内成為海軍緝拿的目標\r\n\r\n在他迅速成名的背后是吉尔，美丽的妹紙\r\n以及传说中的不沉之海盗船--德拉贡号。\r\n\r\n以海賊王為目標，一方面對付爆乳海盜，\r\n一方面應付嚴肅的海軍。\r\n\r\n小弟弟已經蓄勢待發，用你的精液去征服世界",
+    "name": "男勝りな爆乳海賊と生真面目将校を巨チン一つでドMな孕ませオナホにする海賊性活",
+    "name_cn": "爆乳海賊王",
+    "tags": [
+      {
+        "name": "拔作",
+        "count": 14,
+        "total_cont": 79320
+      },
+      {
+        "name": "Galgame",
+        "count": 12,
+        "total_cont": 371208
+      },
+      {
+        "name": "Miel",
+        "count": 8,
+        "total_cont": 928
+      },
+      {
+        "name": "巨乳",
+        "count": 7,
+        "total_cont": 5173
+      },
+      {
+        "name": "后宫",
+        "count": 6,
+        "total_cont": 8570
+      },
+      {
+        "name": "官中",
+        "count": 3,
+        "total_cont": 2317
+      },
+      {
+        "name": "汉化",
+        "count": 2,
+        "total_cont": 31580
+      },
+      {
+        "name": "2021",
+        "count": 2,
+        "total_cont": 6541
+      },
+      {
+        "name": "ADV",
+        "count": 2,
+        "total_cont": 37910
+      },
+      {
+        "name": "STEAM",
+        "count": 2,
+        "total_cont": 37466
+      },
+      {
+        "name": "2021-12",
+        "count": 1,
+        "total_cont": 66
+      },
+      {
+        "name": "库存",
+        "count": 1,
+        "total_cont": 2444
+      },
+      {
+        "name": "已存",
+        "count": 1,
+        "total_cont": 671
+      },
+      {
+        "name": "PC",
+        "count": 1,
+        "total_cont": 235800
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 87432
+      },
+      {
+        "name": "R18",
+        "count": 1,
+        "total_cont": 24307
+      },
+      {
+        "name": "CG",
+        "count": 1,
+        "total_cont": 1014
+      },
+      {
+        "name": "战斗",
+        "count": 1,
+        "total_cont": 3087
+      },
+      {
+        "name": "T-28",
+        "count": 1,
+        "total_cont": 44
+      }
+    ],
+    "infobox": [
+      {
+        "key": "中文名",
+        "value": "爆乳海賊王"
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "ADV"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2021-12-24"
+      },
+      {
+        "key": "售价",
+        "value": "DL版：2,000円(税別)/2,200円(税込) 　PK版：3,264円(税別)/3,590円(税込)"
+      },
+      {
+        "key": "website",
+        "value": "https://www.miel-soft.com/bakunyuukaizoku.html"
+      }
+    ],
+    "rating": {
+      "rank": 8741,
+      "total": 26,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 6,
+        "4": 5,
+        "5": 10,
+        "6": 3,
+        "7": 2,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 4.6
+    },
+    "collection": {
+      "on_hold": 7,
+      "dropped": 2,
+      "wish": 22,
+      "collect": 39,
+      "doing": 6
+    },
+    "id": 363426,
+    "eps": 0,
+    "meta_tags": [
+      "ADV",
+      "PC",
       "游戏"
     ],
     "volumes": 0,
     "series": false,
     "locked": false,
-    "nsfw": false,
+    "nsfw": true,
     "type": 4
   },
   {
-    "date": "2006-07-28",
+    "date": "2019-05-31",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/99/90/212750_KqWf6.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/99/90/212750_KqWf6.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/99/90/212750_KqWf6.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/99/90/212750_KqWf6.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/99/90/212750_KqWf6.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/48/96/279436_R3I10.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/48/96/279436_R3I10.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/48/96/279436_R3I10.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/48/96/279436_R3I10.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/48/96/279436_R3I10.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/99/90/212750_KqWf6.jpg",
-    "summary": "嵐で揺れる船上で逃げ惑う主人公。人身売買組織に拉致されて洋上を運搬されるところを、激しい嵐のどさくさに紛れて海に飛び込んだ。\r\n\r\n――主人公が海に飛び込んでからどれほどの時間がたったであろうか？\r\n　奇跡的に一命を取り留めた主人公が目を覚ますとそこは海岸。見ればかわいい女の子が自分を見下ろしている。そうこうしていると占い師がやってきて長老のところに連れて行かれる。そして長老は、は主人公含む巫女達の前で語る。\r\n\r\n「この島では、世代交代の時期を迎え“巫女たちが年頃になると”神の使者が現れて、新たな生命を与えてくれる。」\r\n\r\nそんなわけで神の使者よ、頑張って巫女たちに子を授けておくれ。",
-    "name": "ぶり～ど！",
+    "image": "https://lain.bgm.tv/pic/cover/l/48/96/279436_R3I10.jpg",
+    "summary": "前作で夫以外の男との激しいセックスに酔いしれた敏感妻、高坂 真由美。\r\n\r\n現在は勤めていた会社を辞め、夫の靖友と穏やかな毎日を送っていた。\r\n\r\nある日、好奇心から刺激を求めてカップル喫茶へ行く二人。\r\nそこでホスト風のある人物と出会う。\r\n\r\nそれ以来、真由美の様子が少しおかしくなる。\r\nどうやら彼女は面識があったようなのだが、彼が何者なのか頑として話そうとしない。\r\n\r\n悩んだ末に靖友は、以前真由美を貸し出した男、新開悟に相談するのだが……",
+    "name": "貸し出し妻、真由美の“ネトラセ”報告2 敏感妻とひとつの“嘘”",
     "name_cn": "",
     "tags": [
       {
-        "name": "2006",
-        "count": 2,
-        "total_cont": 1638
+        "name": "NTR",
+        "count": 9,
+        "total_cont": 10791
       },
       {
-        "name": "Gash",
+        "name": "人妻",
+        "count": 6,
+        "total_cont": 5520
+      },
+      {
+        "name": "拔作",
+        "count": 6,
+        "total_cont": 77165
+      },
+      {
+        "name": "アトリエさくら",
+        "count": 4,
+        "total_cont": 499
+      },
+      {
+        "name": "R18",
+        "count": 4,
+        "total_cont": 23432
+      },
+      {
+        "name": "PC",
+        "count": 4,
+        "total_cont": 231406
+      },
+      {
+        "name": "黄油",
+        "count": 3,
+        "total_cont": 11757
+      },
+      {
+        "name": "GAL",
+        "count": 3,
+        "total_cont": 42361
+      },
+      {
+        "name": "巨乳",
+        "count": 2,
+        "total_cont": 5072
+      },
+      {
+        "name": "Galgame",
+        "count": 2,
+        "total_cont": 361408
+      },
+      {
+        "name": "NTRS",
+        "count": 1,
+        "total_cont": 66
+      },
+      {
+        "name": "库存",
+        "count": 1,
+        "total_cont": 2439
+      },
+      {
+        "name": "GPT3.5",
+        "count": 1,
+        "total_cont": 12
+      },
+      {
+        "name": "GPT翻译",
+        "count": 1,
+        "total_cont": 283
+      },
+      {
+        "name": "長頼",
         "count": 1,
         "total_cont": 8
       },
       {
-        "name": "资源难找",
+        "name": "GPT机翻",
         "count": 1,
-        "total_cont": 802
+        "total_cont": 399
       },
       {
-        "name": "ADV",
+        "name": "里番",
         "count": 1,
-        "total_cont": 35298
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 222833
+        "total_cont": 293
       },
       {
         "name": "游戏",
         "count": 1,
-        "total_cont": 79766
+        "total_cont": 84634
       },
       {
-        "name": "Galgame",
+        "name": "日本",
         "count": 1,
-        "total_cont": 348132
+        "total_cont": 2864
+      },
+      {
+        "name": "ADV",
+        "count": 1,
+        "total_cont": 36658
+      },
+      {
+        "name": "续作",
+        "count": 1,
+        "total_cont": 682
+      },
+      {
+        "name": "女性视角",
+        "count": 1,
+        "total_cont": 388
+      },
+      {
+        "name": "2019-05",
+        "count": 1,
+        "total_cont": 37
       }
     ],
     "infobox": [
@@ -1046,8 +661,334 @@
         ]
       },
       {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2019-05-31"
+      },
+      {
+        "key": "售价",
+        "value": "3,080円（税込本体価格）"
+      },
+      {
+        "key": "website",
+        "value": "http://www.at-sakura.net/ntr/brand/061/index.html"
+      },
+      {
+        "key": "开发",
+        "value": "アトリエさくら"
+      },
+      {
+        "key": "原画",
+        "value": "長頼"
+      },
+      {
+        "key": "剧本",
+        "value": "おんぼろ月"
+      }
+    ],
+    "rating": {
+      "rank": 7824,
+      "total": 25,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 1,
+        "4": 3,
+        "5": 11,
+        "6": 6,
+        "7": 4,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 5.4
+    },
+    "collection": {
+      "on_hold": 6,
+      "dropped": 2,
+      "wish": 18,
+      "collect": 42,
+      "doing": 1
+    },
+    "id": 279436,
+    "eps": 0,
+    "meta_tags": [
+      "PC",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": true,
+    "type": 4
+  },
+  {
+    "date": "2012-08-02",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/25/9a/219798_QqB0Q.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/25/9a/219798_QqB0Q.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/25/9a/219798_QqB0Q.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/25/9a/219798_QqB0Q.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/25/9a/219798_QqB0Q.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/25/9a/219798_QqB0Q.jpg",
+    "summary": "",
+    "name": "それゆけ! ぶるにゃんマン Portable～とりもどせ! あいとせいぎときぼうのつにゃ缶～",
+    "name_cn": "",
+    "tags": [
+      {
+        "name": "PSP",
+        "count": 3,
+        "total_cont": 30282
+      },
+      {
+        "name": "STG",
+        "count": 2,
+        "total_cont": 6455
+      },
+      {
+        "name": "CG收集",
+        "count": 1,
+        "total_cont": 1
+      },
+      {
+        "name": "小型",
+        "count": 1,
+        "total_cont": 253
+      },
+      {
+        "name": "体操服",
+        "count": 1,
+        "total_cont": 10
+      },
+      {
+        "name": "手游",
+        "count": 1,
+        "total_cont": 27956
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 88133
+      },
+      {
+        "name": "爆衣",
+        "count": 1,
+        "total_cont": 138
+      },
+      {
+        "name": "猫娘",
+        "count": 1,
+        "total_cont": 755
+      }
+    ],
+    "infobox": [
+      {
+        "key": "平台",
+        "value": "PSP"
+      },
+      {
         "key": "游戏类型",
-        "value": "エロハーレムADV"
+        "value": "横スクロールゆるキャラSTG"
+      },
+      {
+        "key": "发行日期",
+        "value": "2012-08-02"
+      },
+      {
+        "key": "开发",
+        "value": "Digital Cute"
+      },
+      {
+        "key": "发行",
+        "value": "加賀クリエイト"
+      }
+    ],
+    "rating": {
+      "rank": 0,
+      "total": 3,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 1,
+        "7": 2,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 6.7
+    },
+    "collection": {
+      "on_hold": 2,
+      "dropped": 1,
+      "wish": 3,
+      "collect": 8,
+      "doing": 1
+    },
+    "id": 219798,
+    "eps": 0,
+    "meta_tags": [
+      "PSP",
+      "STG",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": "2015-11-16",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/bc/be/155711_J4w3U.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/bc/be/155711_J4w3U.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/bc/be/155711_J4w3U.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/bc/be/155711_J4w3U.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/bc/be/155711_J4w3U.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/bc/be/155711_J4w3U.jpg",
+    "summary": "    即将迎来终结的主角「宇太郎」\r\n    与来自月球的少女「月观妹妹」相遇了。\r\n    这是他最后一晚的物语。",
+    "name": "つきみぷらねっと",
+    "name_cn": "月观行星",
+    "tags": [
+      {
+        "name": "CHARON",
+        "count": 15,
+        "total_cont": 200
+      },
+      {
+        "name": "Galgame",
+        "count": 9,
+        "total_cont": 370307
+      },
+      {
+        "name": "同人",
+        "count": 8,
+        "total_cont": 24060
+      },
+      {
+        "name": "全年龄",
+        "count": 7,
+        "total_cont": 25400
+      },
+      {
+        "name": "短篇",
+        "count": 6,
+        "total_cont": 6805
+      },
+      {
+        "name": "病娇",
+        "count": 5,
+        "total_cont": 1273
+      },
+      {
+        "name": "RM",
+        "count": 4,
+        "total_cont": 943
+      },
+      {
+        "name": "AVG",
+        "count": 4,
+        "total_cont": 57904
+      },
+      {
+        "name": "ADV",
+        "count": 3,
+        "total_cont": 37800
+      },
+      {
+        "name": "2015",
+        "count": 3,
+        "total_cont": 6577
+      },
+      {
+        "name": "PC",
+        "count": 3,
+        "total_cont": 235390
+      },
+      {
+        "name": "6",
+        "count": 2,
+        "total_cont": 381
+      },
+      {
+        "name": "retoruto",
+        "count": 2,
+        "total_cont": 2
+      },
+      {
+        "name": "汉化",
+        "count": 2,
+        "total_cont": 31525
+      },
+      {
+        "name": "游戏",
+        "count": 2,
+        "total_cont": 87195
+      },
+      {
+        "name": "GAL",
+        "count": 2,
+        "total_cont": 42828
+      },
+      {
+        "name": "超短篇",
+        "count": 1,
+        "total_cont": 54
+      },
+      {
+        "name": "云过",
+        "count": 1,
+        "total_cont": 1110
+      },
+      {
+        "name": "致郁",
+        "count": 1,
+        "total_cont": 5814
+      },
+      {
+        "name": "视觉小说",
+        "count": 1,
+        "total_cont": 2809
+      }
+    ],
+    "infobox": [
+      {
+        "key": "中文名",
+        "value": "月观行星"
+      },
+      {
+        "key": "别名",
+        "value": [
+          {
+            "v": "月觀行星"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "終焉ノベルADV"
+      },
+      {
+        "key": "游戏引擎",
+        "value": "ティラノビルダー"
       },
       {
         "key": "游玩人数",
@@ -1055,50 +996,65 @@
       },
       {
         "key": "发行日期",
-        "value": "2006-07-28"
+        "value": "2015-11-16"
       },
       {
         "key": "售价",
-        "value": "￥8,800 (税込￥9,504)"
+        "value": "無料"
+      },
+      {
+        "key": "website",
+        "value": [
+          {
+            "v": "https://enoshima210.work/tp/"
+          },
+          {
+            "v": "http://nekocharon.web.fc2.com/tukimi.html"
+          }
+        ]
+      },
+      {
+        "key": "授权汉化",
+        "value": "https://sikv.web.fc2.com/charon/tsukimi.html"
       },
       {
         "key": "开发",
-        "value": "Gash"
+        "value": "CHARON / ねこふじかおる"
       },
       {
-        "key": "原画",
-        "value": "むとうけいじ"
+        "key": "发行",
+        "value": "CHARON / ねこふじかおる"
       },
       {
         "key": "剧本",
-        "value": "博恵夏樹、吉田涼斎、日暮清治"
+        "value": "CHARON / ねこふじかおる"
       }
     ],
     "rating": {
-      "rank": 0,
-      "total": 0,
+      "rank": 8407,
+      "total": 34,
       "count": {
-        "1": 0,
+        "1": 1,
         "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 0,
-        "7": 0,
-        "8": 0,
-        "9": 0,
+        "3": 1,
+        "4": 9,
+        "5": 8,
+        "6": 11,
+        "7": 2,
+        "8": 1,
+        "9": 1,
         "10": 0
       },
-      "score": 0
+      "score": 5.2
     },
     "collection": {
-      "on_hold": 2,
-      "dropped": 1,
-      "wish": 9,
-      "collect": 2,
-      "doing": 1
+      "on_hold": 0,
+      "dropped": 3,
+      "wish": 16,
+      "collect": 54,
+      "doing": 2
     },
-    "id": 212750,
+    "id": 155711,
     "eps": 0,
     "meta_tags": [
       "ADV",
@@ -1112,100 +1068,197 @@
     "type": 4
   },
   {
-    "date": "2010-09-24",
+    "date": "2021-09-24",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/d6/1f/359773_c2Z0R.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/1b/a8/339893_77e2N.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/1b/a8/339893_77e2N.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/1b/a8/339893_77e2N.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/1b/a8/339893_77e2N.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/1b/a8/339893_77e2N.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
-    "summary": "親の都合により、とある学園に転入してきた主人公・誠司。\r\nその世話を任されたのは、ふたりの委員長だった。\r\nクラス委員長・梨乃（りの）と、風紀委員長の水樹（みずき）である。\r\nある日、誠司は誤解から水樹と言い合いになり、乱暴な言葉をぶつけてしまう。\r\n感情的になった彼はさらに、止めに入った梨乃にも同じ様に当たる……\r\nすると…梨乃と水樹、ふたりは驚くべき言葉を口にした。\r\n\r\n「もっと……罵ってください」\r\n\r\n彼女たちの態度を不審に思った誠司は、ふたりに事情を聞くことにした。\r\nそして、彼女たちがドMであることを知る。\r\nそれをキッカケにふたりと、様々なSMプレイをしていくことになる……。",
-    "name": "ふたりはドM委員長!",
+    "image": "https://lain.bgm.tv/pic/cover/l/1b/a8/339893_77e2N.jpg",
+    "summary": "主人公は、ごくごく普通のサラリーマン。\r\n同期は出世街道に乗り、更には美人な年下妻にも恵まれている。\r\n対して自分は平凡で、女っ気も皆無に等しく、何とも寂しい日々を過ごしていた。\r\n\r\nだが、ある日、同僚の涼森家の飲み会で腕を怪我したのをきっかけに、\r\n同僚の若妻『涼森深雪』にお世話をして貰える事になり急接近。\r\n更には、出張中にも女上司『辻井凪咲』とエッチなハプニングがあり……\r\n\r\n欲求不満を持て余した魅力的な女達が近づいてきているのに、それを見逃す手はない。\r\n己の性欲のまま、身も心も触れ合う為に動き出す――！",
+    "name": "メスつまみ 2 ～いじっぱり強気妻と清楚な気弱妻とのラブエロ性活～",
     "name_cn": "",
     "tags": [
       {
+        "name": "拔作",
+        "count": 13,
+        "total_cont": 77115
+      },
+      {
+        "name": "Anim",
+        "count": 12,
+        "total_cont": 493
+      },
+      {
+        "name": "人妻",
+        "count": 10,
+        "total_cont": 5521
+      },
+      {
+        "name": "动态CG",
+        "count": 6,
+        "total_cont": 11531
+      },
+      {
+        "name": "Galgame",
+        "count": 5,
+        "total_cont": 361168
+      },
+      {
+        "name": "动态立绘",
+        "count": 4,
+        "total_cont": 275
+      },
+      {
+        "name": "2021-09",
+        "count": 3,
+        "total_cont": 97
+      },
+      {
+        "name": "PC",
+        "count": 2,
+        "total_cont": 231271
+      },
+      {
+        "name": "CG通关",
+        "count": 2,
+        "total_cont": 1246
+      },
+      {
+        "name": "2021",
+        "count": 2,
+        "total_cont": 6381
+      },
+      {
+        "name": "リャオ",
+        "count": 1,
+        "total_cont": 7
+      },
+      {
+        "name": "有修正",
+        "count": 1,
+        "total_cont": 347
+      },
+      {
         "name": "库存",
         "count": 1,
-        "total_cont": 2426
+        "total_cont": 2439
       },
       {
-        "name": "スワンマニア",
+        "name": "盘3",
         "count": 1,
-        "total_cont": 47
+        "total_cont": 985
       },
       {
-        "name": "2010-09",
+        "name": "あきのしん",
         "count": 1,
-        "total_cont": 60
+        "total_cont": 10
       },
       {
-        "name": "ADV",
+        "name": "R18",
         "count": 1,
-        "total_cont": 39627
+        "total_cont": 23403
       },
       {
         "name": "游戏",
         "count": 1,
-        "total_cont": 69971
+        "total_cont": 84565
+      },
+      {
+        "name": "黑丝",
+        "count": 1,
+        "total_cont": 1192
+      },
+      {
+        "name": "NTL",
+        "count": 1,
+        "total_cont": 1102
+      },
+      {
+        "name": "AVG",
+        "count": 1,
+        "total_cont": 56813
+      },
+      {
+        "name": "紅葉-K",
+        "count": 1,
+        "total_cont": 27
       }
     ],
     "infobox": [
       {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
         "key": "游戏类型",
-        "value": "ADV"
+        "value": "ムッチリ巨乳妻達とのエロエロハメライフAVG"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
       },
       {
         "key": "发行日期",
-        "value": "2010-09-24"
+        "value": "2021-09-24"
+      },
+      {
+        "key": "售价",
+        "value": "￥6,800"
+      },
+      {
+        "key": "website",
+        "value": "http://www.hs-crowd.co.jp/anim/product/pro_pc/pc071/"
       },
       {
         "key": "开发",
-        "value": "スワンマニア"
+        "value": "ANIM"
       },
       {
         "key": "原画",
-        "value": "涼平りょうへい"
+        "value": "紅葉-K、あきのしん、リャオ"
       },
       {
         "key": "剧本",
-        "value": "南条巴"
-      },
-      {
-        "key": "音乐",
-        "value": "Arp"
+        "value": "シャア専用◎、内藤自由"
       }
     ],
     "rating": {
       "rank": 0,
-      "total": 2,
+      "total": 17,
       "count": {
         "1": 0,
         "2": 0,
-        "3": 0,
+        "3": 1,
         "4": 0,
-        "5": 1,
-        "6": 1,
-        "7": 0,
-        "8": 0,
+        "5": 5,
+        "6": 2,
+        "7": 7,
+        "8": 1,
         "9": 0,
-        "10": 0
+        "10": 1
       },
-      "score": 5.5
+      "score": 6.3
     },
     "collection": {
-      "on_hold": 1,
+      "on_hold": 7,
       "dropped": 1,
-      "wish": 0,
-      "collect": 4,
-      "doing": 0
+      "wish": 31,
+      "collect": 32,
+      "doing": 2
     },
-    "id": 359773,
+    "id": 339893,
     "eps": 0,
     "meta_tags": [
-      "ADV",
+      "AVG",
+      "PC",
       "游戏"
     ],
     "volumes": 0,
@@ -1215,53 +1268,135 @@
     "type": 4
   },
   {
-    "date": "2007-10-18",
+    "date": "2022-06-24",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/3c/77/424_ajp.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/3c/77/424_ajp.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/3c/77/424_ajp.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/3c/77/424_ajp.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/3c/77/424_ajp.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/9d/f7/389432_6SMXp.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/9d/f7/389432_6SMXp.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/9d/f7/389432_6SMXp.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/9d/f7/389432_6SMXp.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/9d/f7/389432_6SMXp.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/3c/77/424_ajp.jpg",
-    "summary": "",
-    "name": "降魔霊符伝イヅナ ぐっどぷらいす",
+    "image": "https://lain.bgm.tv/pic/cover/l/9d/f7/389432_6SMXp.jpg",
+    "summary": "主人公绪方壮真原本作为公司职员就职，但由于亲戚的委托而开始入住公寓成为管理员。 \r\n\r\n很早起就住在这里的直率的兼职主妇“赤羽千晶”、 因装修房子而暂时搬来的文静的家庭主妇“高梨和奏”， 在管理员的工作和私生活中与这两位人妻变得亲近了起来。 \r\n\r\n在某种意义上是与美女巨乳人妻在同一屋檐下生活的状况。 \r\n在此过程中所表现出来的，她们的魅力、破绽、以及烦恼…… \r\n主人公与人妻们间的关系究竟会变得如何呢——",
+    "name": "メスつまみ3 ～しっかり年下妻とおっとり年上妻とのエロハメ肉欲性活～",
     "name_cn": "",
     "tags": [
       {
-        "name": "RPG",
-        "count": 3,
-        "total_cont": 59723
+        "name": "Anim",
+        "count": 10,
+        "total_cont": 493
       },
       {
-        "name": "NDS",
-        "count": 3,
-        "total_cont": 15034
+        "name": "Galgame",
+        "count": 9,
+        "total_cont": 360013
       },
       {
-        "name": "迷宫",
-        "count": 3,
-        "total_cont": 254
+        "name": "人妻",
+        "count": 8,
+        "total_cont": 5507
       },
       {
-        "name": "JRPG",
+        "name": "拔作",
+        "count": 8,
+        "total_cont": 76954
+      },
+      {
+        "name": "动态CG",
+        "count": 7,
+        "total_cont": 11504
+      },
+      {
+        "name": "NTL",
+        "count": 4,
+        "total_cont": 1097
+      },
+      {
+        "name": "巨乳",
+        "count": 3,
+        "total_cont": 5065
+      },
+      {
+        "name": "黑丝",
+        "count": 3,
+        "total_cont": 1189
+      },
+      {
+        "name": "动态立绘",
+        "count": 3,
+        "total_cont": 276
+      },
+      {
+        "name": "R18",
+        "count": 3,
+        "total_cont": 23190
+      },
+      {
+        "name": "2022-06",
+        "count": 2,
+        "total_cont": 27
+      },
+      {
+        "name": "CG通关",
+        "count": 2,
+        "total_cont": 1246
+      },
+      {
+        "name": "有修正",
         "count": 1,
-        "total_cont": 12046
+        "total_cont": 347
+      },
+      {
+        "name": "约炮",
+        "count": 1,
+        "total_cont": 82
+      },
+      {
+        "name": "GPT机翻",
+        "count": 1,
+        "total_cont": 399
+      },
+      {
+        "name": "GPT翻译",
+        "count": 1,
+        "total_cont": 282
+      },
+      {
+        "name": "已存",
+        "count": 1,
+        "total_cont": 671
+      },
+      {
+        "name": "库存",
+        "count": 1,
+        "total_cont": 2439
+      },
+      {
+        "name": "AVG",
+        "count": 1,
+        "total_cont": 56637
+      },
+      {
+        "name": "PC",
+        "count": 1,
+        "total_cont": 230534
+      },
+      {
+        "name": "2022",
+        "count": 1,
+        "total_cont": 6501
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 84019
       }
     ],
     "infobox": [
       {
-        "key": "平台",
-        "value": [
-          {
-            "v": "NDS"
-          }
-        ]
-      },
-      {
         "key": "游戏类型",
-        "value": "RPG"
+        "value": "ムッチリ巨乳妻達とのエロエロハメライフAVG"
       },
       {
         "key": "游玩人数",
@@ -1269,152 +1404,522 @@
       },
       {
         "key": "发行日期",
-        "value": "2007年10月18日"
+        "value": "2022-06-24"
       },
       {
         "key": "售价",
-        "value": "￥ 2,415"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 9,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 3,
-        "7": 3,
-        "8": 3,
-        "9": 0,
-        "10": 0
-      },
-      "score": 7
-    },
-    "collection": {
-      "on_hold": 2,
-      "dropped": 1,
-      "wish": 2,
-      "collect": 13,
-      "doing": 0
-    },
-    "id": 424,
-    "eps": 0,
-    "meta_tags": [
-      "NDS",
-      "RPG",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": "2008-06-26",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/f2/7c/489680_4wLBb.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/f2/7c/489680_4wLBb.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/f2/7c/489680_4wLBb.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/f2/7c/489680_4wLBb.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/f2/7c/489680_4wLBb.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/f2/7c/489680_4wLBb.jpg",
-    "summary": "作物や動物を育てるといった基本的な流れはそのまま、村人と会話したり結婚したりといった新たなシステムが加わりました。この村では、結婚するのに、男なら羊を、女なら羊毛のベッドカバーを相手の家に贈らなければならず美形ほど数が多く必要…。お目当てのあの人と結婚するために苦労した方もきっと多くいるはず。",
-    "name": "箱庭生活 ひつじ村 DS",
-    "name_cn": "",
-    "tags": [],
-    "infobox": [
-      {
-        "key": "别名",
         "value": [
           {
-            "v": "箱庭生活 ひつじ村DS ぐっどぷらいす"
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "Nintendo DS™"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "田舎暮らしシミュレーション"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1人"
-      },
-      {
-        "key": "发行日期",
-        "value": "2008年6月26日"
-      },
-      {
-        "key": "售价",
-        "value": "￥2,500(税抜き)"
-      },
-      {
-        "key": "website",
-        "value": [
-          {
-            "v": "http://www.success-corp.co.jp/software/ds/hitsuji/"
+            "v": "6,710円 （限定版）"
           },
           {
-            "v": "https://hitsuji.success-corp.co.jp/hitsuji2008"
+            "v": "6,160円 （通常版）"
           }
         ]
       },
       {
         "key": "开发",
-        "value": "株式会社サクセス"
+        "value": "ANIM"
       },
       {
-        "key": "发行",
-        "value": "株式会社サクセス"
+        "key": "剧本",
+        "value": "シャア専用◎、内藤自由"
+      },
+      {
+        "key": "原画",
+        "value": "相川亜利砂、リャオ"
+      },
+      {
+        "key": "官方网站",
+        "value": "http://www.hs-crowd.co.jp/anim/product/pro_pc/pc074/"
       }
     ],
     "rating": {
       "rank": 0,
-      "total": 0,
+      "total": 18,
       "count": {
         "1": 0,
         "2": 0,
         "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 0,
-        "7": 0,
+        "4": 1,
+        "5": 8,
+        "6": 4,
+        "7": 3,
         "8": 0,
         "9": 0,
-        "10": 0
+        "10": 2
       },
-      "score": 0
+      "score": 6.1
     },
     "collection": {
-      "on_hold": 0,
-      "dropped": 0,
-      "wish": 0,
-      "collect": 0,
-      "doing": 0
+      "on_hold": 8,
+      "dropped": 1,
+      "wish": 26,
+      "collect": 34,
+      "doing": 5
     },
-    "id": 489680,
+    "id": 389432,
     "eps": 0,
     "meta_tags": [
-      "NDS",
+      "AVG",
       "游戏"
     ],
     "volumes": 0,
     "series": false,
     "locked": false,
-    "nsfw": false,
+    "nsfw": true,
+    "type": 4
+  },
+  {
+    "date": "2018-09-28",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/25/95/249733_Dxnw5.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/25/95/249733_Dxnw5.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/25/95/249733_Dxnw5.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/25/95/249733_Dxnw5.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/25/95/249733_Dxnw5.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/25/95/249733_Dxnw5.jpg",
+    "summary": "日々の仕事で疲れてしまったあなた。\r\n\r\n面倒見のいい先輩たちに導かれて開いた扉の先には、“大人の出会い\"が待っていました。\r\n\r\n気持ちではなく、身体から始まる関係…\r\n\r\n癒しを求め重ねる逢瀬の中で、彼女たちの素肌はゆっくりとあなた色に染より、心身ともに潤いを感じる“甘い時間”へと変わります。",
+    "name": "ひとつまみ ～リラクゼーションシリーズ～",
+    "name_cn": "",
+    "tags": [
+      {
+        "name": "拔作",
+        "count": 18,
+        "total_cont": 79423
+      },
+      {
+        "name": "人妻",
+        "count": 17,
+        "total_cont": 5653
+      },
+      {
+        "name": "Galgame",
+        "count": 12,
+        "total_cont": 371618
+      },
+      {
+        "name": "纯爱",
+        "count": 9,
+        "total_cont": 26166
+      },
+      {
+        "name": "HERENCIA",
+        "count": 8,
+        "total_cont": 37
+      },
+      {
+        "name": "黄油",
+        "count": 5,
+        "total_cont": 12368
+      },
+      {
+        "name": "巨乳",
+        "count": 4,
+        "total_cont": 5185
+      },
+      {
+        "name": "PC",
+        "count": 3,
+        "total_cont": 236007
+      },
+      {
+        "name": "2018-09",
+        "count": 3,
+        "total_cont": 91
+      },
+      {
+        "name": "御姐",
+        "count": 3,
+        "total_cont": 337
+      },
+      {
+        "name": "R18",
+        "count": 2,
+        "total_cont": 24328
+      },
+      {
+        "name": "2018",
+        "count": 2,
+        "total_cont": 7226
+      },
+      {
+        "name": "丝袜",
+        "count": 1,
+        "total_cont": 197
+      },
+      {
+        "name": "甜拔",
+        "count": 1,
+        "total_cont": 190
+      },
+      {
+        "name": "库存",
+        "count": 1,
+        "total_cont": 2443
+      },
+      {
+        "name": "深田纱记子",
+        "count": 1,
+        "total_cont": 9
+      },
+      {
+        "name": "已存",
+        "count": 1,
+        "total_cont": 671
+      },
+      {
+        "name": "硬盘已存",
+        "count": 1,
+        "total_cont": 986
+      },
+      {
+        "name": "八葉香南",
+        "count": 1,
+        "total_cont": 10
+      },
+      {
+        "name": "ero",
+        "count": 1,
+        "total_cont": 213
+      },
+      {
+        "name": "ADV",
+        "count": 1,
+        "total_cont": 37994
+      },
+      {
+        "name": "GAL",
+        "count": 1,
+        "total_cont": 42841
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 87616
+      },
+      {
+        "name": "cosplay",
+        "count": 1,
+        "total_cont": 46
+      },
+      {
+        "name": "AVG",
+        "count": 1,
+        "total_cont": 58125
+      },
+      {
+        "name": "ぶぶづけ",
+        "count": 1,
+        "total_cont": 6
+      },
+      {
+        "name": "画风好",
+        "count": 1,
+        "total_cont": 961
+      },
+      {
+        "name": "纯拔",
+        "count": 1,
+        "total_cont": 421
+      },
+      {
+        "name": "CG通关",
+        "count": 1,
+        "total_cont": 1265
+      }
+    ],
+    "infobox": [
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "AVG"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2018-09-28"
+      },
+      {
+        "key": "售价",
+        "value": "￥6,800"
+      },
+      {
+        "key": "website",
+        "value": "http://herencia.nexton-net.jp/product/hitotsumami/"
+      },
+      {
+        "key": "开发",
+        "value": "HERENCIA"
+      },
+      {
+        "key": "原画",
+        "value": "八葉香南、ぶぶづけ"
+      },
+      {
+        "key": "剧本",
+        "value": "亮精類、もみあげルパンR"
+      }
+    ],
+    "rating": {
+      "rank": 4972,
+      "total": 21,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 3,
+        "6": 11,
+        "7": 5,
+        "8": 1,
+        "9": 1,
+        "10": 0
+      },
+      "score": 6.3
+    },
+    "collection": {
+      "on_hold": 10,
+      "dropped": 3,
+      "wish": 69,
+      "collect": 36,
+      "doing": 7
+    },
+    "id": 249733,
+    "eps": 0,
+    "meta_tags": [
+      "AVG",
+      "PC",
+      "galgame",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": true,
+    "type": 4
+  },
+  {
+    "date": "2021-01-29",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/71/ea/315650_iMzQz.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/71/ea/315650_iMzQz.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/71/ea/315650_iMzQz.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/71/ea/315650_iMzQz.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/71/ea/315650_iMzQz.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/71/ea/315650_iMzQz.jpg",
+    "summary": "主人公『笠原知弥』は2年前に失職したが、\r\n今は大学時代の先輩『吉見貴裕』の会社に拾われ働いている。\r\n恩は感じているものの、それを理由に調子に乗った先輩から、\r\n仕事だけでなくプライベートでもこき使われている現状に少し辟易し始めていた。\r\n\r\nそんな日々を、親切にしてくれる明るいご近所妻『塚本朱梨』と、\r\nツンとした中にも優しさを見せてくる先輩の妻『吉見夏帆』を癒しに乗り切っていた。\r\n\r\nだが、彼女たちを大事にしない夫の存在に胸を痛める。\r\n\r\n浮気をしたり邪険に扱ったり……\r\n大切な彼女たちの境遇に、次第に憤りを募らせていった知弥は、決心する。\r\n\r\nそれなら、お前の美人巨乳妻は俺のモノにしてやる！",
+    "name": "メスつまみ ～世話焼き年上妻と真面目なツンツン妻との愛欲性活～",
+    "name_cn": "",
+    "tags": [
+      {
+        "name": "拔作",
+        "count": 16,
+        "total_cont": 79577
+      },
+      {
+        "name": "Anim",
+        "count": 15,
+        "total_cont": 504
+      },
+      {
+        "name": "动态CG",
+        "count": 10,
+        "total_cont": 11821
+      },
+      {
+        "name": "人妻",
+        "count": 9,
+        "total_cont": 5660
+      },
+      {
+        "name": "Galgame",
+        "count": 8,
+        "total_cont": 372188
+      },
+      {
+        "name": "巨乳",
+        "count": 6,
+        "total_cont": 5188
+      },
+      {
+        "name": "NTL",
+        "count": 6,
+        "total_cont": 1125
+      },
+      {
+        "name": "PC",
+        "count": 5,
+        "total_cont": 236354
+      },
+      {
+        "name": "2021-01",
+        "count": 4,
+        "total_cont": 58
+      },
+      {
+        "name": "2021",
+        "count": 2,
+        "total_cont": 6558
+      },
+      {
+        "name": "AVG",
+        "count": 2,
+        "total_cont": 58200
+      },
+      {
+        "name": "黄油",
+        "count": 2,
+        "total_cont": 12320
+      },
+      {
+        "name": "游戏",
+        "count": 2,
+        "total_cont": 87835
+      },
+      {
+        "name": "R18",
+        "count": 2,
+        "total_cont": 24424
+      },
+      {
+        "name": "NTR",
+        "count": 2,
+        "total_cont": 11105
+      },
+      {
+        "name": "库存",
+        "count": 1,
+        "total_cont": 2443
+      },
+      {
+        "name": "GPT翻译",
+        "count": 1,
+        "total_cont": 286
+      },
+      {
+        "name": "有修正",
+        "count": 1,
+        "total_cont": 376
+      },
+      {
+        "name": "GPT机翻",
+        "count": 1,
+        "total_cont": 401
+      },
+      {
+        "name": "动态立绘",
+        "count": 1,
+        "total_cont": 281
+      },
+      {
+        "name": "黑丝",
+        "count": 1,
+        "total_cont": 1205
+      },
+      {
+        "name": "花澤さくら",
+        "count": 1,
+        "total_cont": 780
+      },
+      {
+        "name": "CG通关",
+        "count": 1,
+        "total_cont": 1270
+      },
+      {
+        "name": "实用",
+        "count": 1,
+        "total_cont": 3801
+      }
+    ],
+    "infobox": [
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "ムッチリ巨乳妻達とのエロエロハメライフAVG"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2021-01-29"
+      },
+      {
+        "key": "售价",
+        "value": "￥6,800 (税込￥7,480)"
+      },
+      {
+        "key": "website",
+        "value": "http://www.hs-crowd.co.jp/anim/product/pro_pc/pc067/index.html"
+      },
+      {
+        "key": "原画",
+        "value": "相川亜利砂、紅葉-K"
+      },
+      {
+        "key": "剧本",
+        "value": "シャア専用◎、内藤自由"
+      }
+    ],
+    "rating": {
+      "rank": 6475,
+      "total": 24,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 1,
+        "5": 9,
+        "6": 8,
+        "7": 5,
+        "8": 0,
+        "9": 0,
+        "10": 1
+      },
+      "score": 5.9
+    },
+    "collection": {
+      "on_hold": 11,
+      "dropped": 2,
+      "wish": 45,
+      "collect": 37,
+      "doing": 1
+    },
+    "id": 315650,
+    "eps": 0,
+    "meta_tags": [
+      "AVG",
+      "PC",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": true,
     "type": 4
   }
 ]

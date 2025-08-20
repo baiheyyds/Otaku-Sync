@@ -484,3 +484,36 @@ class BangumiClient:
             brand_info["twitter"] = twitter_handle
 
         return brand_info
+
+    async def fetch_and_prepare_character_data(self, character_id: str) -> dict | None:
+        """获取并处理单个角色的所有 Bangumi 数据，返回一个可直接用于更新的字典。"""
+        try:
+            char_detail_url = f"https://api.bgm.tv/v0/characters/{character_id}"
+            resp = await self.client.get(char_detail_url, headers=self.headers)
+            if resp.status_code != 200:
+                logger.error(f"获取角色 {character_id} 详情失败: 状态码 {resp.status_code}")
+                return None
+
+            detail = resp.json()
+            char_url = f"https://bangumi.tv/character/{detail['id']}"
+
+            # 复用强大的 _process_infobox 逻辑
+            infobox_data = await self._process_infobox(
+                detail.get("infobox", []), CHARACTER_DB_ID, char_url
+            )
+
+            # 准备一个干净的数据字典
+            char_data_to_update = {
+                "name": detail.get("name"),
+                "aliases": [detail.get("name_cn")] if detail.get("name_cn") else [],
+                "avatar": detail.get("images", {}).get("large", ""),
+                "summary": detail.get("summary", "").strip(),
+                "url": char_url,
+            }
+            # 合并 infobox 处理结果
+            char_data_to_update.update(infobox_data)
+
+            return char_data_to_update
+        except Exception as e:
+            logger.error(f"处理角色 {character_id} 数据时出错: {e}")
+            return None

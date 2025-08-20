@@ -54,14 +54,23 @@ class NotionClient:
         logger.error("⛔ 最终重试失败，跳过该请求")
         return None
 
-    def get_page_title(self, page):
+    def get_page_title(self, page: dict) -> str:
+        """
+        [已升级] 通用页面标题获取函数。
+        自动查找任何 Notion 页面中类型为 'title' 的主属性并返回其内容。
+        """
         try:
             if "properties" not in page:
-                logger.error(f"DEBUG get_page_title page missing properties: {page.keys()}")
-                return "[无法获取标题]"
-            key = FIELDS["game_name"]
-            title_prop = page["properties"][key]["title"]
-            return "".join([part["text"]["content"] for part in title_prop])
+                return "[无法获取标题：页面缺少 properties]"
+
+            # 遍历所有属性，找到类型为 'title' 的那一个
+            for prop_name, prop_data in page["properties"].items():
+                if prop_data.get("type") == "title":
+                    title_list = prop_data.get("title", [])
+                    if title_list:
+                        return "".join([part.get("plain_text", "") for part in title_list])
+
+            return "[无法获取标题：未找到 title 类型的属性]"
         except Exception as e:
             logger.error(f"get_page_title error: {e}")
             return "[无法获取标题]"
@@ -111,16 +120,16 @@ class NotionClient:
                 break
         return all_games
 
-    async def get_all_pages_from_db(self, db_id: str):
-        """从指定数据库获取所有页面的完整对象。"""
-        url = f"https://api.notion.com/v1/databases/{db_id}/query"
+    async def get_all_pages_from_db(self, db_id: str) -> list:
+        """获取指定数据库中的所有页面，自动处理分页。"""
         all_pages = []
         next_cursor = None
+        url = f"https://api.notion.com/v1/databases/{db_id}/query"
+
         while True:
             payload = {"start_cursor": next_cursor} if next_cursor else {}
             resp = await self._request("POST", url, payload)
             if not resp:
-                logger.error(f"无法从数据库 {db_id} 获取页面，流程中止。")
                 break
 
             results = resp.get("results", [])
@@ -130,6 +139,7 @@ class NotionClient:
                 next_cursor = resp.get("next_cursor")
             else:
                 break
+
         return all_pages
 
     async def get_page(self, page_id: str):

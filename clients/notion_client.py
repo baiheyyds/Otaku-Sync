@@ -111,6 +111,27 @@ class NotionClient:
                 break
         return all_games
 
+    async def get_all_pages_from_db(self, db_id: str):
+        """从指定数据库获取所有页面的完整对象。"""
+        url = f"https://api.notion.com/v1/databases/{db_id}/query"
+        all_pages = []
+        next_cursor = None
+        while True:
+            payload = {"start_cursor": next_cursor} if next_cursor else {}
+            resp = await self._request("POST", url, payload)
+            if not resp:
+                logger.error(f"无法从数据库 {db_id} 获取页面，流程中止。")
+                break
+
+            results = resp.get("results", [])
+            all_pages.extend(results)
+
+            if resp.get("has_more"):
+                next_cursor = resp.get("next_cursor")
+            else:
+                break
+        return all_pages
+
     async def get_page(self, page_id: str):
         """根据页面ID获取完整的页面对象"""
         url = f"https://api.notion.com/v1/pages/{page_id}"
@@ -153,27 +174,19 @@ class NotionClient:
 
     # --- 核心改动结束 ---
 
-    # --- 请找到 create_or_update_game 方法并用下面的代码替换它 ---
-
     async def create_or_update_game(self, properties_schema: dict, page_id=None, **info):
         title = info.get("title")
         if not title:
-            logger.error("游戏标题为空，无法创建或更新。")
+            logger.error("游戏标题为空,无法创建或更新.")
             return None
 
         if not page_id:
             existing = await self.search_game(title)
             page_id = existing[0]["id"] if existing else None
 
-        # schema = await self.get_database_schema(self.game_db_id)
-        # if not schema:
-        #     logger.error("无法获取游戏数据库结构，更新中止。")
-        #     return None
-        # properties_schema = schema.get("properties", {})
-
         data_for_notion = {}
         for prop_name in properties_schema:
-            if prop_name in info:
+            if prop_name in info and info[prop_name] is not None:
                 data_for_notion[prop_name] = info[prop_name]
 
         source_to_notion_map = {
@@ -197,66 +210,151 @@ class NotionClient:
             "brand_relation_id": FIELDS["brand_relation"],
         }
 
+        # --- [ULTIMATE FIX: Proactive Data Cleansing during Merge] ---
         for source_key, notion_key in source_to_notion_map.items():
             if source_key in info and info[source_key] is not None:
-                data_for_notion[notion_key] = info[source_key]
+                new_value = info[source_key]
 
-        data_for_notion[FIELDS["game_name"]] = title
+                # Proactively filter empty strings from the new value
+                if isinstance(new_value, list):
+                    new_value = [v for v in new_value if v]
+                elif not new_value:  # If new_value is ""
+                    continue  # Skip this empty value entirely
+
+                current_values = data_for_notion.get(notion_key)
+                if current_values:
+                    if not isinstance(current_values, list):
+                        current_values = [current_values]
+                    if not isinstance(new_value, list):
+                        new_value = [new_value]
+
+                    combined = current_values + new_value
+
+                    # Filter again after combining, then unique
+                    unique_values = []
+                    seen_hashable = set()
+                    for item in combined:
+                        if not item:
+                            continue  # Final check for empty strings/None
+                        try:
+                            if item not in seen_hashable:
+                                unique_values.append(item)
+                                seen_hashable.add(item)
+                        except TypeError:
+                            unique_values.append(item)
+                    data_for_notion[notion_key] = unique_values
+                elif new_value:  # Only assign if the new value is not empty
+                    data_for_notion[notion_key] = new_value
+        # --- [FIX ENDS] ---
+
+        if title:
+            data_for_notion[FIELDS["game_name"]] = title
 
         props = {}
         for notion_prop_name, value in data_for_notion.items():
-            if value is None or notion_prop_name == "":
+            if value is None:
                 continue
-
-            # --- 核心修复：增加对空字符串和空列表的判断 ---
-            # 如果值是字符串或列表，但内容为空，则跳过该字段，避免用空值覆盖Notion中已有的数据。
-            # 这不会影响值为数字 0 的情况。
-            if isinstance(value, (str, list)) and not value:
+            if isinstance(value, (str, list, dict)) and not value:
                 continue
-            # --- 修复结束 ---
 
             prop_info = properties_schema.get(notion_prop_name)
             if not prop_info:
-                logger.warn(f"属性 '{notion_prop_name}' 在游戏库中不存在，已跳过。")
+                logger.warn(f"属性 '{notion_prop_name}' 在游戏库中不存在,已跳过.")
                 continue
             prop_type = prop_info.get("type")
 
             if prop_type == "title":
                 props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
+
             elif prop_type == "rich_text":
-                props[notion_prop_name] = {"rich_text": [{"text": {"content": str(value)[:2000]}}]}
-            elif prop_type == "url":
-                props[notion_prop_name] = {"url": str(value)}
-            elif prop_type == "date":
-                if iso_date := convert_date_jp_to_iso(str(value)):
-                    props[notion_prop_name] = {"date": {"start": iso_date}}
-            elif prop_type == "number":
-                try:
-                    props[notion_prop_name] = {"number": float(re.sub(r"[^\d.]", "", str(value)))}
-                except (ValueError, TypeError):
-                    pass
-            elif prop_type == "files":
-                if str(value):
+                content = ""
+                if isinstance(value, (list, set)):
+                    unique_values = []
+                    seen_hashable = set()
+                    for item in value:
+                        if not item:
+                            continue  # Final gatekeeper check
+                        try:
+                            if item not in seen_hashable:
+                                unique_values.append(item)
+                                seen_hashable.add(item)
+                        except TypeError:
+                            unique_values.append(item)
+
+                    formatted_values = []
+                    for item in unique_values:
+                        if not item:
+                            continue  # Paranoid final check
+                        if isinstance(item, dict):
+                            lines = [f"🔹 {k}: {v}" for k, v in item.items()]
+                            formatted_values.append("\n".join(lines))
+                        else:
+                            formatted_values.append(f"🔹 {str(item)}")
+                    content = "\n".join(formatted_values)
+
+                elif isinstance(value, dict):
+                    lines = [f"🔹 {k}: {v}" for k, v in value.items()]
+                    content = "\n".join(lines)
+                else:
+                    content = str(value)
+
+                if content:
+                    props[notion_prop_name] = {"rich_text": [{"text": {"content": content[:2000]}}]}
+
+            elif prop_type in ("url", "date", "number", "files", "select"):
+                final_value = value
+                if isinstance(value, dict):
+                    final_value = next(iter(value.values()), None)
+                elif isinstance(value, list):
+                    final_value = value[0] if value else None
+
+                if prop_type == "url" and final_value:
+                    props[notion_prop_name] = {"url": str(final_value)}
+                elif prop_type == "date":
+                    if iso_date := convert_date_jp_to_iso(str(final_value)):
+                        props[notion_prop_name] = {"date": {"start": iso_date}}
+                elif prop_type == "number":
+                    try:
+                        if final_value:
+                            props[notion_prop_name] = {
+                                "number": float(re.sub(r"[^\d.]", "", str(final_value)))
+                            }
+                    except (ValueError, TypeError):
+                        pass
+                elif prop_type == "files" and final_value:
                     props[notion_prop_name] = {
                         "files": [
-                            {"type": "external", "name": "cover", "external": {"url": str(value)}}
+                            {
+                                "type": "external",
+                                "name": "cover",
+                                "external": {"url": str(final_value)},
+                            }
                         ]
                     }
+                elif prop_type == "select" and str(final_value).strip():
+                    props[notion_prop_name] = {"select": {"name": str(final_value)}}
+
             elif prop_type == "relation":
                 if value:
                     props[notion_prop_name] = {"relation": [{"id": str(value)}]}
-            elif prop_type == "select":
-                if str(value).strip():
-                    props[notion_prop_name] = {"select": {"name": str(value)}}
+
             elif prop_type == "multi_select":
                 options = []
-                if isinstance(value, str):
-                    options = [v.strip() for v in re.split(r"[,、/]", value) if v.strip()]
-                elif isinstance(value, list):
-                    options = [v for v in value if v and str(v).strip()]
+                values_to_process = value if isinstance(value, list) else [value]
+
+                for item in values_to_process:
+                    if isinstance(item, str):
+                        split_items = [
+                            v.strip() for v in re.split(r"[、・,／/;]+", item) if v.strip()
+                        ]
+                        options.extend(split_items)
+                    elif item:
+                        options.append(str(item))
+
                 if options:
+                    unique_options = list(dict.fromkeys(options))
                     props[notion_prop_name] = {
-                        "multi_select": [{"name": str(opt)} for opt in options]
+                        "multi_select": [{"name": str(opt)} for opt in unique_options]
                     }
 
         url = (

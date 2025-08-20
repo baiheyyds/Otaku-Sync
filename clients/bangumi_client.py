@@ -176,20 +176,40 @@ class BangumiClient:
             return processed
 
         async def _map_and_set_prop(key, value):
+
+            # --- [THE ULTIMATE FIX: The Gatekeeper] ---
+            # This is the new, absolute first step.
+            # If the mapper says this key is ignored, we stop immediately and silently.
+            if self.mapper.is_ignored(key):
+                return
+            # --- [FIX ENDS] ---
+
             if not key or not value:
                 return
+
             notion_prop = self.mapper.get_notion_prop(key, target_db_id)
             if not notion_prop:
-                # 将 value 和 bangumi_url 传递给 handle_new_key
                 notion_prop = await self.mapper.handle_new_key(
                     key, value, bangumi_url, self.notion, self.schema, target_db_id
                 )
+
             if notion_prop:
-                if notion_prop in processed and isinstance(processed[notion_prop], list):
-                    if isinstance(value, list):
-                        processed[notion_prop].extend(value)
+                if notion_prop in processed:
+                    current_value = processed[notion_prop]
+
+                    if isinstance(current_value, dict) and isinstance(value, dict):
+                        current_value.update(value)
+                    elif isinstance(current_value, list):
+                        if isinstance(value, list):
+                            current_value.extend(value)
+                        else:
+                            current_value.append(value)
                     else:
-                        processed[notion_prop].append(value)
+                        processed[notion_prop] = [current_value]
+                        if isinstance(value, list):
+                            processed[notion_prop].extend(value)
+                        else:
+                            processed[notion_prop].append(value)
                 else:
                     processed[notion_prop] = value
 
@@ -198,30 +218,21 @@ class BangumiClient:
             if not bangumi_key or bangumi_value is None:
                 continue
 
-            # --- 核心逻辑强化 ---
-            # 检查 value 是否为一个列表
             if isinstance(bangumi_value, list):
-                # 进一步判断列表内容：是简单的值列表，还是复杂的 "k-v" 结构化列表
-                # 通过检查第一个元素是否是包含 'k' 键的字典来判断
                 is_structured_list = (
                     bangumi_value and isinstance(bangumi_value[0], dict) and "k" in bangumi_value[0]
                 )
 
                 if is_structured_list:
-                    # 情况 A: 这是一个结构化列表，如“发行日期”
-                    # 遍历子项，将外部键和内部键组合成新键
                     for sub_item in bangumi_value:
                         if isinstance(sub_item, dict):
                             sub_key = sub_item.get("k")
                             sub_value = sub_item.get("v")
                             if sub_key and sub_value is not None:
-                                # 创建组合键，例如："发行日期-ダウンロード版"
                                 combined_key = f"{bangumi_key}-{sub_key}"
-                                # 使用这个全新的、唯一的键来处理数据
-                                await _map_and_set_prop(combined_key, str(sub_value).strip())
+                                value_with_context = {sub_key: str(sub_value).strip()}
+                                await _map_and_set_prop(combined_key, value_with_context)
                 else:
-                    # 情况 B: 这是一个简单的值列表，如多个“别名”
-                    # 沿用原有的逻辑，收集所有值
                     v_only_values = []
                     for sub_item in bangumi_value:
                         value_to_add = None
@@ -229,18 +240,12 @@ class BangumiClient:
                             value_to_add = sub_item.get("v")
                         elif isinstance(sub_item, str):
                             value_to_add = sub_item
-
                         if value_to_add is not None:
                             v_only_values.append(str(value_to_add).strip())
-
                     if v_only_values:
                         await _map_and_set_prop(bangumi_key, v_only_values)
-
             else:
-                # 情况 C: value 不是列表，就是一个简单的 key-value 字符串
-                # 沿用原有逻辑
                 await _map_and_set_prop(bangumi_key, str(bangumi_value).strip())
-        # --- 逻辑强化结束 ---
 
         return processed
 

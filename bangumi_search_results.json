@@ -1,53 +1,827 @@
 [
   {
-    "date": "2025-07-11",
+    "date": "2023-04-28",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/72/0e/561585_33321.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/72/0e/561585_33321.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/72/0e/561585_33321.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/72/0e/561585_33321.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/72/0e/561585_33321.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/a5/10/416869_eH700.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/a5/10/416869_eH700.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/a5/10/416869_eH700.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/a5/10/416869_eH700.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/a5/10/416869_eH700.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/72/0e/561585_33321.jpg",
-    "summary": "ストーリー\r\n\r\n村の外れにある女子修道会で、\r\n私たちは祈りと労働の日々を過ごしています。\r\n畑を耕し、動物のお世話をして、神に祈りを捧げる――。\r\nおだやかで充実した毎日です。\r\n\r\n「ここにはもう慣れましたか？ ナオミさん」\r\n\r\n女子修道会に入会して間もない女性に声をかけます。\r\n\r\n「はい。おかげさまで――なんて言うと思った？\r\n慣れるわけないでしょ、こんなところ」\r\n\r\n修道会に来るまでに彼女がどのような人生を送ってきたのかはわかりません。\r\nこの生活が刺激に乏しいものであるのは否めませんが……。\r\nいつか、ナオミさんもおだやかな日常のありがたさを\r\nわかってくださることでしょう。\r\n\r\nしかし――突如、修道院が武装勢力による襲撃を受けて……\r\n私たちの祈りと労働の日々は、無残にも打ち砕かれました。\r\n多くのシスターたちが彼らにさらわれてしまったのです。\r\n\r\n当然、私ユリもその一人でした――。",
-    "name": "堕ちた聖女達 ～届かなかった祈り～",
-    "name_cn": "",
+    "image": "https://lain.bgm.tv/pic/cover/l/a5/10/416869_eH700.jpg",
+    "summary": "ストーリー：\r\n黒猫亭が開店する、すこし前のこと。\r\n新年を迎えたアルタリア共和国。皇軍の駐屯するこの国で、リリアはその身を追われていた。窮地を救ってくれたのは、のほほんとした雰囲気の自律人形。彼女の名前【灰桜】。ローベリアに渡りたいというリリアの願いを手助けしてくれることになり……？（冬空花火編）\r\n\r\nメンテナンスから目覚めた【鴉羽】。そこは皇軍の保養地である小さな島で、彼女を直した人形師【遠間ナギ】から新しい役目を与えられる。それはまるでメイド人形のような仕事で、不本意ながらも日々を過ごしていく。春の雪解けが近づく中、戦争の足音も少しずつ近づいてくる。（雪華文様編）\r\n\r\n公式サイトにて連載され、大好評を博した灰桜・鴉羽前日譚エピソードをキネティックノベル化。",
+    "name": "プリマドール：冬空花火／雪華文様",
+    "name_cn": "天籁人偶：冬穹烟火/雪华纹样",
     "tags": [
       {
-        "name": "拔作",
+        "name": "key",
+        "count": 54,
+        "total_cont": 17878
+      },
+      {
+        "name": "Galgame",
+        "count": 44,
+        "total_cont": 373171
+      },
+      {
+        "name": "全年龄",
+        "count": 32,
+        "total_cont": 25778
+      },
+      {
+        "name": "短篇",
+        "count": 25,
+        "total_cont": 7025
+      },
+      {
+        "name": "2023",
+        "count": 15,
+        "total_cont": 6235
+      },
+      {
+        "name": "PC",
+        "count": 12,
+        "total_cont": 236810
+      },
+      {
+        "name": "na-ga",
+        "count": 11,
+        "total_cont": 429
+      },
+      {
+        "name": "萝莉",
+        "count": 11,
+        "total_cont": 13768
+      },
+      {
+        "name": "丘野塔也",
+        "count": 11,
+        "total_cont": 68
+      },
+      {
+        "name": "水月陵",
+        "count": 9,
+        "total_cont": 4076
+      },
+      {
+        "name": "废萌",
+        "count": 5,
+        "total_cont": 17604
+      },
+      {
+        "name": "折户伸治",
+        "count": 4,
+        "total_cont": 79
+      },
+      {
+        "name": "汉化",
+        "count": 4,
+        "total_cont": 31653
+      },
+      {
+        "name": "游戏",
         "count": 2,
-        "total_cont": 79799
+        "total_cont": 88229
+      },
+      {
+        "name": "GAL",
+        "count": 2,
+        "total_cont": 42958
+      },
+      {
+        "name": "naga",
+        "count": 2,
+        "total_cont": 2
+      },
+      {
+        "name": "粉毛",
+        "count": 2,
+        "total_cont": 167
+      },
+      {
+        "name": "存盘",
+        "count": 2,
+        "total_cont": 162
       },
       {
         "name": "ADV",
-        "count": 1,
-        "total_cont": 38266
+        "count": 2,
+        "total_cont": 38268
       },
       {
-        "name": "R18",
+        "name": "番改gal",
         "count": 1,
-        "total_cont": 24564
+        "total_cont": 2
+      },
+      {
+        "name": "视觉小说",
+        "count": 1,
+        "total_cont": 2912
+      },
+      {
+        "name": "轻百合",
+        "count": 1,
+        "total_cont": 31
+      },
+      {
+        "name": "2023打完",
+        "count": 1,
+        "total_cont": 63
+      },
+      {
+        "name": "冬",
+        "count": 1,
+        "total_cont": 200
+      },
+      {
+        "name": "机器人",
+        "count": 1,
+        "total_cont": 891
+      },
+      {
+        "name": "催泪",
+        "count": 1,
+        "total_cont": 6463
+      },
+      {
+        "name": "日本",
+        "count": 1,
+        "total_cont": 2881
+      },
+      {
+        "name": "loli",
+        "count": 1,
+        "total_cont": 665
+      },
+      {
+        "name": "已汉化",
+        "count": 1,
+        "total_cont": 211
+      },
+      {
+        "name": "分割商法",
+        "count": 1,
+        "total_cont": 4745
+      }
+    ],
+    "infobox": [
+      {
+        "key": "中文名",
+        "value": "天籁人偶：冬穹烟火/雪华纹样"
+      },
+      {
+        "key": "别名",
+        "value": [
+          {
+            "v": "プリマドール　ふゆぞらはなび／せっかもんよう"
+          },
+          {
+            "v": "プリマドール キネティックノベル版 第一巻"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "Kinetic Novel"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2023年4月28日"
+      },
+      {
+        "key": "website",
+        "value": "https://primadoll.jp/kineticnovel.html"
+      },
+      {
+        "key": "剧本",
+        "value": "丘野塔也"
+      },
+      {
+        "key": "官方网站",
+        "value": "https://primadoll.jp/kineticnovel/01/index.html"
+      },
+      {
+        "key": "原案",
+        "value": "VISUAL ARTS / Key"
+      },
+      {
+        "key": "原作",
+        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "原画",
+        "value": "バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "人物设定",
+        "value": "Na-Ga、藤ちょこ、まろやか"
+      }
+    ],
+    "rating": {
+      "rank": 8075,
+      "total": 120,
+      "count": {
+        "1": 0,
+        "2": 2,
+        "3": 6,
+        "4": 7,
+        "5": 22,
+        "6": 47,
+        "7": 26,
+        "8": 7,
+        "9": 1,
+        "10": 2
+      },
+      "score": 5.9
+    },
+    "collection": {
+      "on_hold": 11,
+      "dropped": 8,
+      "wish": 99,
+      "collect": 149,
+      "doing": 10
+    },
+    "id": 416869,
+    "eps": 0,
+    "meta_tags": [
+      "PC",
+      "galgame",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": null,
+    "platform": "游戏",
+    "images": {
+      "small": "",
+      "grid": "",
+      "large": "",
+      "medium": "",
+      "common": ""
+    },
+    "image": "",
+    "summary": "ストーリー：\r\n灰神楽の暴走事件から数ヶ月後。メンテナンスのため、灰桜が長い眠りについている頃――いまだ頻発する人形の暴走事件に対応するため、密かに奔走するのは自律人形【月下】と【レーツェル】。哀しい運命にある人形たちを救うべく、夜の皇都を駆ける。\r\n\r\n新規書き下ろしとなる、TVアニメ『プリマドール』後日譚のエピソード。",
+    "name": "プリマドール：皇都探偵",
+    "name_cn": "天籁人偶：皇都探侦",
+    "tags": [
+      {
+        "name": "PC",
+        "count": 4,
+        "total_cont": 220814
+      },
+      {
+        "name": "GAL",
+        "count": 4,
+        "total_cont": 41505
+      },
+      {
+        "name": "key",
+        "count": 3,
+        "total_cont": 16993
+      },
+      {
+        "name": "2023",
+        "count": 2,
+        "total_cont": 5722
+      },
+      {
+        "name": "ADV",
+        "count": 2,
+        "total_cont": 34793
       },
       {
         "name": "游戏",
         "count": 1,
-        "total_cont": 88224
+        "total_cont": 78506
+      },
+      {
+        "name": "丘野塔也",
+        "count": 1,
+        "total_cont": 66
+      }
+    ],
+    "infobox": [
+      {
+        "key": "中文名",
+        "value": "天籁人偶：皇都探侦"
+      },
+      {
+        "key": "别名",
+        "value": [
+          {
+            "v": "プリマドール キネティックノベル版 第三巻"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "Kinetic Novel"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "website",
+        "value": "https://primadoll.jp/kineticnovel.html"
+      },
+      {
+        "key": "剧本",
+        "value": "丘野塔也"
+      },
+      {
+        "key": "原案",
+        "value": "VISUAL ARTS / Key"
+      },
+      {
+        "key": "原作",
+        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "原画",
+        "value": "バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "人物设定",
+        "value": "Na-Ga、原悠衣、lack"
+      }
+    ],
+    "rating": {
+      "rank": 0,
+      "total": 0,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 0
+    },
+    "collection": {
+      "on_hold": 2,
+      "dropped": 0,
+      "wish": 19,
+      "collect": 1,
+      "doing": 0
+    },
+    "id": 421874,
+    "eps": 0,
+    "meta_tags": [
+      "PC",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": null,
+    "platform": "游戏",
+    "images": {
+      "small": "",
+      "grid": "",
+      "large": "",
+      "medium": "",
+      "common": ""
+    },
+    "image": "",
+    "summary": "ストーリー：\r\n論理機関を初期化して以来、歌が歌えなくなってしまった灰桜。彼女ともう一度ステージに立ちたい。そう願った黒猫亭の人形たちは、一縷の望みをかけて海を渡ることに。そこはかつての敵国ローベリア。桜花と同じ性能を持つ第一世代自律人形【シアナス】に会うため、平和式典の舞台でショーを披露することに。もう一度灰桜は歌声を響かせることが出来るのか……？\r\n\r\n黒猫亭のその後を描く、ファイナルエピソード。",
+    "name": "プリマドール・アンコール",
+    "name_cn": "天籁人偶・encore",
+    "tags": [
+      {
+        "name": "PC",
+        "count": 3,
+        "total_cont": 220814
+      },
+      {
+        "name": "GAL",
+        "count": 3,
+        "total_cont": 41505
+      },
+      {
+        "name": "key",
+        "count": 3,
+        "total_cont": 16993
+      },
+      {
+        "name": "2024",
+        "count": 2,
+        "total_cont": 5003
+      },
+      {
+        "name": "ADV",
+        "count": 2,
+        "total_cont": 34793
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 78506
+      },
+      {
+        "name": "丘野塔也",
+        "count": 1,
+        "total_cont": 66
+      },
+      {
+        "name": "折户伸治",
+        "count": 1,
+        "total_cont": 76
       },
       {
         "name": "Galgame",
         "count": 1,
-        "total_cont": 373163
+        "total_cont": 342837
+      }
+    ],
+    "infobox": [
+      {
+        "key": "中文名",
+        "value": "天籁人偶・encore"
+      },
+      {
+        "key": "别名",
+        "value": [
+          {
+            "v": "プリマドール キネティックノベル版 第四巻"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "Kinetic Novel"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "website",
+        "value": "https://primadoll.jp/kineticnovel.html"
+      },
+      {
+        "key": "剧本",
+        "value": "丘野塔也"
+      },
+      {
+        "key": "原案",
+        "value": "VISUAL ARTS / Key"
+      },
+      {
+        "key": "原作",
+        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "原画",
+        "value": "バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "人物设定",
+        "value": "Na-Ga"
+      }
+    ],
+    "rating": {
+      "rank": 0,
+      "total": 0,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 0
+    },
+    "collection": {
+      "on_hold": 1,
+      "dropped": 0,
+      "wish": 16,
+      "collect": 0,
+      "doing": 0
+    },
+    "id": 422031,
+    "eps": 0,
+    "meta_tags": [
+      "PC",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": "2024-05-31",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/4d/2e/417994_wjE5T.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/4d/2e/417994_wjE5T.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/4d/2e/417994_wjE5T.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/4d/2e/417994_wjE5T.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/4d/2e/417994_wjE5T.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/4d/2e/417994_wjE5T.jpg",
+    "summary": "箒星の過去。\r\nそして現在へと紡がれる\r\n名もなき物語。\r\n\r\nストーリー：\r\n桜花の暴走により、機械人形に支配された戦場。\r\nある目的のために、\r\n密かに潜入する名も無き皇軍兵の姿があった。\r\n生者の存在しない市街で、彼が出会ったのは\r\n奇跡的に暴走を免れた支援用人形【箒星】。\r\n二人は手を取り合って、\r\nこの地獄から逃れようとするが……？\r\n\r\n新規書き下ろしとなる、箒星の前日譚エピソード。",
+    "name": "プリマドール：無名典礼",
+    "name_cn": "天籁人偶：无名典礼",
+    "tags": [
+      {
+        "name": "Galgame",
+        "count": 41,
+        "total_cont": 373596
+      },
+      {
+        "name": "key",
+        "count": 38,
+        "total_cont": 17897
+      },
+      {
+        "name": "全年龄",
+        "count": 29,
+        "total_cont": 25848
+      },
+      {
+        "name": "丘野塔也",
+        "count": 14,
+        "total_cont": 68
+      },
+      {
+        "name": "ADV",
+        "count": 12,
+        "total_cont": 38339
+      },
+      {
+        "name": "短篇",
+        "count": 11,
+        "total_cont": 7048
       },
       {
         "name": "PC",
-        "count": 1,
-        "total_cont": 236778
+        "count": 11,
+        "total_cont": 237024
       },
       {
-        "name": "Windows",
+        "name": "GAL",
+        "count": 8,
+        "total_cont": 42983
+      },
+      {
+        "name": "2024",
+        "count": 8,
+        "total_cont": 5702
+      },
+      {
+        "name": "2024-05",
+        "count": 6,
+        "total_cont": 30
+      },
+      {
+        "name": "纯爱",
+        "count": 5,
+        "total_cont": 26318
+      },
+      {
+        "name": "催泪",
+        "count": 3,
+        "total_cont": 6471
+      },
+      {
+        "name": "田园",
+        "count": 3,
+        "total_cont": 178
+      },
+      {
+        "name": "汉化",
+        "count": 2,
+        "total_cont": 31688
+      },
+      {
+        "name": "游戏",
+        "count": 2,
+        "total_cont": 88566
+      },
+      {
+        "name": "第三档Gal",
         "count": 1,
-        "total_cont": 4064
+        "total_cont": 193
+      },
+      {
+        "name": "第一档Gal",
+        "count": 1,
+        "total_cont": 294
+      },
+      {
+        "name": "机器人",
+        "count": 1,
+        "total_cont": 894
+      },
+      {
+        "name": "2023",
+        "count": 1,
+        "total_cont": 6250
+      },
+      {
+        "name": "na-ga",
+        "count": 1,
+        "total_cont": 429
+      },
+      {
+        "name": "分割商法",
+        "count": 1,
+        "total_cont": 4748
+      },
+      {
+        "name": "视觉小说",
+        "count": 1,
+        "total_cont": 2918
+      }
+    ],
+    "infobox": [
+      {
+        "key": "中文名",
+        "value": "天籁人偶：无名典礼"
+      },
+      {
+        "key": "别名",
+        "value": [
+          {
+            "v": "プリマドール 無名典礼(むめいてんれい)"
+          },
+          {
+            "v": "プリマドール キネティックノベル版 第二巻"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "PC"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "Kinetic Novel"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2024年5月31日"
+      },
+      {
+        "key": "website",
+        "value": "https://primadoll.jp/kineticnovel/02/"
+      },
+      {
+        "key": "剧本",
+        "value": "丘野塔也"
+      },
+      {
+        "key": "原案",
+        "value": "VISUAL ARTS / Key"
+      },
+      {
+        "key": "原作",
+        "value": "VISUAL ARTS / Key / バイブリーアニメーションスタジオ"
+      },
+      {
+        "key": "原画",
+        "value": "バイブリーアニメーションスタジオ / 株式会社ジーアングル"
+      },
+      {
+        "key": "人物设定",
+        "value": "Na-Ga、森倉円"
+      }
+    ],
+    "rating": {
+      "rank": 6730,
+      "total": 85,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 2,
+        "4": 6,
+        "5": 13,
+        "6": 30,
+        "7": 23,
+        "8": 6,
+        "9": 1,
+        "10": 4
+      },
+      "score": 6.3
+    },
+    "collection": {
+      "on_hold": 6,
+      "dropped": 6,
+      "wish": 80,
+      "collect": 111,
+      "doing": 12
+    },
+    "id": 417994,
+    "eps": 0,
+    "meta_tags": [
+      "PC",
+      "galgame",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": "2023-08-06",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/4e/47/450479_9isQc.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/4e/47/450479_9isQc.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/4e/47/450479_9isQc.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/4e/47/450479_9isQc.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/4e/47/450479_9isQc.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/4e/47/450479_9isQc.jpg",
+    "summary": "今をときめく売れっ子アイドルの小鳥。気持ち悪いアイドルオタクが大嫌いだが、表面上はバレないように接してるつもり。\r\n次第に金払いの良いファンと、キモオタ扱いしているファンとで露骨な対応差がある事が広まってしまい、反感を買ったキモオタ達の手により拉致監禁。\r\n理不尽な脱出ゲームを強要される。\r\n\r\n◆ゲーム概要◆\r\n昔懐かしなフラッシュゲーム風システムで室内を捜索し、各部屋の謎解きや仕掛けを解いて脱出を目指します。\r\n\r\n◆Hシーンのウリ◆\r\n等身大のアイドル感を出す為に業界で経験しそうな事、を盛り込んでみました。\r\n枕、セクハラ、イメプ、盗撮配信といったシチュエーションがあります。\r\n\r\n◆こんなHのシチュエーションがあります◆\r\n配信されてると知らずに一人エッチにふける\r\n断れない密室状況でファンにエッチ強要\r\n電車風内装で痴漢趣味の男に付き合わされる\r\n台本を使って学生時代の青春イメージプレイ\r\n\r\n◆こだわりポイント◆\r\n小生意気な少女が嫌々性行為を行う\r\nファンが望む理不尽なアイドル像との軋轢\r\n度重なる淫辱による精神屈服\r\n\r\n◆キャラクター紹介◆\r\n小鳥(主人公)\r\nアイドル業で外面は良いが、ファンの事は内心馬鹿にしがち。\r\n芝居への興味やメジャーデビュー願望等、仕事に対しては積極的。\r\nファンには内緒だがエッチの経験は人並み。\r\n\r\nメガネリン\r\n敬虔なアイドルオタク。パソコンは得意\r\n\r\nマフィア風の男\r\n水商売系の事をしている。痴漢が趣味\r\n\r\n元マネージャー\r\n担当のアイドルに手を出すのが夢\r\n\r\nマッドオタク\r\n薬物開発をしている。青春に憧れがある",
+    "name": "ぷりずんあいどる!",
+    "name_cn": "",
+    "tags": [
+      {
+        "name": "ADV",
+        "count": 2,
+        "total_cont": 37894
+      },
+      {
+        "name": "PC",
+        "count": 2,
+        "total_cont": 235768
+      },
+      {
+        "name": "EROGE",
+        "count": 1,
+        "total_cont": 2083
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 87415
+      },
+      {
+        "name": "RPG",
+        "count": 1,
+        "total_cont": 71318
       }
     ],
     "infobox": [
@@ -69,252 +843,50 @@
       },
       {
         "key": "发行日期",
-        "value": [
-          {
-            "k": "ダウンロード版",
-            "v": "2025-07-11"
-          },
-          {
-            "k": "パッケージ版",
-            "v": "2025-07-25"
-          }
-        ]
+        "value": "2023-08-06"
       },
       {
         "key": "售价",
-        "value": [
-          {
-            "k": "ダウンロード版",
-            "v": "1,980円（税込）"
-          },
-          {
-            "k": "パッケージ版",
-            "v": "￥2,800 (税込￥3,080)"
-          }
-        ]
+        "value": "1,430円"
+      },
+      {
+        "key": "DLsite",
+        "value": "https://www.dlsite.com/maniax/work/=/product_id/RJ01082494.html"
       },
       {
         "key": "开发",
-        "value": "アパタイト"
-      },
-      {
-        "key": "发行",
-        "value": "アパタイト"
-      },
-      {
-        "key": "剧本",
-        "value": "岡下誠"
-      },
-      {
-        "key": "原画",
-        "value": "鳥三"
-      },
-      {
-        "key": "website",
-        "value": "https://www.appetite-game.com/apt285/apt285.html"
+        "value": "プリンシア"
       }
     ],
     "rating": {
       "rank": 0,
-      "total": 3,
+      "total": 0,
       "count": {
         "1": 0,
         "2": 0,
-        "3": 2,
+        "3": 0,
         "4": 0,
-        "5": 1,
+        "5": 0,
         "6": 0,
         "7": 0,
         "8": 0,
         "9": 0,
         "10": 0
       },
-      "score": 3.7
+      "score": 0
     },
     "collection": {
-      "on_hold": 2,
+      "on_hold": 1,
       "dropped": 0,
-      "wish": 7,
-      "collect": 4,
+      "wish": 2,
+      "collect": 1,
       "doing": 0
     },
-    "id": 561585,
+    "id": 450479,
     "eps": 0,
     "meta_tags": [
-      "Windows",
-      "Galgame",
+      "ADV",
       "PC",
-      "游戏",
-      "ADV",
-      "R18"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": true,
-    "type": 4
-  },
-  {
-    "date": "2019-05-31",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/94/11/279276_0978h.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/94/11/279276_0978h.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/94/11/279276_0978h.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/94/11/279276_0978h.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/94/11/279276_0978h.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/94/11/279276_0978h.jpg",
-    "summary": "・女勇者と修道女・果てしなき絶頂\r\nいつの頃からか世界を支配し恐怖と絶望を振りまくようになった触手姫、アルテア。\r\nそんな彼女を倒し、世界を救うという神託を受けた少女がいた。\r\n\r\nその名は勇者リゲル。リゲルはバトルシスターのカペラと共に、\r\nアルテアが住まう城があるという、深い森に旅立った。\r\n\r\nそこに、恥辱と淫虐の罠が待ち受けているとも知らずに……。\r\n\r\n・触手地獄に堕ちたダークエルフと聖女\r\nさらわれた聖女ビアンカが神の子を孕み大魔王の正妃となり、\r\n双子の妹ノエインが新たな聖女に選ばれてから三年後。\r\n\r\n人類と魔族との不毛な戦争が続く中、\r\n人類軍の従軍尼僧ミリアムとダークエルフの長エスターは、\r\n停戦と講和のために手を組む。\r\n\r\nだが、戦争継続を望む人間と魔族それぞれは結託して二人を罠にはめ、\r\n敵対陣営の側に売り渡した。\r\n\r\n対立する陣営で同じ役割のためにおぞましい欲望のえじきとなった二人は、\r\nかつての聖女ビアンカ、新たな聖女ノエインに救いを求めるが、\r\n聖女たちはゆがんだ欲望を触手として出現させ、\r\n世界をみだらな狂気で染め上げようとする――",
-    "name": "邪淫のいけにえ2 ～女勇者と修道女・果てしなき絶頂＆触手地獄に堕ちたダークエルフと聖女～",
-    "name_cn": "",
-    "tags": [
-      {
-        "name": "拔作",
-        "count": 20,
-        "total_cont": 79548
-      },
-      {
-        "name": "触手",
-        "count": 20,
-        "total_cont": 2176
-      },
-      {
-        "name": "Galgame",
-        "count": 17,
-        "total_cont": 372108
-      },
-      {
-        "name": "萝莉",
-        "count": 16,
-        "total_cont": 13687
-      },
-      {
-        "name": "CHAOS-R",
-        "count": 15,
-        "total_cont": 127
-      },
-      {
-        "name": "ADV",
-        "count": 8,
-        "total_cont": 38073
-      },
-      {
-        "name": "PC",
-        "count": 3,
-        "total_cont": 236319
-      },
-      {
-        "name": "2019-05",
-        "count": 3,
-        "total_cont": 37
-      },
-      {
-        "name": "あかつきまお",
-        "count": 2,
-        "total_cont": 19
-      },
-      {
-        "name": "游戏",
-        "count": 2,
-        "total_cont": 87794
-      },
-      {
-        "name": "拔系",
-        "count": 1,
-        "total_cont": 332
-      },
-      {
-        "name": "库存",
-        "count": 1,
-        "total_cont": 2443
-      },
-      {
-        "name": "森山しじみ",
-        "count": 1,
-        "total_cont": 43
-      },
-      {
-        "name": "想玩",
-        "count": 1,
-        "total_cont": 433
-      },
-      {
-        "name": "汉化",
-        "count": 1,
-        "total_cont": 31607
-      },
-      {
-        "name": "生肉",
-        "count": 1,
-        "total_cont": 4857
-      },
-      {
-        "name": "CG",
-        "count": 1,
-        "total_cont": 1014
-      },
-      {
-        "name": "2019",
-        "count": 1,
-        "total_cont": 8246
-      }
-    ],
-    "infobox": [
-      {
-        "key": "游戏类型",
-        "value": "勇者やシスター、エルフを触手でいじめて何度も絶頂させるADV"
-      },
-      {
-        "key": "发行日期",
-        "value": "2019-05-31"
-      },
-      {
-        "key": "售价",
-        "value": "税込￥8,424"
-      },
-      {
-        "key": "开发",
-        "value": "CHAOS-R"
-      },
-      {
-        "key": "剧本",
-        "value": "剣技マナ、kozakana、他"
-      },
-      {
-        "key": "原画",
-        "value": "森山しじみ、あかつきまお"
-      }
-    ],
-    "rating": {
-      "rank": 6079,
-      "total": 41,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 4,
-        "5": 7,
-        "6": 11,
-        "7": 14,
-        "8": 4,
-        "9": 0,
-        "10": 1
-      },
-      "score": 6.3
-    },
-    "collection": {
-      "on_hold": 3,
-      "dropped": 1,
-      "wish": 48,
-      "collect": 59,
-      "doing": 2
-    },
-    "id": 279276,
-    "eps": 0,
-    "meta_tags": [
-      "ADV",
-      "galgame",
       "游戏"
     ],
     "volumes": 0,
@@ -324,56 +896,58 @@
     "type": 4
   },
   {
-    "date": "2020-10-28",
+    "date": "2020-09-08",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/0c/1c/332130_48HLi.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/0c/1c/332130_48HLi.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/0c/1c/332130_48HLi.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/0c/1c/332130_48HLi.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/0c/1c/332130_48HLi.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/15/b7/318849_T224n.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/15/b7/318849_T224n.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/15/b7/318849_T224n.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/15/b7/318849_T224n.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/15/b7/318849_T224n.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/0c/1c/332130_48HLi.jpg",
-    "summary": "■ストーリー\r\n失踪した親友ネリルを探すため、ダンジョンへと足を踏み入れたシスターの「エイレン」。\r\nそこは淫獣が蠢くモンスターの巣窟だった。\r\nエイレンは風の精霊シルフィと共に、親友を助けるためダンジョンへと挑むのだった。\r\n\r\n■ゲーム内容\r\n2Dのタワーディフェンス+アクションゲームです。\r\nタワーの設置、キャラクターの移動はマウスのみで操作できるお手軽なアクションゲームです。\r\nタワー設置パートと戦闘パートに分かれており、タワーの攻撃とネリルの攻撃アクションでモンスターを撃退していきます。\r\n\r\n■Hモーション\r\n触手やモンスターに犯されるシーンがドット絵アニメーションで展開されます。\r\nHシーン、ストーリー共にフルボイスです。\r\n",
-    "name": "性獣の夜と堕ちた聖女",
+    "image": "https://lain.bgm.tv/pic/cover/l/15/b7/318849_T224n.jpg",
+    "summary": "この作品は「Lovelydoll/Wildmachine」(game/19199)本編\r\nノーマルエンドのアフターストーリー構成になっています。\r\nある日突然人形の身体を奪われてしまった主人公が\r\n新たに生まれ変わるほのぼの日常アドベンチャーです。",
+    "name": "ばぶりーどーる/わいるどましーん -すいーとぷらす,かろりーおふ-",
     "name_cn": "",
     "tags": [
       {
-        "name": "塔防",
-        "count": 2,
-        "total_cont": 1421
+        "name": "華里",
+        "count": 1,
+        "total_cont": 0
       },
       {
-        "name": "巨乳",
+        "name": "spice+",
         "count": 1,
-        "total_cont": 3787
+        "total_cont": 0
       },
       {
-        "name": "ACT",
+        "name": "乙女ゲーム",
         "count": 1,
-        "total_cont": 30436
+        "total_cont": 0
+      },
+      {
+        "name": "乙女向",
+        "count": 1,
+        "total_cont": 0
+      },
+      {
+        "name": "同人",
+        "count": 1,
+        "total_cont": 0
       }
     ],
     "infobox": [
       {
-        "key": "开发",
-        "value": "リリックボックス"
-      },
-      {
         "key": "游戏类型",
-        "value": "2D塔防+ACT"
+        "value": "ほのぼのファンタジー×お人形ライフアフター"
       },
       {
         "key": "发行日期",
-        "value": "2020年10月28日"
+        "value": "2020-09-08"
       },
       {
-        "key": "售价",
-        "value": "1,320日元"
-      },
-      {
-        "key": "DLsite",
-        "value": "https://www.dlsite.com/maniax/work/=/product_id/RJ301403.html"
+        "key": "website",
+        "value": "https://www.freem.ne.jp/win/game/23901"
       }
     ],
     "rating": {
@@ -394,16 +968,15 @@
       "score": 7
     },
     "collection": {
-      "on_hold": 0,
+      "on_hold": 1,
       "dropped": 0,
       "wish": 2,
-      "collect": 1,
+      "collect": 2,
       "doing": 0
     },
-    "id": 332130,
+    "id": 318849,
     "eps": 0,
     "meta_tags": [
-      "ACT",
       "游戏"
     ],
     "volumes": 0,
@@ -413,44 +986,399 @@
     "type": 4
   },
   {
-    "date": "2001-04-13",
+    "date": "2006-07-28",
     "platform": "游戏",
     "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/5d/d6/503938_P59q4.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/5d/d6/503938_P59q4.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/5d/d6/503938_P59q4.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/5d/d6/503938_P59q4.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/5d/d6/503938_P59q4.jpg"
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/99/90/212750_KqWf6.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/99/90/212750_KqWf6.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/99/90/212750_KqWf6.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/99/90/212750_KqWf6.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/99/90/212750_KqWf6.jpg"
     },
-    "image": "https://lain.bgm.tv/pic/cover/l/5d/d6/503938_P59q4.jpg",
-    "summary": "「神は無関心だ……」\r\n\r\nそう言い放つ元神学生の男に依頼された冒涜的な仕事。それは修道院からある修道女見習いの少女を、どんな手段を使ってでも連れ出す事だった。男はその依頼を受け、人里離れた修道院に神父兼修理工として入りこむ。\r\n\r\nしかし、本来ならば修道院は男子禁制、主人公は行動を制限され、最初は目的の少女に会うことすらできない。そこで、会うことのできる数少ない修道女を篭絡もしくは○○して、目的の少女の情報を集めていく。\r\n\r\nまるで神を怒らせる為、その無関心の限界を試すかのように行動する主人公に待っているものとは！？",
-    "name": "堕ちゆく聖女",
+    "image": "https://lain.bgm.tv/pic/cover/l/99/90/212750_KqWf6.jpg",
+    "summary": "嵐で揺れる船上で逃げ惑う主人公。人身売買組織に拉致されて洋上を運搬されるところを、激しい嵐のどさくさに紛れて海に飛び込んだ。\r\n\r\n――主人公が海に飛び込んでからどれほどの時間がたったであろうか？\r\n　奇跡的に一命を取り留めた主人公が目を覚ますとそこは海岸。見ればかわいい女の子が自分を見下ろしている。そうこうしていると占い師がやってきて長老のところに連れて行かれる。そして長老は、は主人公含む巫女達の前で語る。\r\n\r\n「この島では、世代交代の時期を迎え“巫女たちが年頃になると”神の使者が現れて、新たな生命を与えてくれる。」\r\n\r\nそんなわけで神の使者よ、頑張って巫女たちに子を授けておくれ。",
+    "name": "ぶり～ど！",
     "name_cn": "",
-    "tags": [],
+    "tags": [
+      {
+        "name": "2006",
+        "count": 2,
+        "total_cont": 1638
+      },
+      {
+        "name": "Gash",
+        "count": 1,
+        "total_cont": 8
+      },
+      {
+        "name": "资源难找",
+        "count": 1,
+        "total_cont": 802
+      },
+      {
+        "name": "ADV",
+        "count": 1,
+        "total_cont": 35298
+      },
+      {
+        "name": "PC",
+        "count": 1,
+        "total_cont": 222833
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 79766
+      },
+      {
+        "name": "Galgame",
+        "count": 1,
+        "total_cont": 348132
+      }
+    ],
     "infobox": [
       {
         "key": "平台",
         "value": [
           {
-            "v": "Win95/98/Me"
+            "v": "PC"
           }
         ]
       },
       {
+        "key": "游戏类型",
+        "value": "エロハーレムADV"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
         "key": "发行日期",
-        "value": "2001-04-13"
+        "value": "2006-07-28"
       },
       {
         "key": "售价",
-        "value": "￥8,800 (税込￥9,680)"
-      },
-      {
-        "key": "website",
-        "value": "http://www.sp-janis.com/speed/"
+        "value": "￥8,800 (税込￥9,504)"
       },
       {
         "key": "开发",
-        "value": "SPEED"
+        "value": "Gash"
+      },
+      {
+        "key": "原画",
+        "value": "むとうけいじ"
+      },
+      {
+        "key": "剧本",
+        "value": "博恵夏樹、吉田涼斎、日暮清治"
+      }
+    ],
+    "rating": {
+      "rank": 0,
+      "total": 0,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 0
+    },
+    "collection": {
+      "on_hold": 2,
+      "dropped": 1,
+      "wish": 9,
+      "collect": 2,
+      "doing": 1
+    },
+    "id": 212750,
+    "eps": 0,
+    "meta_tags": [
+      "ADV",
+      "PC",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": "2010-09-24",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/d6/1f/359773_c2Z0R.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/d6/1f/359773_c2Z0R.jpg",
+    "summary": "親の都合により、とある学園に転入してきた主人公・誠司。\r\nその世話を任されたのは、ふたりの委員長だった。\r\nクラス委員長・梨乃（りの）と、風紀委員長の水樹（みずき）である。\r\nある日、誠司は誤解から水樹と言い合いになり、乱暴な言葉をぶつけてしまう。\r\n感情的になった彼はさらに、止めに入った梨乃にも同じ様に当たる……\r\nすると…梨乃と水樹、ふたりは驚くべき言葉を口にした。\r\n\r\n「もっと……罵ってください」\r\n\r\n彼女たちの態度を不審に思った誠司は、ふたりに事情を聞くことにした。\r\nそして、彼女たちがドMであることを知る。\r\nそれをキッカケにふたりと、様々なSMプレイをしていくことになる……。",
+    "name": "ふたりはドM委員長!",
+    "name_cn": "",
+    "tags": [
+      {
+        "name": "库存",
+        "count": 1,
+        "total_cont": 2426
+      },
+      {
+        "name": "スワンマニア",
+        "count": 1,
+        "total_cont": 47
+      },
+      {
+        "name": "2010-09",
+        "count": 1,
+        "total_cont": 60
+      },
+      {
+        "name": "ADV",
+        "count": 1,
+        "total_cont": 39627
+      },
+      {
+        "name": "游戏",
+        "count": 1,
+        "total_cont": 69971
+      }
+    ],
+    "infobox": [
+      {
+        "key": "游戏类型",
+        "value": "ADV"
+      },
+      {
+        "key": "发行日期",
+        "value": "2010-09-24"
+      },
+      {
+        "key": "开发",
+        "value": "スワンマニア"
+      },
+      {
+        "key": "原画",
+        "value": "涼平りょうへい"
+      },
+      {
+        "key": "剧本",
+        "value": "南条巴"
+      },
+      {
+        "key": "音乐",
+        "value": "Arp"
+      }
+    ],
+    "rating": {
+      "rank": 0,
+      "total": 2,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 1,
+        "6": 1,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0
+      },
+      "score": 5.5
+    },
+    "collection": {
+      "on_hold": 1,
+      "dropped": 1,
+      "wish": 0,
+      "collect": 4,
+      "doing": 0
+    },
+    "id": 359773,
+    "eps": 0,
+    "meta_tags": [
+      "ADV",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": true,
+    "type": 4
+  },
+  {
+    "date": "2007-10-18",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/3c/77/424_ajp.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/3c/77/424_ajp.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/3c/77/424_ajp.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/3c/77/424_ajp.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/3c/77/424_ajp.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/3c/77/424_ajp.jpg",
+    "summary": "",
+    "name": "降魔霊符伝イヅナ ぐっどぷらいす",
+    "name_cn": "",
+    "tags": [
+      {
+        "name": "RPG",
+        "count": 3,
+        "total_cont": 59723
+      },
+      {
+        "name": "NDS",
+        "count": 3,
+        "total_cont": 15034
+      },
+      {
+        "name": "迷宫",
+        "count": 3,
+        "total_cont": 254
+      },
+      {
+        "name": "JRPG",
+        "count": 1,
+        "total_cont": 12046
+      }
+    ],
+    "infobox": [
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "NDS"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "RPG"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1"
+      },
+      {
+        "key": "发行日期",
+        "value": "2007年10月18日"
+      },
+      {
+        "key": "售价",
+        "value": "￥ 2,415"
+      }
+    ],
+    "rating": {
+      "rank": 0,
+      "total": 9,
+      "count": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 3,
+        "7": 3,
+        "8": 3,
+        "9": 0,
+        "10": 0
+      },
+      "score": 7
+    },
+    "collection": {
+      "on_hold": 2,
+      "dropped": 1,
+      "wish": 2,
+      "collect": 13,
+      "doing": 0
+    },
+    "id": 424,
+    "eps": 0,
+    "meta_tags": [
+      "NDS",
+      "RPG",
+      "游戏"
+    ],
+    "volumes": 0,
+    "series": false,
+    "locked": false,
+    "nsfw": false,
+    "type": 4
+  },
+  {
+    "date": "2008-06-26",
+    "platform": "游戏",
+    "images": {
+      "small": "https://lain.bgm.tv/r/200/pic/cover/l/f2/7c/489680_4wLBb.jpg",
+      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/f2/7c/489680_4wLBb.jpg",
+      "large": "https://lain.bgm.tv/pic/cover/l/f2/7c/489680_4wLBb.jpg",
+      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/f2/7c/489680_4wLBb.jpg",
+      "common": "https://lain.bgm.tv/r/400/pic/cover/l/f2/7c/489680_4wLBb.jpg"
+    },
+    "image": "https://lain.bgm.tv/pic/cover/l/f2/7c/489680_4wLBb.jpg",
+    "summary": "作物や動物を育てるといった基本的な流れはそのまま、村人と会話したり結婚したりといった新たなシステムが加わりました。この村では、結婚するのに、男なら羊を、女なら羊毛のベッドカバーを相手の家に贈らなければならず美形ほど数が多く必要…。お目当てのあの人と結婚するために苦労した方もきっと多くいるはず。",
+    "name": "箱庭生活 ひつじ村 DS",
+    "name_cn": "",
+    "tags": [],
+    "infobox": [
+      {
+        "key": "别名",
+        "value": [
+          {
+            "v": "箱庭生活 ひつじ村DS ぐっどぷらいす"
+          }
+        ]
+      },
+      {
+        "key": "平台",
+        "value": [
+          {
+            "v": "Nintendo DS™"
+          }
+        ]
+      },
+      {
+        "key": "游戏类型",
+        "value": "田舎暮らしシミュレーション"
+      },
+      {
+        "key": "游玩人数",
+        "value": "1人"
+      },
+      {
+        "key": "发行日期",
+        "value": "2008年6月26日"
+      },
+      {
+        "key": "售价",
+        "value": "￥2,500(税抜き)"
+      },
+      {
+        "key": "website",
+        "value": [
+          {
+            "v": "http://www.success-corp.co.jp/software/ds/hitsuji/"
+          },
+          {
+            "v": "https://hitsuji.success-corp.co.jp/hitsuji2008"
+          }
+        ]
+      },
+      {
+        "key": "开发",
+        "value": "株式会社サクセス"
+      },
+      {
+        "key": "发行",
+        "value": "株式会社サクセス"
       }
     ],
     "rating": {
@@ -477,804 +1405,16 @@
       "collect": 0,
       "doing": 0
     },
-    "id": 503938,
+    "id": 489680,
     "eps": 0,
     "meta_tags": [
+      "NDS",
       "游戏"
     ],
     "volumes": 0,
     "series": false,
     "locked": false,
     "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": null,
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/d6/ab/554810_vc6ut.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/d6/ab/554810_vc6ut.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/d6/ab/554810_vc6ut.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/d6/ab/554810_vc6ut.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/d6/ab/554810_vc6ut.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/d6/ab/554810_vc6ut.jpg",
-    "summary": "■ 故事背景：萨拉米尔大陆的动荡\r\n\r\n主人公是一名怀揣环游世界梦想的见习信使，生活在宁静的朝暘村。然而，某天，勇者们的到来打破了这片平静。他们为了讨伐战乱残党的余孽而前来，但行动却以惨败告终。勇者队伍全灭，村庄被毁，而一股未知的威胁正悄然向人类世界逼近。\r\n\r\n濒死的勇者将一条极秘情报托付给主人公，他决定启程前往王都。同行的，是他的青梅竹马。然而，这趟旅程之中，隐藏着各种阴谋与欲望，他们的命运将走向何方……\r\n\r\n■ 玩法特色：模块化剧情叙事\r\n\r\n本作采用模块化剧情系统，每个章节的选择都将影响后续的发展。你的决定将塑造主角与青梅竹马的命运，并引导故事走向不同的结局。\r\n\r\n◆ 开放式旅途：主角前往王城的路线并非唯一，可自由选择路径，每条线路都有独特的事件与挑战。\r\n◆ 多条剧情分支：游戏至少包含三条主要路线，部分章节可能重叠，但你的选择将带来截然不同的后果。\r\n◆ 纯爱 vs 堕落：满足特定条件可走纯爱路线，快速抵达王城；否则，将经历更多考验，在各方势力的威胁和试探下挣扎求生。\r\n◆ 多重结局：主角与青梅竹马的最终命运完全取决于你的选择，故事将呈现截然不同的发展方向。",
-    "name": "堕ちた聖痕：夜行伝令",
-    "name_cn": "堕落的圣痕 - 夜行信使",
-    "tags": [
-      {
-        "name": "R18",
-        "count": 1,
-        "total_cont": 24548
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 88164
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 236697
-      },
-      {
-        "name": "RPG",
-        "count": 1,
-        "total_cont": 71540
-      }
-    ],
-    "infobox": [
-      {
-        "key": "中文名",
-        "value": "堕落的圣痕 - 夜行信使"
-      },
-      {
-        "key": "别名",
-        "value": [
-          {
-            "v": "Stigma of Corruption: Nightbound Courier"
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "RPG"
-      },
-      {
-        "key": "游戏引擎",
-        "value": "RPG Maker MV"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "发行日期",
-        "value": "2026年1月"
-      },
-      {
-        "key": "开发",
-        "value": "乳糖クエスト"
-      },
-      {
-        "key": "原画",
-        "value": "mao"
-      },
-      {
-        "key": "链接",
-        "value": [
-          {
-            "k": "DLsite",
-            "v": "https://www.dlsite.com/maniax/announce/=/product_id/RJ01444262.html"
-          }
-        ]
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 0,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 0,
-        "7": 0,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 0
-    },
-    "collection": {
-      "on_hold": 0,
-      "dropped": 0,
-      "wish": 6,
-      "collect": 0,
-      "doing": 0
-    },
-    "id": 554810,
-    "eps": 0,
-    "meta_tags": [
-      "RPG",
-      "PC",
-      "游戏",
-      "R18"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": true,
-    "type": 4
-  },
-  {
-    "date": "2008-06-15",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/d3/11/280170_26A6W.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/d3/11/280170_26A6W.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/d3/11/280170_26A6W.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/d3/11/280170_26A6W.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/d3/11/280170_26A6W.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/d3/11/280170_26A6W.jpg",
-    "summary": "内気で人見知りだけれど心優しく思いやりにあふれる普通の女の子、\r\n神奈詩織。\r\n　純聖天使プリミティ・ノエルとして覚醒した彼女は、邪悪な力で魔人と化した\r\n人々を浄化して救い、活躍してきた。\r\n\r\n　実はノエルは、魔界の預言にある『魔族全てを浄化する救世主を生み落とす\r\n為の聖母』であり、放置しておけばいずれ救世主を産み、人間界に潜伏する\r\n魔族はおろか、魔界のすべてを滅ぼす恐るべき破壊者となるという秘密が\r\nあった。\r\n\r\n――しかし、伝承にはもうひとつ、魔族にとっての救済の預言が存在していた。\r\n　『聖母』を汚し、その胎内に魔の精を注ぎ込んで孕ませることができれば運命は\r\n書き換えられ、『聖母』は『大淫婦』に代わり、生まれてくる『救世主』は\r\n『闇の救世主』となり、邪悪の帝国が築かれるというのだ。\r\n\r\n　さまざまな戦いを経験し、ノエルの聖なる力が極限まで高まった時――\r\n　機が熟したと判断したアザゼルは、ついにノエルを拘束する。\r\n\r\n　望まぬ破瓜、魔物のアナル凌辱、触手による肉体開発。\r\n　果てしない淫辱の宴の中で、少女の子宮に宿るものは……",
-    "name": "純聖天使プリミティ☆ノエル ～恥辱に堕ちた少女～",
-    "name_cn": "",
-    "tags": [
-      {
-        "name": "拔作",
-        "count": 3,
-        "total_cont": 79515
-      },
-      {
-        "name": "ADV",
-        "count": 1,
-        "total_cont": 38060
-      },
-      {
-        "name": "2008",
-        "count": 1,
-        "total_cont": 2611
-      },
-      {
-        "name": "GAL",
-        "count": 1,
-        "total_cont": 42853
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 236249
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 87749
-      },
-      {
-        "name": "Galgame",
-        "count": 1,
-        "total_cont": 371997
-      }
-    ],
-    "infobox": [
-      {
-        "key": "游戏类型",
-        "value": "魔法少女を触手と魔物で徹底凌辱ADV"
-      },
-      {
-        "key": "发行日期",
-        "value": "2008年06月15日"
-      },
-      {
-        "key": "开发",
-        "value": "Magical☆Girl"
-      },
-      {
-        "key": "原画",
-        "value": "さいとうつかさ"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 6,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 1,
-        "6": 4,
-        "7": 1,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 6
-    },
-    "collection": {
-      "on_hold": 0,
-      "dropped": 1,
-      "wish": 6,
-      "collect": 14,
-      "doing": 1
-    },
-    "id": 280170,
-    "eps": 0,
-    "meta_tags": [
-      "ADV",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": "2011-02-25",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/e7/e1/222336_mZQm1.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/e7/e1/222336_mZQm1.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/e7/e1/222336_mZQm1.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/e7/e1/222336_mZQm1.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/e7/e1/222336_mZQm1.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/e7/e1/222336_mZQm1.jpg",
-    "summary": "光の世界の姫姉妹は、闇の魔手からこの世界に逃れていた。世を忍ぶ仮の姿として、アイドル歌手をしているのだが、闇の勢力は、この世界にまで手を伸ばしてきた。聖戦姫ヴァルキュア・シスターズに変身して、次々と送り込まれる怪人と戦う彼女たちだが、戦闘の結果によっては悲惨な運命が待っている。\r\n\r\n姉妹のどちらかが堕とされて敵に回る場合など、様々なシチュエーションが楽しめます。また、前作「聖徒会長ヒカル」で大人気だったゴスロリヒロインのアナスタシアも登場し、ユーザー様の期待に応える激しいＨシーンを展開します。",
-    "name": "聖戦姫ヴァルキュア・シスターズ～淫闇（やみ）に堕ちたアイドル～",
-    "name_cn": "",
-    "tags": [
-      {
-        "name": "catwalk",
-        "count": 1,
-        "total_cont": 13
-      },
-      {
-        "name": "catwalkNERO",
-        "count": 1,
-        "total_cont": 52
-      },
-      {
-        "name": "恶堕",
-        "count": 1,
-        "total_cont": 1119
-      },
-      {
-        "name": "拔作",
-        "count": 1,
-        "total_cont": 78202
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 233676
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 86033
-      },
-      {
-        "name": "Galgame",
-        "count": 1,
-        "total_cont": 366359
-      }
-    ],
-    "infobox": [
-      {
-        "key": "平台",
-        "value": [
-          {
-            "k": "平台",
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "変身アイドル"
-      },
-      {
-        "key": "发行日期",
-        "value": "2011-02-25"
-      },
-      {
-        "key": "website",
-        "value": "http://catwalk.product.co.jp/nero/products/cn05/index.html"
-      },
-      {
-        "key": "原画",
-        "value": "亀井"
-      },
-      {
-        "key": "剧本",
-        "value": "吉田仁郎　AmBush"
-      },
-      {
-        "key": "开发",
-        "value": "catwalk NERO"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 2,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 1,
-        "7": 0,
-        "8": 1,
-        "9": 0,
-        "10": 0
-      },
-      "score": 7
-    },
-    "collection": {
-      "on_hold": 2,
-      "dropped": 1,
-      "wish": 9,
-      "collect": 7,
-      "doing": 3
-    },
-    "id": 222336,
-    "eps": 0,
-    "meta_tags": [
-      "PC",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": false,
-    "type": 4
-  },
-  {
-    "date": "2012-07-27",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/fe/34/222996_x5vdn.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/fe/34/222996_x5vdn.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/fe/34/222996_x5vdn.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/fe/34/222996_x5vdn.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/fe/34/222996_x5vdn.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/fe/34/222996_x5vdn.jpg",
-    "summary": "今夜も……よろしくね。\r\n\r\n「こんな時間に呼び出すなんて、何だろう……？」\r\n\r\n俺・石神明（いしがみあきら）は、真夜中の学校に忍び込んでいた。\r\nその決して褒められたものでない行為をしているのには、もちろん訳がある。\r\n俺が所属する水泳部の顧問、憧れの真里先生に呼び出されているからだ。\r\n俺の携帯にかけてきた真里先生は、短く時間と場所だけを告げて来るように命じ、一方的に通話を切ってしまった。\r\n訳を尋ねる暇さえなかったのだ―――。",
-    "name": "堕ちてゆく聖職淑女〜いけない、夫に無理矢理やらされていただけなのに感じちゃう〜",
-    "name_cn": "",
-    "tags": [
-      {
-        "name": "CG通关",
-        "count": 1,
-        "total_cont": 1172
-      },
-      {
-        "name": "有修正",
-        "count": 1,
-        "total_cont": 218
-      },
-      {
-        "name": "krkr",
-        "count": 1,
-        "total_cont": 153
-      },
-      {
-        "name": "ADV",
-        "count": 1,
-        "total_cont": 33396
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 74056
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 214374
-      }
-    ],
-    "infobox": [
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "ADV"
-      },
-      {
-        "key": "发行日期",
-        "value": "2012-07-27"
-      },
-      {
-        "key": "website",
-        "value": "http://www.torpedo-game.com/monogram/top.htm"
-      },
-      {
-        "key": "原画",
-        "value": "一河のあ"
-      },
-      {
-        "key": "剧本",
-        "value": "岡下誠"
-      },
-      {
-        "key": "开发",
-        "value": "モノグラム"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 0,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 0,
-        "6": 0,
-        "7": 0,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 0
-    },
-    "collection": {
-      "on_hold": 1,
-      "dropped": 2,
-      "wish": 2,
-      "collect": 2,
-      "doing": 0
-    },
-    "id": 222996,
-    "eps": 0,
-    "meta_tags": [
-      "ADV",
-      "PC",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": true,
-    "type": 4
-  },
-  {
-    "date": "2024-01-31",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/41/cf/478914_9XuBn.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/41/cf/478914_9XuBn.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/41/cf/478914_9XuBn.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/41/cf/478914_9XuBn.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/41/cf/478914_9XuBn.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/41/cf/478914_9XuBn.jpg",
-    "summary": "1000年を生きる聖樹のもとで繁栄する大国 \"ヴェンディール\"。\r\n\r\n聖樹がもたらす万能の力素『マナ』を産業に応用する事で\r\n人々は豊かに暮らしていた。\r\n\r\nしかし200年に一度、聖樹の力が衰えると\r\nその光の魔力で抑えられていた魔族たちが再び動き出し\r\n彼らの眷属である\"魔物\"が地上で暴れ始める。\r\n\r\n狩人の少女『ティルテ』は\r\nその体に眠る王家の血の導きで\r\n聖樹を救う使命を負った聖女『ディーナ』と出会い\r\n全てを斬り裂く力を持つ、伝説の『聖剣』を授けられる。\r\n\r\nそしてディーナはティルテに一つの願いを伝える。\r\n『聖剣の騎士として共に聖樹の元へ旅立ち、自分を護ってほしい』と…。",
-    "name": "堕ちゆく聖剣の姫騎士ティルテ",
-    "name_cn": "",
-    "tags": [
-      {
-        "name": "百合",
-        "count": 3,
-        "total_cont": 17390
-      },
-      {
-        "name": "EROGE",
-        "count": 1,
-        "total_cont": 2110
-      },
-      {
-        "name": "意外的燃",
-        "count": 1,
-        "total_cont": 1
-      },
-      {
-        "name": "黄油",
-        "count": 1,
-        "total_cont": 11660
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 83809
-      },
-      {
-        "name": "同人",
-        "count": 1,
-        "total_cont": 23420
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 230290
-      },
-      {
-        "name": "ARPG",
-        "count": 1,
-        "total_cont": 17768
-      }
-    ],
-    "infobox": [
-      {
-        "key": "别名",
-        "value": "堕ちゆく聖剣の騎士ティルテ"
-      },
-      {
-        "key": "平台",
-        "value": "PC"
-      },
-      {
-        "key": "游戏类型",
-        "value": "ARPG"
-      },
-      {
-        "key": "游戏引擎",
-        "value": "RPGツクールMZ"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "发行日期",
-        "value": "2024年1月31日"
-      },
-      {
-        "key": "售价",
-        "value": "1,430円 (全年齢版990円)"
-      },
-      {
-        "key": "原画",
-        "value": "みっぷ"
-      },
-      {
-        "key": "企画",
-        "value": "みっぷ"
-      },
-      {
-        "key": "开发",
-        "value": "M・I・P"
-      },
-      {
-        "key": "发行",
-        "value": "M・I・P"
-      },
-      {
-        "key": "备注",
-        "value": "AI一部利用"
-      },
-      {
-        "key": "DLsite",
-        "value": [
-          {
-            "v": "https://www.dlsite.com/maniax/work/=/product_id/RJ01136672.html"
-          },
-          {
-            "v": "https://www.dlsite.com/maniax/work/=/product_id/RJ01194656.html"
-          }
-        ]
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 6,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 0,
-        "5": 2,
-        "6": 3,
-        "7": 1,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 5.8
-    },
-    "collection": {
-      "on_hold": 0,
-      "dropped": 0,
-      "wish": 6,
-      "collect": 9,
-      "doing": 0
-    },
-    "id": 478914,
-    "eps": 0,
-    "meta_tags": [
-      "ARPG",
-      "PC",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": true,
-    "type": 4
-  },
-  {
-    "date": "2015-10-30",
-    "platform": "游戏",
-    "images": {
-      "small": "https://lain.bgm.tv/r/200/pic/cover/l/f2/f0/265176_7ZI14.jpg",
-      "grid": "https://lain.bgm.tv/r/100/pic/cover/l/f2/f0/265176_7ZI14.jpg",
-      "large": "https://lain.bgm.tv/pic/cover/l/f2/f0/265176_7ZI14.jpg",
-      "medium": "https://lain.bgm.tv/r/800/pic/cover/l/f2/f0/265176_7ZI14.jpg",
-      "common": "https://lain.bgm.tv/r/400/pic/cover/l/f2/f0/265176_7ZI14.jpg"
-    },
-    "image": "https://lain.bgm.tv/pic/cover/l/f2/f0/265176_7ZI14.jpg",
-    "summary": "“ルナティック・エンジェルズ”\r\n月の女神より力を授けられ、世界の安寧のために日夜戦う正義のヒロイン。\r\nそんな彼女たちに挑むのは、超人的な知謀によって世界征服を企む 悪の科学者・Dr.スネーク。\r\nだが、彼の知謀も常識を遙かに凌駕する聖戦使の敵ではなかった。\r\nしかし彼の執念は幾度の敗北でも潰えず、彼女たちの力の秘密 “ルナティック・ジェム” に迫る。\r\n\r\nそしてその力を利用し、美少女エンジェルたちの精神に干渉する方法を発見したのだった。\r\n「これを利用すれば、“人の心の中に溢れている欲望” を使い、正義のヒロインたちの心を “洗脳” することができるぞ！」\r\n\r\n今ここに、新たな力を得た男の淫らな逆襲が、女神に選ばれた正義のヒロインたちを追い詰めていくのだった……",
-    "name": "堕ちていく聖戦使ルナティックエンジェルズ ～ 私の淫らなココロ、覗かれたら……もぅ我慢できない……～",
-    "name_cn": "",
-    "tags": [
-      {
-        "name": "Galgame",
-        "count": 5,
-        "total_cont": 352699
-      },
-      {
-        "name": "拔作",
-        "count": 5,
-        "total_cont": 75321
-      },
-      {
-        "name": "シルキーズSAKURA",
-        "count": 3,
-        "total_cont": 139
-      },
-      {
-        "name": "熟女",
-        "count": 2,
-        "total_cont": 720
-      },
-      {
-        "name": "黑丝",
-        "count": 2,
-        "total_cont": 1175
-      },
-      {
-        "name": "盘1",
-        "count": 1,
-        "total_cont": 2040
-      },
-      {
-        "name": "2015-10",
-        "count": 1,
-        "total_cont": 80
-      },
-      {
-        "name": "ELF",
-        "count": 1,
-        "total_cont": 4283
-      },
-      {
-        "name": "PC",
-        "count": 1,
-        "total_cont": 225910
-      },
-      {
-        "name": "游戏",
-        "count": 1,
-        "total_cont": 81470
-      },
-      {
-        "name": "AVG",
-        "count": 1,
-        "total_cont": 55704
-      }
-    ],
-    "infobox": [
-      {
-        "key": "别名",
-        "value": [
-          {
-            "v": "Ochiteiku Sei Senshi Lunatic Angels Watashi no Midara na Kokoro, Nozokaretara... Mou Gaman Dekinai..."
-          }
-        ]
-      },
-      {
-        "key": "平台",
-        "value": [
-          {
-            "v": "PC"
-          }
-        ]
-      },
-      {
-        "key": "游戏类型",
-        "value": "スーパーヒロインを精神ハッキングで堕落させるAVG"
-      },
-      {
-        "key": "游玩人数",
-        "value": "1"
-      },
-      {
-        "key": "发行日期",
-        "value": "2015-10-30"
-      },
-      {
-        "key": "售价",
-        "value": "6,800円（税別）"
-      },
-      {
-        "key": "website",
-        "value": "http://www.silkyssakura.jp/game/otiluna/index.html"
-      },
-      {
-        "key": "开发",
-        "value": "シルキーズSAKURA"
-      },
-      {
-        "key": "原画",
-        "value": "ななお"
-      },
-      {
-        "key": "企画",
-        "value": "神門武士"
-      },
-      {
-        "key": "剧本",
-        "value": "中野一人"
-      }
-    ],
-    "rating": {
-      "rank": 0,
-      "total": 14,
-      "count": {
-        "1": 0,
-        "2": 0,
-        "3": 0,
-        "4": 4,
-        "5": 5,
-        "6": 1,
-        "7": 4,
-        "8": 0,
-        "9": 0,
-        "10": 0
-      },
-      "score": 5.4
-    },
-    "collection": {
-      "on_hold": 5,
-      "dropped": 4,
-      "wish": 21,
-      "collect": 22,
-      "doing": 0
-    },
-    "id": 265176,
-    "eps": 0,
-    "meta_tags": [
-      "AVG",
-      "PC",
-      "游戏"
-    ],
-    "volumes": 0,
-    "series": false,
-    "locked": false,
-    "nsfw": true,
     "type": 4
   }
 ]

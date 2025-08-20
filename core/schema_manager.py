@@ -1,5 +1,5 @@
 # core/schema_manager.py
-import asyncio  # <--- 【核心修正】补上这一行导入
+import asyncio
 import json
 import os
 import time
@@ -42,7 +42,10 @@ class NotionSchemaManager:
             logger.warn(f"加载 Notion schema 缓存失败: {e}")
             return False
 
-    def _save_schemas_to_cache(self):
+    # --- [核心修改 1] ---
+    # 将 _save_schemas_to_cache 重命名为 save_schemas_to_cache，使其成为公共方法
+    def save_schemas_to_cache(self):
+        """将当前内存中的数据库结构写入缓存文件。"""
         try:
             with open(SCHEMA_CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump(self._schemas, f, ensure_ascii=False, indent=2)
@@ -50,10 +53,13 @@ class NotionSchemaManager:
         except IOError as e:
             logger.error(f"保存 Notion schema 缓存失败: {e}")
 
+    # --- [修改结束] ---
+
     async def initialize_schema(self, db_id: str, db_name: str):
-        if db_id in self._schemas:
-            return
-        logger.system(f"正在获取 {db_name} 数据库的结构...")
+        # 这个方法现在只负责获取和更新内存中的schema，不再负责保存
+        # if db_id in self._schemas: # 移除这个检查，允许强制刷新
+        #     return
+        logger.system(f"正在获取或刷新 {db_name} 数据库的结构...")
         schema_data = await self._notion_client.get_database_schema(db_id)
         if not schema_data:
             logger.error(f"无法获取 {db_name} 的数据库结构，动态属性功能将受限。")
@@ -72,7 +78,11 @@ class NotionSchemaManager:
         logger.system("缓存无效或过期，正在从 Notion API 获取数据库结构...")
         tasks = [self.initialize_schema(db_id, db_name) for db_id, db_name in db_configs.items()]
         await asyncio.gather(*tasks)
-        self._save_schemas_to_cache()
+
+        # --- [核心修改 2] ---
+        # 更新对新公共方法的调用
+        self.save_schemas_to_cache()
+        # --- [修改结束] ---
 
     def get_property_type(self, db_id: str, prop_name: str) -> str | None:
         schema = self._schemas.get(db_id, {})

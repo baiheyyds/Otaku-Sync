@@ -80,17 +80,20 @@ async def init_context():
 
 
 async def close_context(context: dict):
+    # 终止所有后台任务
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    for task in tasks:
-        task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
+    if tasks:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
+    # 关闭HTTP客户端
     if context.get("async_client"):
         await context["async_client"].aclose()
         logger.system("HTTP 客户端已关闭。")
 
+    # 关闭Selenium驱动
     close_tasks = []
-    # 检查 driver 是否已创建
     if context.get("dlsite_driver"):
         close_tasks.append(asyncio.to_thread(context["dlsite_driver"].quit))
     if context.get("ggbases_driver"):
@@ -99,3 +102,13 @@ async def close_context(context: dict):
     if close_tasks:
         await asyncio.gather(*close_tasks)
         logger.system("Selenium 驱动池已关闭。")
+
+    # --- [核心修复] ---
+    # 在程序退出前，保存所有可能已更新的缓存
+    logger.system("正在保存所有缓存数据...")
+    if context.get("brand_cache") and context.get("brand_extra_info_cache"):
+        context["brand_cache"].save_cache(context["brand_extra_info_cache"])
+
+    if context.get("schema_manager"):
+        context["schema_manager"].save_schemas_to_cache()
+    # --- [修复结束] ---

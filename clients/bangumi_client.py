@@ -176,14 +176,8 @@ class BangumiClient:
             return processed
 
         async def _map_and_set_prop(key, value):
-
-            # --- [THE ULTIMATE FIX: The Gatekeeper] ---
-            # This is the new, absolute first step.
-            # If the mapper says this key is ignored, we stop immediately and silently.
             if self.mapper.is_ignored(key):
                 return
-            # --- [FIX ENDS] ---
-
             if not key or not value:
                 return
 
@@ -196,10 +190,7 @@ class BangumiClient:
             if notion_prop:
                 if notion_prop in processed:
                     current_value = processed[notion_prop]
-
-                    if isinstance(current_value, dict) and isinstance(value, dict):
-                        current_value.update(value)
-                    elif isinstance(current_value, list):
+                    if isinstance(current_value, list):
                         if isinstance(value, list):
                             current_value.extend(value)
                         else:
@@ -228,11 +219,18 @@ class BangumiClient:
                         if isinstance(sub_item, dict):
                             sub_key = sub_item.get("k")
                             sub_value = sub_item.get("v")
-                            if sub_key and sub_value is not None:
-                                combined_key = f"{bangumi_key}-{sub_key}"
-                                value_with_context = {sub_key: str(sub_value).strip()}
-                                await _map_and_set_prop(combined_key, value_with_context)
+                            if sub_key is not None and sub_value is not None:
+                                # [最终修复]
+                                # 对于 "链接" 这种key，我们直接使用其子键 (HP, Twitter) 作为映射键
+                                if bangumi_key == "链接":
+                                    await _map_and_set_prop(sub_key, str(sub_value).strip())
+                                # 对于 "别名" 等其他结构，我们组合父子键，但传递纯净的字符串值
+                                else:
+                                    combined_key = f"{bangumi_key}-{sub_key}"
+                                    clean_value = str(sub_value).strip()
+                                    await _map_and_set_prop(combined_key, clean_value)
                 else:
+                    # 处理简单的值列表 (e.g., value: [{"v": "value1"}, {"v": "value2"}])
                     v_only_values = []
                     for sub_item in bangumi_value:
                         value_to_add = None
@@ -245,6 +243,7 @@ class BangumiClient:
                     if v_only_values:
                         await _map_and_set_prop(bangumi_key, v_only_values)
             else:
+                # 处理简单的键值对 (e.g., value: "some_string")
                 await _map_and_set_prop(bangumi_key, str(bangumi_value).strip())
 
         return processed
@@ -257,41 +256,53 @@ class BangumiClient:
         char_list_with_actors = r.json()
         if not char_list_with_actors:
             return []
+
         tasks = [
             self.client.get(f"https://api.bgm.tv/v0/characters/{ch['id']}", headers=self.headers)
             for ch in char_list_with_actors
         ]
         responses = await asyncio.gather(*tasks, return_exceptions=True)
+
         characters = []
         for char_summary, detail_resp in zip(char_list_with_actors, responses):
             if isinstance(detail_resp, Exception) or detail_resp.status_code != 200:
                 continue
+
             detail = detail_resp.json()
             char_url = f"https://bangumi.tv/character/{detail['id']}"
+
+            # 1. [关键修复] 完全依赖 _process_infobox 的处理结果
             infobox_data = await self._process_infobox(
                 detail.get("infobox", []), CHARACTER_DB_ID, char_url
             )
+
             voice_actor = (
                 char_summary["actors"][0].get("name") if char_summary.get("actors") else None
             )
-            aliases = {detail.get("name_cn")} if detail.get("name_cn") else set()
-            if "别名" in infobox_data:
-                alias_value = infobox_data["别名"]
-                if isinstance(alias_value, str):
-                    aliases.update([a.strip() for a in alias_value.split(",")])
-                elif isinstance(alias_value, list):
-                    aliases.update([a.strip() for a in alias_value])
+
+            # 2. [关键修复] 从 infobox_data 中获取别名，不再手动拼接
+            aliases = infobox_data.pop("别名", [])  # 使用 pop 获取别名，并从字典中移除，避免重复
+            if isinstance(aliases, str):  # 确保别名是列表
+                aliases = [a.strip() for a in aliases.split(",")]
+
+            name_cn = detail.get("name_cn")
+            if name_cn and name_cn not in aliases:
+                aliases.append(name_cn)
+
             character_data = {
                 "name": detail["name"],
                 "avatar": detail.get("images", {}).get("large", ""),
                 "summary": detail.get("summary", "").strip(),
-                "url": f"https://bangumi.tv/character/{detail['id']}",
+                "url": char_url,
                 "aliases": list(filter(None, aliases)),
             }
             if voice_actor:
                 character_data["声优"] = voice_actor
+
+            # 3. [关键修复] 合并处理好的 infobox 数据
             character_data.update(infobox_data)
             characters.append(character_data)
+
         return characters
 
     async def _character_exists(self, url: str) -> str | None:
@@ -407,6 +418,8 @@ class BangumiClient:
         logger.success("Bangumi 角色信息同步与关联完成。")
 
     async def fetch_brand_info_from_bangumi(self, brand_name: str) -> dict | None:
+        """[已重构] 搜索品牌，找到ID后调用 fetch_person_by_id 获取完整信息。"""
+
         async def search_brand(keyword: str):
             logger.info(f"[Bangumi] 正在搜索品牌关键词: {keyword}")
             url = "https://api.bgm.tv/v0/search/persons"
@@ -415,34 +428,23 @@ class BangumiClient:
             if resp.status_code != 200:
                 logger.error(f"[Bangumi] 品牌搜索失败，状态码: {resp.status_code}")
                 return []
-            results = resp.json().get("data", [])
-            logger.info(f"搜索到 {len(results)} 个结果")
-            return results
+            return resp.json().get("data", [])
 
         primary_name = extract_primary_brand_name(brand_name)
-        best_match, best_score = None, 0
         results = await search_brand(primary_name or brand_name)
+        if not results:
+            return None
+
+        candidates = []
         for r in results:
-            candidate_name = r.get("name", "")
-            infobox = r.get("infobox", [])
-            aliases = []
+            names = [r.get("name", "")]
+            # 尝试从infobox中提取别名以提高匹配准确率
+            for item in r.get("infobox", []):
+                if item.get("key") == "别名" and isinstance(item.get("value"), list):
+                    names.extend(
+                        [v["v"] for v in item["value"] if isinstance(v, dict) and "v" in v]
+                    )
 
-            # --- 核心修复：在这里为 get_notion_prop 添加 BRAND_DB_ID 参数 ---
-            aliases_value = next(
-                (
-                    item.get("value")
-                    for item in infobox
-                    if self.mapper.get_notion_prop(item.get("key"), BRAND_DB_ID) == "别名"
-                ),
-                None,
-            )
-            # --- 修复结束 ---
-
-            if isinstance(aliases_value, str):
-                aliases = [a.strip() for a in aliases_value.split(",")]
-            elif isinstance(aliases_value, list):
-                aliases = [str(v.get("v", v)) for v in aliases_value if v]
-            names = [candidate_name] + aliases
             valid_names = [n for n in names if n and isinstance(n, str)]
             if not valid_names:
                 continue
@@ -450,40 +452,59 @@ class BangumiClient:
                 difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio()
                 for n in valid_names
             )
-            if score > best_score:
-                best_score, best_match = score, r
+            candidates.append((score, r))
+
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        best_score, best_match = candidates[0] if candidates else (0, None)
+
         if not best_match or best_score < 0.7:
             logger.warn(f"未找到相似度高于阈值的品牌（最高: {best_score:.2f})")
             return None
+
+        person_id = best_match.get("id")
+        if not person_id:
+            logger.warn("最佳匹配项缺少ID，无法获取详细信息。")
+            return None
+
         logger.success(
-            f"[Bangumi] 最终匹配品牌: {best_match.get('name')} (ID: {best_match.get('id')}, 相似度: {best_score:.2f})"
+            f"[Bangumi] 搜索匹配成功: {best_match.get('name')} (ID: {person_id}, 相似度: {best_score:.2f})"
         )
-        brand_url = f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
-        infobox_data = await self._process_infobox(
-            best_match.get("infobox", []), BRAND_DB_ID, brand_url
-        )
-        # 这里的 infobox_data 已经包含了所有动态映射的字段
-        brand_info = infobox_data
+        return await self.fetch_person_by_id(str(person_id))
 
-        # --- 将 Bangumi 的特定字段统一到我们的内部表示 ---
-        brand_info["summary"] = best_match.get("summary", "")
-        brand_info["icon"] = best_match.get("img")  # 'img' -> 'icon'
-        brand_info["bangumi_url"] = (
-            f"https://bgm.tv/person/{best_match['id']}" if best_match.get("id") else None
-        )
+    async def fetch_person_by_id(self, person_id: str) -> dict | None:
+        """[已重构] 通过 Person ID 直接获取并处理厂商/个人信息，作为唯一的数据处理源。"""
+        url = f"https://api.bgm.tv/v0/persons/{person_id}"
+        logger.info(f"[Bangumi] 正在通过 ID 直接获取品牌信息: {person_id}")
+        try:
+            resp = await self.client.get(url, headers=self.headers)
+            if resp.status_code != 200:
+                logger.error(
+                    f"[Bangumi] 品牌信息获取失败，ID: {person_id}, 状态码: {resp.status_code}"
+                )
+                return None
 
-        # 将 infobox 中的 "官网" 键统一为 'homepage'
-        if "官网" in brand_info:
-            brand_info["homepage"] = brand_info.pop("官网")
+            person_data = resp.json()
+            person_url = f"https://bgm.tv/person/{person_id}"
 
-        # 将 infobox 中的 "Twitter" 键统一为 'twitter'
-        twitter_handle = brand_info.get("Twitter")
-        if isinstance(twitter_handle, str) and twitter_handle.startswith("@"):
-            brand_info["twitter"] = f"https://twitter.com/{twitter_handle[1:]}"
-        elif twitter_handle:  # 如果不是@开头的，可能就是完整链接
-            brand_info["twitter"] = twitter_handle
+            # 1. 完全依赖 _process_infobox 来处理所有动态字段
+            infobox_data = await self._process_infobox(
+                person_data.get("infobox", []), BRAND_DB_ID, person_url
+            )
 
-        return brand_info
+            # 2. 组装最终结果
+            brand_info = {
+                "summary": person_data.get("summary", ""),
+                "icon": person_data.get("images", {}).get("large"),
+                "bangumi_url": person_url,
+            }
+            brand_info.update(infobox_data)
+
+            logger.success(f"[Bangumi] 已成功获取并处理品牌: {person_data.get('name')}")
+            return brand_info
+
+        except Exception as e:
+            logger.error(f"[Bangumi] 通过ID获取品牌信息时发生异常: {e}")
+            return None
 
     async def fetch_and_prepare_character_data(self, character_id: str) -> dict | None:
         """获取并处理单个角色的所有 Bangumi 数据，返回一个可直接用于更新的字典。"""

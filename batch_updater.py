@@ -10,7 +10,7 @@ from config.config_token import GAME_DB_ID, BRAND_DB_ID, CHARACTER_DB_ID
 from config.config_fields import FIELDS
 
 # --- 可配置项 ---
-CONCURRENCY_LIMIT = 4
+CONCURRENCY_LIMIT = 8
 
 DB_CONFIG = {
     "games": {"id": GAME_DB_ID, "name": "游戏数据库", "bangumi_url_prop": FIELDS["bangumi_url"]},
@@ -42,7 +42,6 @@ async def process_item(context, page, db_key, semaphore, interaction_lock):
     bangumi_client = context["bangumi"]
 
     page_id = page["id"]
-    # [已修复] get_page_title 现在是通用的，可以正确处理任何数据库
     page_title = notion_client.get_page_title(page)
     config = DB_CONFIG[db_key]
 
@@ -55,38 +54,38 @@ async def process_item(context, page, db_key, semaphore, interaction_lock):
             if not bangumi_id:
                 return
 
-            # 使用交互锁来确保任何需要用户输入的 Bangumi 操作是串行的
             async with interaction_lock:
                 if db_key == "games":
                     bangumi_data = await bangumi_client.fetch_game(bangumi_id)
                     if not bangumi_data:
                         raise ValueError("从Bangumi获取游戏数据失败")
 
-                    # 在所有交互和 schema 变更可能发生后，获取最新版本的 schema
                     schema = context["schema_manager"].get_schema(config["id"])
-
                     await notion_client.create_or_update_game(
                         properties_schema=schema, page_id=page_id, **bangumi_data
                     )
 
                 elif db_key == "brands":
-                    # [已修复] 现在 page_title 是正确的厂商名
-                    brand_name = page_title
-                    bangumi_data = await bangumi_client.fetch_brand_info_from_bangumi(brand_name)
+                    # [关键修复] 使用 bangumi_id 直接获取数据，而不是搜索
+                    bangumi_data = await bangumi_client.fetch_person_by_id(bangumi_id)
                     if not bangumi_data:
+                        logger.warn(
+                            f"无法通过ID {bangumi_id} 获取品牌 '{page_title}' 的信息，已跳过。"
+                        )
                         return
-                    # create_or_update_brand 内部已经处理好了 schema，无需手动传入
+
+                    brand_name = page_title
+                    # [关键修复] 传入已知的 page_id，避免重复搜索，提高效率
                     await notion_client.create_or_update_brand(
                         brand_name, page_id=page_id, **bangumi_data
                     )
 
                 elif db_key == "characters":
-                    # [已优化] 调用封装好的新方法，代码更简洁，职责更清晰
                     char_data = await bangumi_client.fetch_and_prepare_character_data(bangumi_id)
                     if not char_data:
                         raise ValueError(f"准备角色 {bangumi_id} 数据失败")
 
-                    warned_keys = set()  # 每个角色使用独立的警告集合
+                    warned_keys = set()
                     await bangumi_client.create_or_update_character(char_data, warned_keys)
 
         except Exception as e:

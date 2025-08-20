@@ -385,9 +385,10 @@ class NotionClient:
             logger.error(f"提交游戏失败: {title}")
             return None
 
-    async def create_or_update_brand(self, brand_name, **info):
-        existing = await self.search_brand(brand_name)
-        page_id = existing[0]["id"] if existing else None
+    async def create_or_update_brand(self, brand_name, page_id=None, **info):
+        if not page_id:
+            existing = await self.search_brand(brand_name)
+            page_id = existing[0]["id"] if existing else None
 
         schema_data = await self.get_database_schema(self.brand_db_id)
         if not schema_data:
@@ -395,12 +396,7 @@ class NotionClient:
             return None
         properties_schema = schema_data.get("properties", {})
 
-        # 准备一个字典，用来存放所有要提交给 Notion 的数据
-        # 键是 Notion 属性名，值是对应的数据
         data_to_build = {}
-
-        # 1. 首先处理标准化的、预先定义好的字段
-        # 这个映射将我们内部的 key (如 'official_url') 转换为 Notion 的属性名
         standard_key_map = {
             "official_url": FIELDS["brand_official_url"],
             "icon_url": FIELDS["brand_icon"],
@@ -408,27 +404,22 @@ class NotionClient:
             "bangumi_url": FIELDS["brand_bangumi_url"],
             "twitter": FIELDS["brand_twitter"],
             "ci_en_url": FIELDS["brand_cien"],
+            "icon": FIELDS["brand_icon"],  # 兼容旧key
         }
 
         for info_key, notion_prop in standard_key_map.items():
             if info_key in info and info[info_key]:
                 data_to_build[notion_prop] = info[info_key]
 
-        # 2. 处理那些动态添加的、key 和 Notion 属性名一致的字段
-        # 比如 "成立时间", "公司地址", "别名" 等
         for key, value in info.items():
-            # 如果 key 已经是 Notion 属性名 (且不在上面的 map 里)，就直接用
             if key not in standard_key_map and key in properties_schema:
                 if value:
                     data_to_build[key] = value
 
-        # 3. 不要忘记最重要的主标题
         data_to_build[FIELDS["brand_name"]] = brand_name
 
-        # 4. 动态构建最终的 props payload
         props = {}
         for notion_prop_name, value in data_to_build.items():
-            # 跳过空值和不存在的属性
             if value is None or notion_prop_name not in properties_schema:
                 if notion_prop_name not in properties_schema:
                     logger.warn(f"属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
@@ -436,13 +427,26 @@ class NotionClient:
 
             prop_type = properties_schema.get(notion_prop_name, {}).get("type")
 
-            # 根据属性类型格式化数据
             if prop_type == "title":
                 props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
+
+            # [关键修复] 使用与游戏数据库相同的、更健壮的 rich_text 处理逻辑
             elif prop_type == "rich_text":
-                # 如果值是列表（比如别名），就用 '、' 连接
-                val_str = "、".join(value) if isinstance(value, (list, set)) else str(value)
-                props[notion_prop_name] = {"rich_text": [{"text": {"content": val_str[:2000]}}]}
+                content = ""
+                if isinstance(value, (list, set)):
+                    # 格式化列表
+                    formatted_values = [f"🔹 {str(item)}" for item in value if item]
+                    content = "\n".join(formatted_values)
+                elif isinstance(value, dict):
+                    # 格式化字典
+                    lines = [f"🔹 {k}: {v}" for k, v in value.items() if v]
+                    content = "\n".join(lines)
+                else:
+                    content = str(value)
+
+                if content:
+                    props[notion_prop_name] = {"rich_text": [{"text": {"content": content[:2000]}}]}
+
             elif prop_type == "url":
                 props[notion_prop_name] = {"url": str(value)}
             elif prop_type == "files":
@@ -453,7 +457,6 @@ class NotionClient:
                 if str(value).strip():
                     props[notion_prop_name] = {"select": {"name": str(value)}}
 
-        # 发送请求 (这部分逻辑不变)
         if not props:
             logger.warn(f"没有可为品牌 '{brand_name}' 更新的数据，跳过。")
             return page_id if page_id else None

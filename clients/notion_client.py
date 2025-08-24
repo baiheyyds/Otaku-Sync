@@ -348,24 +348,37 @@ class NotionClient:
                 if value:
                     props[notion_prop_name] = {"relation": [{"id": str(value)}]}
 
+            # --- [最终修复] ---
+            # 为“标签”属性添加豁免，防止其被错误分割
             elif prop_type == "multi_select":
                 options = []
                 values_to_process = value if isinstance(value, list) else [value]
 
-                for item in values_to_process:
-                    if isinstance(item, str):
-                        split_items = [
-                            v.strip() for v in re.split(r"[、・,／/;]+", item) if v.strip()
-                        ]
-                        options.extend(split_items)
-                    elif item:
-                        options.append(str(item))
+                # 关键判断：如果当前属性是“标签”，则不进行分割处理
+                if notion_prop_name == FIELDS["tags"]:
+                    # 直接将列表中的每个项目（完整的标签）添加到options
+                    for item in values_to_process:
+                        if item:  # 过滤空值
+                            options.append(str(item))
+                else:
+                    # 对于所有其他 multi_select 属性（如声优、原画），执行原有的分割逻辑
+                    for item in values_to_process:
+                        if isinstance(item, str):
+                            # 这就是分割问题的源头
+                            split_items = [
+                                v.strip() for v in re.split(r"[、・,／/;]+", item) if v.strip()
+                            ]
+                            options.extend(split_items)
+                        elif item:
+                            options.append(str(item))
 
                 if options:
+                    # 去重并构建Notion API需要的格式
                     unique_options = list(dict.fromkeys(options))
                     props[notion_prop_name] = {
                         "multi_select": [{"name": str(opt)} for opt in unique_options]
                     }
+            # --- [修复结束] ---
 
         url = (
             f"https://api.notion.com/v1/pages/{page_id}"

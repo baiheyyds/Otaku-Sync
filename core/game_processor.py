@@ -3,7 +3,9 @@ import re
 
 from core.name_splitter import name_splitter  # <--- 导入新工具
 from utils import logger
-from utils.tag_mapping import map_and_translate_tags
+
+# 核心修复：直接从这里导入需要的函数
+from utils.tag_mapping import map_tags, load_json, TAG_JP_PATH, TAG_GGBASE_PATH
 
 
 async def process_and_sync_game(
@@ -14,7 +16,7 @@ async def process_and_sync_game(
     brand_id,
     ggbases_client,
     user_keyword,
-    notion_game_schema, 
+    notion_game_schema,
     interactive=False,
     ggbases_detail_url=None,
     ggbases_info=None,
@@ -56,16 +58,30 @@ async def process_and_sync_game(
         merged["大小"] = game_size
     # --- 修复结束 ---
 
-    # ... (后续所有代码不变) ...
-    dlsite_tags = map_and_translate_tags(detail.get("标签", []), source="dlsite")
-    ggbases_tags = map_and_translate_tags(ggbases_info.get("标签", []), source="ggbase")
-    bangumi_tags_raw = merged.get("标签", [])
-    bangumi_tags = []
-    if isinstance(bangumi_tags_raw, str):
-        bangumi_tags = [t.strip() for t in bangumi_tags_raw.split(",")]
-    elif isinstance(bangumi_tags_raw, list):
-        bangumi_tags = bangumi_tags_raw
-    merged["标签"] = sorted(list(set(dlsite_tags + ggbases_tags + bangumi_tags)))
+    # --- [最终修复] 修正标签处理逻辑：先翻译，再合并，最后统一映射 ---
+
+    # 1. 单独翻译来自不同来源的标签
+
+    # 翻译 DLsite 的日文标签
+    tag_jp_to_cn_map = load_json(TAG_JP_PATH)
+    dlsite_raw_tags = detail.get("标签", [])
+    dlsite_translated_tags = [tag_jp_to_cn_map.get(tag, tag) for tag in dlsite_raw_tags]
+
+    # "翻译" GGBases 的标签（这里主要是为了统一格式或修正）
+    tag_ggbase_map = load_json(TAG_GGBASE_PATH)
+    ggbases_raw_tags = ggbases_info.get("标签", [])
+    ggbases_translated_tags = [tag_ggbase_map.get(tag, tag) or tag for tag in ggbases_raw_tags]
+
+    # 2. 将所有翻译后的标签合并到一个列表中
+    all_translated_tags = dlsite_translated_tags + ggbases_translated_tags
+
+    # 3. 对合并后的完整列表进行统一的归一化映射
+    #    map_tags 函数会根据 tag_mapping_dict.json 的规则进行合并和去重
+    final_mapped_tags = map_tags(all_translated_tags)
+
+    merged["标签"] = final_mapped_tags
+    # --- 修复结束 ---
+
     merged["title"] = bangumi_info.get("title") or detail.get("标题") or game.get("title")
     merged["title_cn"] = bangumi_info.get("name_cn") or ""
     merged["封面图链接"] = (
@@ -80,8 +96,6 @@ async def process_and_sync_game(
         merged["summary"] = bangumi_info.get("summary")
 
     page_id = await notion_client.create_or_update_game(
-        properties_schema=notion_game_schema,  
-        page_id=selected_similar_page_id,
-        **merged
+        properties_schema=notion_game_schema, page_id=selected_similar_page_id, **merged
     )
     return page_id

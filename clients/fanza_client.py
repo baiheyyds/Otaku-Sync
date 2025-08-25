@@ -19,7 +19,7 @@ class FanzaClient:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
         }
 
-    async def search(self, keyword: str, limit=30):  # 增加 limit
+    async def search(self, keyword: str, limit=30):
         logger.info(f"[Fanza] 开始搜索: {keyword}")
         try:
             encoded_keyword = quote(keyword.encode("utf-8", errors="ignore"))
@@ -43,11 +43,8 @@ class FanzaClient:
                 title_tag = li.select_one(".component-legacy-productTile__title")
                 price_tag = li.select_one(".component-legacy-productTile__price")
                 url_tag = li.select_one("a.component-legacy-productTile__detailLink")
-
-                # --- 核心修复 1: 提取类型信息 ---
                 type_tag = li.select_one(".component-legacy-productTile__relatedInfo")
                 item_type = type_tag.get_text(strip=True) if type_tag else "未知"
-                # --- 修复结束 ---
 
                 if not (title_tag and url_tag and url_tag.has_attr("href")):
                     continue
@@ -66,11 +63,8 @@ class FanzaClient:
                     }
                 )
 
-            # --- 核心修复 2: 添加游戏内容过滤 ---
             initial_count = len(results)
-            # 只保留类型中包含 "ゲーム" (游戏) 的条目
             filtered_results = [item for item in results if "ゲーム" in item.get("类型", "")]
-            # 排除明确不想要的关键词
             exclude_keywords = ["音楽", "主題歌"]
             filtered_results = [
                 item
@@ -81,7 +75,6 @@ class FanzaClient:
             logger.success(
                 f"[Fanza] 找到 {initial_count} 个原始结果，筛选后剩余 {final_count} 个游戏相关结果。"
             )
-            # --- 修复结束 ---
 
             return filtered_results
 
@@ -90,7 +83,6 @@ class FanzaClient:
             return []
 
     async def get_game_detail(self, url: str) -> dict:
-        # ... 此方法无需改动 ...
         logger.info(f"[Fanza] 正在抓取详情: {url}")
         try:
             resp = await self.client.get(
@@ -119,8 +111,23 @@ class FanzaClient:
                     )
 
                 if release_header := find_in_bottom_table("ダウンロード版配信開始日"):
-                    if value_div := release_header.find_next_sibling("div"):
-                        details["发售时间"] = value_div.get_text(strip=True)
+                    if value_div := release_header.find_next_sibling(
+                        "div", class_="contentsDetailBottom__tableDataRight"
+                    ):
+                        date_span = value_div.select_one(
+                            ".item-info__release-date__content__date span"
+                        )
+                        date_text = ""
+                        if date_span:
+                            date_text = date_span.get_text(strip=True)
+                        else:
+                            date_text = value_div.get_text(strip=True)
+
+                        # --- [最终修复] ---
+                        # 确保使用与其他客户端一致的键名 "发售日"
+                        if date_text:
+                            details["发售日"] = date_text
+                        # --- [修复结束] ---
 
                 def extract_list(header_text: str) -> list[str]:
                     header_div = find_in_bottom_table(header_text)

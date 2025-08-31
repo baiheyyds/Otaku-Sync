@@ -198,6 +198,7 @@ async def run_single_game_flow(context: dict):
             user_keyword=original_keyword,
             # 2. 从 context 中取出 schema_manager，并用 GAME_DB_ID 获取游戏数据库的结构
             notion_game_schema=context["schema_manager"]._schemas[GAME_DB_ID],
+            tag_manager=context["tag_manager"],  # <--- 在这里添加 tag_manager
             ggbases_detail_url=ggbases_url,
             ggbases_info=ggbases_info,
             bangumi_info=bangumi_game_info,

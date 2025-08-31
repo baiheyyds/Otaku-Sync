@@ -12,6 +12,7 @@ from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
+from utils.tag_manager import TagManager  # <--- 1. 添加此行导入
 from utils import logger
 from utils.similarity_check import hash_titles, load_cache_quick, save_cache
 
@@ -56,6 +57,7 @@ async def init_context():
     dlsite = DlsiteClient(async_client)
     fanza = FanzaClient(async_client)
     ggbases = GGBasesClient(async_client)
+    tag_manager = TagManager()  # <--- 2. 添加此行，创建实例
 
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
@@ -76,6 +78,7 @@ async def init_context():
         "brand_extra_info_cache": brand_extra_info_cache,
         "cached_titles": cached_titles,
         "schema_manager": schema_manager,
+        "tag_manager": tag_manager,  # <--- 3. 将实例添加到上下文中
     }
 
 

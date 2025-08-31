@@ -15,3 +15,9 @@ cache/
 # 忽略虚拟环境文件夹
 venv/
 .venv/
+
+all_tags.txt
+unused_tags.txt
+bangumi_search_results.json
+bangumi_search.py
+generate_requirements.py

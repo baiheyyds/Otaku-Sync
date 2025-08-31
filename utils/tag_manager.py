@@ -50,13 +50,12 @@ class TagManager:
             logger.error(f"保存映射文件失败 {os.path.basename(path)}: {e}")
 
     def _build_unified_reverse_map(self) -> Dict[str, str]:
-        # ... 此核心方法无变化，它依然是智能检测的基础 ...
+        # ... 此方法无变化，它依然是知识库的基础 ...
         unified_map = {}
         for main_tag, keywords in self._mapping_dict.items():
             unified_map[main_tag.strip().lower()] = main_tag
             for keyword in keywords:
                 unified_map[keyword.strip().lower()] = main_tag
-
         all_translation_values = list(self._jp_to_cn_map.values()) + list(
             self._fanza_to_cn_map.values()
         )
@@ -65,12 +64,47 @@ class TagManager:
                 unified_map[translated_tag.strip().lower()] = translated_tag
         return unified_map
 
-    # --- 【重构】第一步：只负责翻译的函数 ---
+    # --- 【核心升级】寻找最佳匹配候选项的智能算法 ---
+    def _find_best_merge_candidate(self, concept: str) -> Optional[str]:
+        """
+        使用优先级策略寻找最佳的合并候选项。
+        优先级: 完全匹配 > 组件匹配 > 子串匹配。
+        """
+        # 优先级 1: 在知识库中完全匹配
+        if candidate := self._unified_reverse_map.get(concept.lower()):
+            return candidate
+
+        unique_known_concepts = set(self._unified_reverse_map.values())
+
+        # 优先级 2: 组件匹配
+        component_matches = []
+        for known_concept in unique_known_concepts:
+            # 按 '/' 分割，处理 '学校/校园' 这种情况
+            parts = [p.strip() for p in known_concept.split("/")]
+            if concept in parts:
+                component_matches.append(known_concept)
+
+        if component_matches:
+            # 如果有多个组件匹配，选择最短的那个（通常更相关）
+            # 例如 "学校" 匹配 "学校/校园" 和 "大学/学校"，会优先选前者
+            return min(component_matches, key=len)
+
+        # 优先级 3: 子串匹配 (作为最后的备用方案)
+        substring_matches = []
+        for known_concept in unique_known_concepts:
+            if concept in known_concept:
+                substring_matches.append(known_concept)
+
+        if substring_matches:
+            # 同样，选择最短的匹配
+            return min(substring_matches, key=len)
+
+        return None
+
+    # --- 【重构】第一步：只负责翻译的函数 (无变化) ---
     async def _get_translation_interactively(
         self, tag: str, source_map: dict, map_path: str, source_name: str
     ) -> str | None:
-        """只负责获取新标签的翻译，并更新源翻译文件。"""
-
         def get_input():
             logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
             print("  > 请输入对应的中文翻译。")
@@ -78,7 +112,6 @@ class TagManager:
             return input(f"  翻译为: ").strip()
 
         translation = await asyncio.to_thread(get_input)
-
         if translation.lower() == "s":
             logger.info(f"已跳过标签 '{tag}'。")
             return None
@@ -90,21 +123,15 @@ class TagManager:
         if not translation:
             logger.warn("输入为空，已跳过。")
             return None
-
-        # 保存纯粹的翻译
         source_map[tag] = translation
         self._save_map(map_path, source_map)
         logger.success(f"已添加新翻译: '{tag}' -> '{translation}'")
         return translation
 
-    # --- 【重构】第二步：只负责合并的函数 ---
+    # --- 【重构】第二步：只负责合并的函数 (现在使用新算法) ---
     async def _handle_new_concept_interactively(self, concept: str) -> str:
-        """当遇到一个新的中文概念时，触发此函数来决定是否合并。"""
-        candidate = self._unified_reverse_map.get(concept.lower())
-        for known_concept in self._unified_reverse_map.values():
-            if concept in known_concept:
-                candidate = known_concept
-                break
+        # 使用新的智能算法寻找最佳候选项
+        candidate = self._find_best_merge_candidate(concept)
 
         if candidate and candidate != concept:
 
@@ -126,17 +153,14 @@ class TagManager:
                 logger.success(f"操作成功！已将概念 '{concept}' 合并到 '{candidate}'。")
                 return candidate
 
-        # 如果没有候选项，或用户选择不合并，则返回概念本身
         return concept
 
+    # --- process_tags 主流程 (无变化) ---
     async def process_tags(
         self, dlsite_tags: List[str], fanza_tags: List[str], ggbases_tags: List[str]
     ) -> List[str]:
-        """【重构】处理所有来源标签的主流程，清晰地分为翻译和合并两个阶段。"""
-        async with self._interaction_lock:  # 全局锁，保证交互不冲突
+        async with self._interaction_lock:
             translated_tags = []
-
-            # --- 阶段一：翻译 ---
             source_maps = [
                 (dlsite_tags, self._jp_to_cn_map, TAG_JP_TO_CN_PATH, "DLsite"),
                 (fanza_tags, self._fanza_to_cn_map, TAG_FANZA_TO_CN_PATH, "Fanza"),
@@ -145,7 +169,6 @@ class TagManager:
                 for tag in tags:
                     if tag in self._ignore_set:
                         continue
-
                     translation = source_map.get(tag)
                     if not translation:
                         translation = await self._get_translation_interactively(
@@ -154,26 +177,21 @@ class TagManager:
                     if translation:
                         translated_tags.append(translation)
 
-            # 添加 GGBases 标签
             for tag in ggbases_tags:
                 translated = self._ggbase_map.get(tag, tag) or tag
                 if translated:
                     translated_tags.append(translated)
 
-            # --- 阶段二：合并 ---
             final_tags_set: Set[str] = set()
             for concept in translated_tags:
                 concept = concept.strip()
                 if not concept:
                     continue
 
-                # 检查这个概念是否已经有合并规则
                 main_tag = self._unified_reverse_map.get(concept.lower())
 
                 if not main_tag:
-                    # 如果没有，这是一个新概念，触发合并处理流程
                     main_tag = await self._handle_new_concept_interactively(concept)
-                    # 处理后，实时更新知识库，为本次运行的后续标签服务
                     self._unified_reverse_map = self._build_unified_reverse_map()
 
                 final_tags_set.add(main_tag)

@@ -30,6 +30,7 @@ class GGBasesClient:
         self.selenium_timeout = 5
 
     def set_driver(self, driver):
+        # ... 此方法无变化 ...
         self.driver = driver
         stealth(
             self.driver,
@@ -41,11 +42,7 @@ class GGBasesClient:
             fix_hairline=True,
         )
 
-    # --- 核心改动：方法名改回原来的，但功能是返回列表 ---
     async def choose_or_parse_popular_url_with_requests(self, keyword: str) -> list:
-        """
-        此方法不再自动选择，而是搜索并返回所有候选结果的列表。
-        """
         logger.info(f"[GGBases] 正在搜索: {keyword}")
         try:
             encoded = urllib.parse.quote(keyword)
@@ -61,17 +58,37 @@ class GGBasesClient:
                 detail_link = row.find("a", href=lambda x: x and "/view.so?id=" in x)
                 if not detail_link:
                     continue
+
                 url = urllib.parse.urljoin(self.BASE_URL, detail_link["href"])
+
+                all_tds = row.find_all("td")
                 title = (
-                    row.find_all("td")[1].get_text(separator=" ", strip=True)
-                    if len(row.find_all("td")) > 1
-                    else "无标题"
+                    all_tds[1].get_text(separator=" ", strip=True) if len(all_tds) > 1 else "无标题"
                 )
+
                 popularity = 0
                 pop_a = row.select_one("a.l-a span")
                 if pop_a and pop_a.get_text(strip=True).isdigit():
                     popularity = int(pop_a.get_text(strip=True))
-                candidates.append({"title": title, "url": url, "popularity": popularity})
+
+                # --- 【核心修复】从搜索结果页捕获文件大小 ---
+                size = None
+                # 文件大小通常在第三个 <td> 元素中
+                if len(all_tds) > 2:
+                    size_text = all_tds[2].get_text(strip=True)
+                    # 简单的验证，确保它看起来像文件大小
+                    if size_text and size_text[-1].upper() in "BKMGT":
+                        size = size_text
+                # --- [修复结束] ---
+
+                candidates.append(
+                    {
+                        "title": title,
+                        "url": url,
+                        "popularity": popularity,
+                        "容量": size,  # 将捕获到的大小存入"容量"键
+                    }
+                )
 
             if not candidates:
                 logger.warn("[GGBases] 未找到任何结果")
@@ -87,6 +104,7 @@ class GGBasesClient:
             logger.error(f"[GGBases] (requests) 解析搜索结果失败: {e}")
             return []
 
+    # --- 后续所有方法 (_normalize_url, _extract_*, get_info_by_url_with_selenium) 均无任何变化 ---
     async def get_info_by_url_with_selenium(self, detail_url):
         if not self.driver:
             raise RuntimeError("GGBasesClient的专属driver未设置。")

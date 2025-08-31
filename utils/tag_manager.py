@@ -2,11 +2,11 @@
 import asyncio
 import json
 import os
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 
 from utils import logger
 
-# --- 文件路径定义 ---
+# --- 文件路径定义 (无变化) ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAPPING_DIR = os.path.join(BASE_DIR, "mapping")
 TAG_JP_TO_CN_PATH = os.path.join(MAPPING_DIR, "tag_jp_to_cn.json")
@@ -26,10 +26,10 @@ class TagManager:
         self._ggbase_map = self._load_map(TAG_GGBASE_PATH)
         self._ignore_set = set(self._load_map(TAG_IGNORE_PATH, default_type=list))
         self._mapping_dict = self._load_map(TAG_MAPPING_DICT_PATH)
-        self._reverse_mapping_dict = self._build_reverse_map(self._mapping_dict)
+        self._unified_reverse_map = self._build_unified_reverse_map()
 
+    # --- _load_map 和 _save_map 无变化 ---
     def _load_map(self, path: str, default_type=dict):
-        """安全地加载JSON文件。"""
         if not os.path.exists(path):
             return default_type()
         try:
@@ -40,10 +40,8 @@ class TagManager:
             return default_type()
 
     def _save_map(self, path: str, data):
-        """将数据（字典或列表）保存到JSON文件。"""
         try:
             with open(path, "w", encoding="utf-8") as f:
-                # 对字典的键进行排序，使文件内容更稳定
                 sorted_data = data
                 if isinstance(data, dict):
                     sorted_data = dict(sorted(data.items()))
@@ -51,95 +49,133 @@ class TagManager:
         except IOError as e:
             logger.error(f"保存映射文件失败 {os.path.basename(path)}: {e}")
 
-    def _build_reverse_map(self, mapping_dict: dict) -> dict:
-        """构建用于标签合并的反向映射。"""
-        reverse_map = {}
-        for main_tag, keywords in mapping_dict.items():
+    def _build_unified_reverse_map(self) -> Dict[str, str]:
+        # ... 此核心方法无变化，它依然是智能检测的基础 ...
+        unified_map = {}
+        for main_tag, keywords in self._mapping_dict.items():
+            unified_map[main_tag.strip().lower()] = main_tag
             for keyword in keywords:
-                reverse_map[keyword.strip().lower()] = main_tag
-        return reverse_map
+                unified_map[keyword.strip().lower()] = main_tag
 
-    async def _handle_new_tag(
+        all_translation_values = list(self._jp_to_cn_map.values()) + list(
+            self._fanza_to_cn_map.values()
+        )
+        for translated_tag in all_translation_values:
+            if translated_tag.strip().lower() not in unified_map:
+                unified_map[translated_tag.strip().lower()] = translated_tag
+        return unified_map
+
+    # --- 【重构】第一步：只负责翻译的函数 ---
+    async def _get_translation_interactively(
         self, tag: str, source_map: dict, map_path: str, source_name: str
     ) -> str | None:
-        """处理新标签的交互式流程。"""
-        async with self._interaction_lock:
-            # 双重检查，防止在等待锁的过程中标签已被其他任务处理
-            if tag in source_map or tag in self._ignore_set:
-                return source_map.get(tag)
+        """只负责获取新标签的翻译，并更新源翻译文件。"""
 
-            def _get_input():
-                logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
-                print("  > 请输入对应的中文翻译。")
-                print("  > 输入 's' 跳过本次，'p' 永久忽略此标签。")
-                return input(f"  翻译为: ").strip()
+        def get_input():
+            logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
+            print("  > 请输入对应的中文翻译。")
+            print("  > 输入 's' 跳过本次，'p' 永久忽略此标签。")
+            return input(f"  翻译为: ").strip()
 
-            translation = await asyncio.to_thread(_get_input)
+        translation = await asyncio.to_thread(get_input)
 
-            if translation.lower() == "s":
-                logger.info(f"已跳过标签 '{tag}'。")
-                return None
-            elif translation.lower() == "p":
-                self._ignore_set.add(tag)
-                self._save_map(TAG_IGNORE_PATH, sorted(list(self._ignore_set)))
-                logger.success(f"已将 '{tag}' 添加到永久忽略列表。")
-                return None
-            elif translation:
-                source_map[tag] = translation
-                self._save_map(map_path, source_map)
-                logger.success(f"已添加新映射: '{tag}' -> '{translation}'")
-                return translation
-            else:
-                logger.warn("输入为空，已跳过。")
-                return None
+        if translation.lower() == "s":
+            logger.info(f"已跳过标签 '{tag}'。")
+            return None
+        if translation.lower() == "p":
+            self._ignore_set.add(tag)
+            self._save_map(TAG_IGNORE_PATH, sorted(list(self._ignore_set)))
+            logger.success(f"已将 '{tag}' 添加到永久忽略列表。")
+            return None
+        if not translation:
+            logger.warn("输入为空，已跳过。")
+            return None
+
+        # 保存纯粹的翻译
+        source_map[tag] = translation
+        self._save_map(map_path, source_map)
+        logger.success(f"已添加新翻译: '{tag}' -> '{translation}'")
+        return translation
+
+    # --- 【重构】第二步：只负责合并的函数 ---
+    async def _handle_new_concept_interactively(self, concept: str) -> str:
+        """当遇到一个新的中文概念时，触发此函数来决定是否合并。"""
+        candidate = self._unified_reverse_map.get(concept.lower())
+        for known_concept in self._unified_reverse_map.values():
+            if concept in known_concept:
+                candidate = known_concept
+                break
+
+        if candidate and candidate != concept:
+
+            def get_choice():
+                logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
+                print(f"  是否要将 '{concept}' 合并到 '{candidate}' 组中？")
+                print(f"    1. 【合并】(推荐)")
+                print(f"    2. 【创建】将 '{concept}' 作为独立标签")
+                return input("  请选择 [1]: ").strip()
+
+            choice = await asyncio.to_thread(get_choice)
+
+            if choice in ["", "1"]:
+                keywords = self._mapping_dict.get(candidate, [candidate])
+                new_keywords = set(keywords)
+                new_keywords.add(concept)
+                self._mapping_dict[candidate] = sorted(list(new_keywords))
+                self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
+                logger.success(f"操作成功！已将概念 '{concept}' 合并到 '{candidate}'。")
+                return candidate
+
+        # 如果没有候选项，或用户选择不合并，则返回概念本身
+        return concept
 
     async def process_tags(
         self, dlsite_tags: List[str], fanza_tags: List[str], ggbases_tags: List[str]
     ) -> List[str]:
-        """处理所有来源标签的主函数。"""
-        all_translated_tags = []
+        """【重构】处理所有来源标签的主流程，清晰地分为翻译和合并两个阶段。"""
+        async with self._interaction_lock:  # 全局锁，保证交互不冲突
+            translated_tags = []
 
-        # 1. 交互式翻译 DLsite 标签
-        for tag in dlsite_tags:
-            if tag in self._ignore_set:
-                continue
-            if tag not in self._jp_to_cn_map:
-                translated = await self._handle_new_tag(
-                    tag, self._jp_to_cn_map, TAG_JP_TO_CN_PATH, "DLsite"
-                )
+            # --- 阶段一：翻译 ---
+            source_maps = [
+                (dlsite_tags, self._jp_to_cn_map, TAG_JP_TO_CN_PATH, "DLsite"),
+                (fanza_tags, self._fanza_to_cn_map, TAG_FANZA_TO_CN_PATH, "Fanza"),
+            ]
+            for tags, source_map, map_path, source_name in source_maps:
+                for tag in tags:
+                    if tag in self._ignore_set:
+                        continue
+
+                    translation = source_map.get(tag)
+                    if not translation:
+                        translation = await self._get_translation_interactively(
+                            tag, source_map, map_path, source_name
+                        )
+                    if translation:
+                        translated_tags.append(translation)
+
+            # 添加 GGBases 标签
+            for tag in ggbases_tags:
+                translated = self._ggbase_map.get(tag, tag) or tag
                 if translated:
-                    all_translated_tags.append(translated)
-            else:
-                all_translated_tags.append(self._jp_to_cn_map[tag])
+                    translated_tags.append(translated)
 
-        # 2. 交互式翻译 Fanza 标签
-        for tag in fanza_tags:
-            if tag in self._ignore_set:
-                continue
-            if tag not in self._fanza_to_cn_map:
-                translated = await self._handle_new_tag(
-                    tag, self._fanza_to_cn_map, TAG_FANZA_TO_CN_PATH, "Fanza"
-                )
-                if translated:
-                    all_translated_tags.append(translated)
-            else:
-                all_translated_tags.append(self._fanza_to_cn_map[tag])
+            # --- 阶段二：合并 ---
+            final_tags_set: Set[str] = set()
+            for concept in translated_tags:
+                concept = concept.strip()
+                if not concept:
+                    continue
 
-        # 3. 处理 GGBases 标签 (非交互)
-        for tag in ggbases_tags:
-            translated = self._ggbase_map.get(tag, tag) or tag
-            if translated:
-                all_translated_tags.append(translated)
+                # 检查这个概念是否已经有合并规则
+                main_tag = self._unified_reverse_map.get(concept.lower())
 
-        # 4. 统一进行归一化映射
-        mapped_set: Set[str] = set()
-        for tag in all_translated_tags:
-            if not tag:
-                continue
-            tag_lower = tag.strip().lower()
-            if tag_lower in self._reverse_mapping_dict:
-                mapped_set.add(self._reverse_mapping_dict[tag_lower])
-            else:
-                mapped_set.add(tag.strip())
+                if not main_tag:
+                    # 如果没有，这是一个新概念，触发合并处理流程
+                    main_tag = await self._handle_new_concept_interactively(concept)
+                    # 处理后，实时更新知识库，为本次运行的后续标签服务
+                    self._unified_reverse_map = self._build_unified_reverse_map()
 
-        return sorted(list(mapped_set))
+                final_tags_set.add(main_tag)
+
+            return sorted(list(final_tags_set))

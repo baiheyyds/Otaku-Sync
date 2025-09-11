@@ -6,7 +6,7 @@ from typing import Dict, List, Set, Optional
 
 from utils import logger
 
-# --- 文件路径定义 (无变化) ---
+# --- 文件路径定义 ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAPPING_DIR = os.path.join(BASE_DIR, "mapping")
 TAG_JP_TO_CN_PATH = os.path.join(MAPPING_DIR, "tag_jp_to_cn.json")
@@ -28,7 +28,6 @@ class TagManager:
         self._mapping_dict = self._load_map(TAG_MAPPING_DICT_PATH)
         self._unified_reverse_map = self._build_unified_reverse_map()
 
-    # --- _load_map 和 _save_map 无变化 ---
     def _load_map(self, path: str, default_type=dict):
         if not os.path.exists(path):
             return default_type()
@@ -45,12 +44,24 @@ class TagManager:
                 sorted_data = data
                 if isinstance(data, dict):
                     sorted_data = dict(sorted(data.items()))
+                elif isinstance(data, list):
+                    sorted_data = sorted(data)
                 json.dump(sorted_data, f, ensure_ascii=False, indent=2)
         except IOError as e:
             logger.error(f"保存映射文件失败 {os.path.basename(path)}: {e}")
 
+    # --- [新增] 公共方法，用于在程序退出时统一保存所有映射文件 ---
+    def save_all_maps(self):
+        """将所有内存中的映射关系保存到对应的JSON文件中。"""
+        logger.system("正在保存所有标签映射文件...")
+        self._save_map(TAG_JP_TO_CN_PATH, self._jp_to_cn_map)
+        self._save_map(TAG_FANZA_TO_CN_PATH, self._fanza_to_cn_map)
+        self._save_map(TAG_GGBASE_PATH, self._ggbase_map)
+        self._save_map(TAG_IGNORE_PATH, list(self._ignore_set))
+        self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
+        logger.success("所有标签映射文件已保存。")
+
     def _build_unified_reverse_map(self) -> Dict[str, str]:
-        # ... 此方法无变化，它依然是知识库的基础 ...
         unified_map = {}
         for main_tag, keywords in self._mapping_dict.items():
             unified_map[main_tag.strip().lower()] = main_tag
@@ -64,44 +75,25 @@ class TagManager:
                 unified_map[translated_tag.strip().lower()] = translated_tag
         return unified_map
 
-    # --- 【核心升级】寻找最佳匹配候选项的智能算法 ---
     def _find_best_merge_candidate(self, concept: str) -> Optional[str]:
-        """
-        使用优先级策略寻找最佳的合并候选项。
-        优先级: 完全匹配 > 组件匹配 > 子串匹配。
-        """
-        # 优先级 1: 在知识库中完全匹配
         if candidate := self._unified_reverse_map.get(concept.lower()):
             return candidate
-
         unique_known_concepts = set(self._unified_reverse_map.values())
-
-        # 优先级 2: 组件匹配
         component_matches = []
         for known_concept in unique_known_concepts:
-            # 按 '/' 分割，处理 '学校/校园' 这种情况
             parts = [p.strip() for p in known_concept.split("/")]
             if concept in parts:
                 component_matches.append(known_concept)
-
         if component_matches:
-            # 如果有多个组件匹配，选择最短的那个（通常更相关）
-            # 例如 "学校" 匹配 "学校/校园" 和 "大学/学校"，会优先选前者
             return min(component_matches, key=len)
-
-        # 优先级 3: 子串匹配 (作为最后的备用方案)
         substring_matches = []
         for known_concept in unique_known_concepts:
             if concept in known_concept:
                 substring_matches.append(known_concept)
-
         if substring_matches:
-            # 同样，选择最短的匹配
             return min(substring_matches, key=len)
-
         return None
 
-    # --- 【重构】第一步：只负责翻译的函数 (无变化) ---
     async def _get_translation_interactively(
         self, tag: str, source_map: dict, map_path: str, source_name: str
     ) -> str | None:
@@ -117,24 +109,19 @@ class TagManager:
             return None
         if translation.lower() == "p":
             self._ignore_set.add(tag)
-            self._save_map(TAG_IGNORE_PATH, sorted(list(self._ignore_set)))
-            logger.success(f"已将 '{tag}' 添加到永久忽略列表。")
             return None
         if not translation:
             logger.warn("输入为空，已跳过。")
             return None
         source_map[tag] = translation
-        self._save_map(map_path, source_map)
         logger.success(f"已添加新翻译: '{tag}' -> '{translation}'")
         return translation
 
-    # --- 【重构】第二步：只负责合并的函数 (现在使用新算法) ---
     async def _handle_new_concept_interactively(self, concept: str) -> str:
-        # 使用新的智能算法寻找最佳候选项
         candidate = self._find_best_merge_candidate(concept)
+        final_concept = concept
 
         if candidate and candidate != concept:
-
             def get_choice():
                 logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
                 print(f"  是否要将 '{concept}' 合并到 '{candidate}' 组中？")
@@ -149,13 +136,21 @@ class TagManager:
                 new_keywords = set(keywords)
                 new_keywords.add(concept)
                 self._mapping_dict[candidate] = sorted(list(new_keywords))
-                self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
                 logger.success(f"操作成功！已将概念 '{concept}' 合并到 '{candidate}'。")
-                return candidate
+                final_concept = candidate # 记录合并后的主概念
+        
+        # --- [核心修复] --- #
+        # 无论是否合并，都立即更新内存中的反向映射表
+        # 如果合并了，就用主概念 candidate 更新
+        # 如果没合并，就用概念本身 concept 更新
+        self._unified_reverse_map[concept.lower()] = final_concept
+        # 如果主概念本身还不在反向表里，也一并添加
+        if final_concept.lower() not in self._unified_reverse_map:
+             self._unified_reverse_map[final_concept.lower()] = final_concept
+        # --- [修复结束] --- #
 
-        return concept
+        return final_concept
 
-    # --- process_tags 主流程 (无变化) ---
     async def process_tags(
         self, dlsite_tags: List[str], fanza_tags: List[str], ggbases_tags: List[str]
     ) -> List[str]:
@@ -183,7 +178,8 @@ class TagManager:
                     translated_tags.append(translated)
 
             final_tags_set: Set[str] = set()
-            for concept in translated_tags:
+            # 使用 list(dict.fromkeys(translated_tags)) 来去重并保持顺序
+            for concept in list(dict.fromkeys(translated_tags)):
                 concept = concept.strip()
                 if not concept:
                     continue
@@ -192,8 +188,7 @@ class TagManager:
 
                 if not main_tag:
                     main_tag = await self._handle_new_concept_interactively(concept)
-                    self._unified_reverse_map = self._build_unified_reverse_map()
-
+                
                 final_tags_set.add(main_tag)
 
             return sorted(list(final_tags_set))

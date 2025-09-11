@@ -3,7 +3,6 @@ import asyncio
 import os
 import urllib.parse
 
-import httpx
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -12,25 +11,18 @@ from selenium_stealth import stealth
 
 from utils import logger
 from utils.tag_logger import append_new_tags
+from .base_client import BaseClient
 
 TAG_GGBASE_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_ggbase.json")
 
 
-class GGBasesClient:
-    BASE_URL = "https://www.ggbases.com/"
-
-    def __init__(self, client: httpx.AsyncClient):
-        self.client = client
-        self.client.headers.update(
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-            }
-        )
+class GGBasesClient(BaseClient):
+    def __init__(self, client):
+        super().__init__(client, base_url="https://www.ggbases.com/")
         self.driver = None
         self.selenium_timeout = 5
 
     def set_driver(self, driver):
-        # ... 此方法无变化 ...
         self.driver = driver
         stealth(
             self.driver,
@@ -46,9 +38,10 @@ class GGBasesClient:
         logger.info(f"[GGBases] 正在搜索: {keyword}")
         try:
             encoded = urllib.parse.quote(keyword)
-            search_url = f"{self.BASE_URL}/search.so?p=0&title={encoded}&advanced="
-            resp = await self.client.get(search_url, timeout=15)
-            resp.raise_for_status()
+            search_url = f"/search.so?p=0&title={encoded}&advanced="
+            resp = await self.get(search_url, timeout=15)
+            if not resp:
+                return []
 
             soup = BeautifulSoup(resp.text, "lxml")
             rows = soup.find_all("tr", class_="dtr")
@@ -59,8 +52,7 @@ class GGBasesClient:
                 if not detail_link:
                     continue
 
-                url = urllib.parse.urljoin(self.BASE_URL, detail_link["href"])
-
+                url = urllib.parse.urljoin(self.base_url, detail_link["href"])
                 all_tds = row.find_all("td")
                 title = (
                     all_tds[1].get_text(separator=" ", strip=True) if len(all_tds) > 1 else "无标题"
@@ -71,22 +63,18 @@ class GGBasesClient:
                 if pop_a and pop_a.get_text(strip=True).isdigit():
                     popularity = int(pop_a.get_text(strip=True))
 
-                # --- 【核心修复】从搜索结果页捕获文件大小 ---
                 size = None
-                # 文件大小通常在第三个 <td> 元素中
                 if len(all_tds) > 2:
                     size_text = all_tds[2].get_text(strip=True)
-                    # 简单的验证，确保它看起来像文件大小
                     if size_text and size_text[-1].upper() in "BKMGT":
                         size = size_text
-                # --- [修复结束] ---
 
                 candidates.append(
                     {
                         "title": title,
                         "url": url,
                         "popularity": popularity,
-                        "容量": size,  # 将捕获到的大小存入"容量"键
+                        "容量": size,
                     }
                 )
 
@@ -97,14 +85,10 @@ class GGBasesClient:
             logger.success(f"[GGBases] 搜索到 {len(candidates)} 个候选结果")
             return candidates
 
-        except httpx.RequestError as e:
-            logger.error(f"[GGBases] (requests) 搜索请求失败: {e}")
-            return []
         except Exception as e:
-            logger.error(f"[GGBases] (requests) 解析搜索结果失败: {e}")
+            logger.error(f"[GGBases] 解析搜索结果失败: {e}")
             return []
 
-    # --- 后续所有方法 (_normalize_url, _extract_*, get_info_by_url_with_selenium) 均无任何变化 ---
     async def get_info_by_url_with_selenium(self, detail_url):
         if not self.driver:
             raise RuntimeError("GGBasesClient的专属driver未设置。")
@@ -139,9 +123,9 @@ class GGBasesClient:
         if not src or src.startswith("data:"):
             return None
         if src.startswith("//"):
-            return "https:" + src
+            return "https" + src
         if src.startswith("/"):
-            return urllib.parse.urljoin(self.BASE_URL, src)
+            return urllib.parse.urljoin(self.base_url, src)
         return src
 
     def _extract_game_size(self, soup):

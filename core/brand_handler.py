@@ -1,19 +1,4 @@
 # core/brand_handler.py
-import json
-import os
-
-from utils import logger
-
-mapping_path = os.path.join(os.path.dirname(__file__), "../mapping/brand_mapping.json")
-try:
-    with open(mapping_path, "r", encoding="utf-8") as f:
-        brand_mapping = json.load(f)
-except FileNotFoundError:
-    brand_mapping = {}
-
-
-# --- 请用下面的代码替换整个 handle_brand_info 函数 ---
-
 
 async def handle_brand_info(
     bangumi_brand_info: dict, dlsite_extra_info: dict, getchu_brand_page_url: str = None

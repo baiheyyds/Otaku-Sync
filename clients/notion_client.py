@@ -24,7 +24,7 @@ class NotionClient:
             "Content-Type": "application/json",
         }
 
-    async def _raw_request(self, method, url, json_data=None):
+    async def _request(self, method, url, json_data=None):
         try:
             if method.upper() == "POST":
                 r = await self.client.post(url, headers=self.headers, json=json_data)
@@ -36,23 +36,18 @@ class NotionClient:
                 raise ValueError(f"Unsupported HTTP method: {method}")
             r.raise_for_status()
             return r.json()
-        except Exception as e:
-            if hasattr(e, "response") and e.response:
-                logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
-            else:
-                logger.error(f"Notion API 请求失败: {e}")
+        except httpx.HTTPStatusError as e:
+            # 对于HTTP错误，记录更详细的响应信息
+            logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
             return None
-
-    async def _request(self, method, url, json_data=None, retries=3, delay=2):
-        for attempt in range(retries):
-            resp = await self._raw_request(method, url, json_data)
-            if resp is not None:
-                return resp
-            if attempt < retries - 1:
-                logger.warn(f"🔁 重试 Notion API ({attempt + 1}/{retries})...")
-                await asyncio.sleep(delay)
-        logger.error("⛔ 最终重试失败，跳过该请求")
-        return None
+        except httpx.RequestError as e:
+            # 对于网络层面的错误
+            logger.error(f"Notion API 网络请求失败: {e}")
+            return None
+        except Exception as e:
+            # 其他未知异常
+            logger.error(f"Notion API 未知错误: {e}")
+            return None
 
     def get_page_title(self, page: dict) -> str:
         """
@@ -84,6 +79,7 @@ class NotionClient:
     async def check_page_exists(self, page_id):
         url = f"https://api.notion.com/v1/pages/{page_id}"
         try:
+            # 这个请求只是为了检查存在性，不需要走全局的重试逻辑，可以设置一个较短的超时
             res = await self.client.get(url, headers=self.headers, timeout=10)
             if res.status_code in {404, 403}:
                 return False
@@ -151,7 +147,6 @@ class NotionClient:
         url = f"https://api.notion.com/v1/databases/{db_id}"
         return await self._request("GET", url)
 
-    # --- 核心改动：支持更多常用类型 ---
     async def add_new_property_to_db(
         self, db_id: str, prop_name: str, prop_type: str = "rich_text"
     ) -> bool:
@@ -165,7 +160,7 @@ class NotionClient:
             prop_payload = {"select": {"options": []}}
         elif prop_type == "multi_select":
             prop_payload = {"multi_select": {"options": []}}
-        else:  # 默认为 rich_text
+        else:
             prop_type = "rich_text"
             prop_payload = {"rich_text": {}}
 
@@ -181,8 +176,6 @@ class NotionClient:
         else:
             logger.error(f"向 Notion 添加新属性 '{prop_name}' 失败。请检查 API Token 权限。")
             return False
-
-    # --- 核心改动结束 ---
 
     async def create_or_update_game(self, properties_schema: dict, page_id=None, **info):
         title = info.get("title")
@@ -220,16 +213,14 @@ class NotionClient:
             "brand_relation_id": FIELDS["brand_relation"],
         }
 
-        # --- [ULTIMATE FIX: Proactive Data Cleansing during Merge] ---
         for source_key, notion_key in source_to_notion_map.items():
             if source_key in info and info[source_key] is not None:
                 new_value = info[source_key]
 
-                # Proactively filter empty strings from the new value
                 if isinstance(new_value, list):
                     new_value = [v for v in new_value if v]
-                elif not new_value:  # If new_value is ""
-                    continue  # Skip this empty value entirely
+                elif not new_value:
+                    continue
 
                 current_values = data_for_notion.get(notion_key)
                 if current_values:
@@ -240,12 +231,11 @@ class NotionClient:
 
                     combined = current_values + new_value
 
-                    # Filter again after combining, then unique
                     unique_values = []
                     seen_hashable = set()
                     for item in combined:
                         if not item:
-                            continue  # Final check for empty strings/None
+                            continue
                         try:
                             if item not in seen_hashable:
                                 unique_values.append(item)
@@ -253,9 +243,8 @@ class NotionClient:
                         except TypeError:
                             unique_values.append(item)
                     data_for_notion[notion_key] = unique_values
-                elif new_value:  # Only assign if the new value is not empty
+                elif new_value:
                     data_for_notion[notion_key] = new_value
-        # --- [FIX ENDS] ---
 
         if title:
             data_for_notion[FIELDS["game_name"]] = title
@@ -283,7 +272,7 @@ class NotionClient:
                     seen_hashable = set()
                     for item in value:
                         if not item:
-                            continue  # Final gatekeeper check
+                            continue
                         try:
                             if item not in seen_hashable:
                                 unique_values.append(item)
@@ -294,7 +283,7 @@ class NotionClient:
                     formatted_values = []
                     for item in unique_values:
                         if not item:
-                            continue  # Paranoid final check
+                            continue
                         if isinstance(item, dict):
                             lines = [f"🔹 {k}: {v}" for k, v in item.items()]
                             formatted_values.append("\n".join(lines))
@@ -348,23 +337,17 @@ class NotionClient:
                 if value:
                     props[notion_prop_name] = {"relation": [{"id": str(value)}]}
 
-            # --- [最终修复] ---
-            # 为“标签”属性添加豁免，防止其被错误分割
             elif prop_type == "multi_select":
                 options = []
                 values_to_process = value if isinstance(value, list) else [value]
 
-                # 关键判断：如果当前属性是“标签”，则不进行分割处理
                 if notion_prop_name == FIELDS["tags"]:
-                    # 直接将列表中的每个项目（完整的标签）添加到options
                     for item in values_to_process:
-                        if item:  # 过滤空值
+                        if item:
                             options.append(str(item))
                 else:
-                    # 对于所有其他 multi_select 属性（如声优、原画），执行原有的分割逻辑
                     for item in values_to_process:
                         if isinstance(item, str):
-                            # 这就是分割问题的源头
                             split_items = [
                                 v.strip() for v in re.split(r"[、・,／/;]+", item) if v.strip()
                             ]
@@ -373,12 +356,10 @@ class NotionClient:
                             options.append(str(item))
 
                 if options:
-                    # 去重并构建Notion API需要的格式
                     unique_options = list(dict.fromkeys(options))
                     props[notion_prop_name] = {
                         "multi_select": [{"name": str(opt)} for opt in unique_options]
                     }
-            # --- [修复结束] ---
 
         url = (
             f"https://api.notion.com/v1/pages/{page_id}"
@@ -392,7 +373,7 @@ class NotionClient:
 
         resp = await self._request(method, url, payload)
         if resp:
-            logger.success(f"{'已更新' if page_id else '已创建'}游戏: {title}")
+            logger.success(f"{"已更新" if page_id else "已创建"}游戏: {title}")
             return resp.get("id")
         else:
             logger.error(f"提交游戏失败: {title}")
@@ -417,7 +398,7 @@ class NotionClient:
             "bangumi_url": FIELDS["brand_bangumi_url"],
             "twitter": FIELDS["brand_twitter"],
             "ci_en_url": FIELDS["brand_cien"],
-            "icon": FIELDS["brand_icon"],  # 兼容旧key
+            "icon": FIELDS["brand_icon"],
         }
 
         for info_key, notion_prop in standard_key_map.items():
@@ -443,15 +424,12 @@ class NotionClient:
             if prop_type == "title":
                 props[notion_prop_name] = {"title": [{"text": {"content": str(value)}}]}
 
-            # [关键修复] 使用与游戏数据库相同的、更健壮的 rich_text 处理逻辑
             elif prop_type == "rich_text":
                 content = ""
                 if isinstance(value, (list, set)):
-                    # 格式化列表
                     formatted_values = [f"🔹 {str(item)}" for item in value if item]
                     content = "\n".join(formatted_values)
                 elif isinstance(value, dict):
-                    # 格式化字典
                     lines = [f"🔹 {k}: {v}" for k, v in value.items() if v]
                     content = "\n".join(lines)
                 else:

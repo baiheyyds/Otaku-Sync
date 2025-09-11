@@ -38,7 +38,17 @@ async def update_cache_background(notion_client, local_cache):
 async def init_context():
     logger.system("启动程序...")
 
-    async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
+    # 为所有HTTP请求配置通用的、带重试逻辑的Transport
+    transport = httpx.AsyncHTTPTransport(
+        retries=3,  # 最多重试3次
+        http2=True,
+    )
+    # 创建一个全局的、带重试功能的异步HTTP客户端
+    async_client = httpx.AsyncClient(
+        transport=transport,
+        timeout=20,
+        follow_redirects=True,
+    )
 
     bgm_mapper = BangumiMappingManager()
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)

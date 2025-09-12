@@ -188,6 +188,7 @@ async def run_single_game_flow(context: dict) -> bool:
         brand_id = await process_and_update_brand(context, detail, secondary_data)
 
         # 步骤 6: 整合所有信息并同步到Notion
+        selected_ggbases_game = secondary_data.get("selected_ggbases_game") or {}
         created_page_id = await process_and_sync_game(
             game=game,
             detail=detail,
@@ -197,9 +198,9 @@ async def run_single_game_flow(context: dict) -> bool:
             user_keyword=keyword,
             notion_game_schema=context["schema_manager"].get_schema(GAME_DB_ID),
             tag_manager=context["tag_manager"],
-            ggbases_detail_url=secondary_data.get("selected_ggbases_game", {}).get("url"),
+            ggbases_detail_url=selected_ggbases_game.get("url"),
             ggbases_info=secondary_data.get("ggbases_info", {}),
-            ggbases_search_result=secondary_data.get("selected_ggbases_game", {}),
+            ggbases_search_result=selected_ggbases_game,
             bangumi_info=bangumi_game_info,
             source=source,
             selected_similar_page_id=selected_similar_page_id,

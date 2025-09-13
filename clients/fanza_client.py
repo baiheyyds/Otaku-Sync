@@ -115,15 +115,29 @@ class FanzaClient(BaseClient):
                         return []
                     return [a.get_text(strip=True) for a in value_div.select("li a")]
 
-                details["原画"] = extract_list(find_row_value("原画"))
-                details["剧本"] = extract_list(find_row_value("シナリオ"))
-                details["声优"] = extract_list(find_row_value("声優"))
+                # 使用循环和映射表来提取制作人员信息
+                for key, value in self.STAFF_MAPPING.items():
+                    # Dlsite的'イラスト'不适用于Fanza，在此跳过
+                    if key == "イラスト":
+                        continue
+                    extracted_data = extract_list(find_row_value(key))
+                    if extracted_data:
+                        # 使用集合来合并，以处理'原画'和'イラスト'可能映射到同一个键的情况
+                        if value in details:
+                            details[value].extend(extracted_data)
+                        else:
+                            details[value] = extracted_data
+
+                # 去重
+                for key in details:
+                    if isinstance(details[key], list):
+                        details[key] = sorted(list(set(details[key])))
 
                 game_types = []
                 if genre_div := find_row_value("ゲームジャンル"):
                     genre_text = genre_div.get_text(strip=True).upper()
                     if "RPG" in genre_text: game_types.append("RPG")
-                    if "ADV" in genre_text: game_types.append("ADV")
+                    if "ADV" in genre_text or "AVG" in genre_text: game_types.append("ADV")
                     if "ACT" in genre_text or "アクション" in genre_text: game_types.append("ACT")
                     if "SLG" in genre_text or "シミュレーション" in genre_text: game_types.append("模拟")
 

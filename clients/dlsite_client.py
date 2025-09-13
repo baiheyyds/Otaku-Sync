@@ -122,16 +122,10 @@ class DlsiteClient(BaseClient):
                     all_text = table_cell.get_text(separator="/", strip=True)
                     return [name.strip() for name in all_text.split("/") if name.strip()]
 
-                if key == "販売日":
+                if key in self.STAFF_MAPPING:
+                    details[self.STAFF_MAPPING[key]] = extract_list_from_td(td)
+                elif key == "販売日":
                     details["发售日"] = td.get_text(strip=True)
-                elif key == "シナリオ":
-                    details["剧本"] = extract_list_from_td(td)
-                elif key == "イラスト":
-                    details["原画"] = extract_list_from_td(td)
-                elif key == "声優":
-                    details["声优"] = extract_list_from_td(td)
-                elif key == "音楽":
-                    details["音乐"] = extract_list_from_td(td)
                 elif key == "ジャンル":
                     details["标签"] = [a.get_text(strip=True) for a in td.find_all("a")]
                 elif key == "作品形式":

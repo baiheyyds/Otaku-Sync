@@ -138,6 +138,11 @@ class TagManager:
                 self._mapping_dict[candidate] = sorted(list(new_keywords))
                 logger.success(f"操作成功！已将概念 '{concept}' 合并到 '{candidate}'。")
                 final_concept = candidate # 记录合并后的主概念
+            elif choice == "2":
+                # 当用户选择创建新标签时，将其作为新的主键添加到映射字典中
+                if concept not in self._mapping_dict:
+                    self._mapping_dict[concept] = [concept]
+                logger.info(f"已将 '{concept}' 创建为新的独立标签。")
         
         # --- [核心修复] --- #
         # 无论是否合并，都立即更新内存中的反向映射表

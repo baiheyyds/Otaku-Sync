@@ -4,6 +4,14 @@ from utils import logger
 
 class BaseClient:
     """为所有API客户端提供通用功能的基类。"""
+    STAFF_MAPPING = {
+        "シナリオ": "剧本",
+        "原画": "原画",
+        "イラスト": "原画",  # Dlsite
+        "声優": "声优",
+        "音楽": "音乐",
+    }
+
     def __init__(self, client: httpx.AsyncClient, base_url: str = ""):
         if not isinstance(client, httpx.AsyncClient):
             raise TypeError("A valid httpx.AsyncClient instance is required.")

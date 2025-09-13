@@ -1,6 +1,9 @@
 # clients/base_client.py
+import json
+import os
 import httpx
 from utils import logger
+
 
 class BaseClient:
     """为所有API客户端提供通用功能的基类。"""
@@ -20,6 +23,20 @@ class BaseClient:
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
         }
+        self._genre_reverse_mapping = self._load_and_reverse_genre_map()
+
+    def _load_and_reverse_genre_map(self):
+        mapping_path = os.path.join(os.path.dirname(__file__), "..", "mapping", "genre_mapping.json")
+        reverse_map = {}
+        try:
+            with open(mapping_path, "r", encoding="utf-8") as f:
+                genre_map = json.load(f)
+            for final_value, source_values in genre_map.items():
+                for source_value in source_values:
+                    reverse_map[source_value.upper()] = final_value
+        except (IOError, json.JSONDecodeError) as e:
+            logger.error(f"无法加载或解析 genre_mapping.json: {e}")
+        return reverse_map
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response | None:
         """

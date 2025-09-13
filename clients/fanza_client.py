@@ -122,7 +122,7 @@ class FanzaClient(BaseClient):
                         continue
                     extracted_data = extract_list(find_row_value(key))
                     if extracted_data:
-                        # 使用集合来合并，以处理'原画'和'イラスト'可能映射到同一个键的情况
+                        # 使用列表扩展来合并
                         if value in details:
                             details[value].extend(extracted_data)
                         else:
@@ -136,10 +136,9 @@ class FanzaClient(BaseClient):
                 game_types = []
                 if genre_div := find_row_value("ゲームジャンル"):
                     genre_text = genre_div.get_text(strip=True).upper()
-                    if "RPG" in genre_text: game_types.append("RPG")
-                    if "ADV" in genre_text or "AVG" in genre_text: game_types.append("ADV")
-                    if "ACT" in genre_text or "アクション" in genre_text: game_types.append("ACT")
-                    if "SLG" in genre_text or "シミュレーション" in genre_text: game_types.append("模拟")
+                    for key, value in self._genre_reverse_mapping.items():
+                        if key in genre_text:
+                            game_types.append(value)
 
                 if voice_div := find_row_value("ボイス"):
                     if "あり" in voice_div.get_text(strip=True):

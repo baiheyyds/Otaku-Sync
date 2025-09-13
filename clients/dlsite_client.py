@@ -131,17 +131,10 @@ class DlsiteClient(BaseClient):
                         details["标签"] = [a.get_text(strip=True) for a in td.find_all("a")]
                     elif key == "作品形式":
                         spans = td.find_all("span", title=True)
-                        mapping = {
-                            "ロールプレイング": "RPG",
-                            "アドベンチャー": "ADV",
-                            "シミュレーション": "模拟",
-                            "アクション": "ACT",
-                            "音声あり": "有声音",
-                            "音楽あり": "有音乐",
-                            "動画あり": "有动画",
-                        }
                         details["作品形式"] = [
-                            mapping.get(s["title"].strip(), s["title"].strip()) for s in spans
+                            self._genre_reverse_mapping.get(s["title"].strip().upper(), s["title"].strip())
+                            for s in spans
+                            if s.has_attr("title")
                         ]
                     elif key == "ファイル容量":
                         value_container = td.select_one(".main_genre") or td

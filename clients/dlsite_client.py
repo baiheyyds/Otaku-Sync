@@ -1,6 +1,7 @@
 # clients/dlsite_client.py
 import asyncio
 import os
+import traceback
 import urllib.parse
 
 from bs4 import BeautifulSoup
@@ -98,75 +99,79 @@ class DlsiteClient(BaseClient):
         resp = await self.get(url, timeout=15, headers={"Cookie": "adultchecked=1;"})
         if not resp:
             return {}
+        try:
+            soup = BeautifulSoup(resp.text, "html.parser")
+            brand_tag = soup.select_one("#work_maker .maker_name a")
+            brand = brand_tag.get_text(strip=True) if brand_tag else None
+            brand_page_url = brand_tag["href"] if brand_tag and brand_tag.has_attr("href") else None
+            if brand_page_url and not brand_page_url.startswith("http"):
+                brand_page_url = self.base_url + brand_page_url
 
-        soup = BeautifulSoup(resp.text, "html.parser")
-        brand_tag = soup.select_one("#work_maker .maker_name a")
-        brand = brand_tag.get_text(strip=True) if brand_tag else None
-        brand_page_url = brand_tag["href"] if brand_tag and brand_tag.has_attr("href") else None
-        if brand_page_url and not brand_page_url.startswith("http"):
-            brand_page_url = self.base_url + brand_page_url
+            details = {}
 
-        details = {}
+            table = soup.find("table", id="work_outline")
+            if table:
+                for tr in table.find_all("tr"):
+                    th, td = tr.find("th"), tr.find("td")
+                    if not th or not td:
+                        continue
+                    key = th.get_text(strip=True)
 
-        table = soup.find("table", id="work_outline")
-        if table:
-            for tr in table.find_all("tr"):
-                th, td = tr.find("th"), tr.find("td")
-                if not th or not td:
-                    continue
-                key = th.get_text(strip=True)
+                    def extract_list_from_td(table_cell):
+                        for br in table_cell.find_all("br"):
+                            br.replace_with("/")
+                        all_text = table_cell.get_text(separator="/", strip=True)
+                        return [name.strip() for name in all_text.split("/") if name.strip()]
 
-                def extract_list_from_td(table_cell):
-                    for br in table_cell.find_all("br"):
-                        br.replace_with("/")
-                    all_text = table_cell.get_text(separator="/", strip=True)
-                    return [name.strip() for name in all_text.split("/") if name.strip()]
+                    if key in self.STAFF_MAPPING:
+                        details[self.STAFF_MAPPING[key]] = extract_list_from_td(td)
+                    elif key == "販売日":
+                        details["发售日"] = td.get_text(strip=True)
+                    elif key == "ジャンル":
+                        details["标签"] = [a.get_text(strip=True) for a in td.find_all("a")]
+                    elif key == "作品形式":
+                        spans = td.find_all("span", title=True)
+                        mapping = {
+                            "ロールプレイング": "RPG",
+                            "アドベンチャー": "ADV",
+                            "シミュレーション": "模拟",
+                            "アクション": "ACT",
+                            "音声あり": "有声音",
+                            "音楽あり": "有音乐",
+                            "動画あり": "有动画",
+                        }
+                        details["作品形式"] = [
+                            mapping.get(s["title"].strip(), s["title"].strip()) for s in spans
+                        ]
+                    elif key == "ファイル容量":
+                        value_container = td.select_one(".main_genre") or td
+                        details["容量"] = (
+                            value_container.get_text(strip=True).replace("総計", "").strip()
+                        )
 
-                if key in self.STAFF_MAPPING:
-                    details[self.STAFF_MAPPING[key]] = extract_list_from_td(td)
-                elif key == "販売日":
-                    details["发售日"] = td.get_text(strip=True)
-                elif key == "ジャンル":
-                    details["标签"] = [a.get_text(strip=True) for a in td.find_all("a")]
-                elif key == "作品形式":
-                    spans = td.find_all("span", title=True)
-                    mapping = {
-                        "ロールプレイング": "RPG",
-                        "アドベンチャー": "ADV",
-                        "シミュレーション": "模拟",
-                        "アクション": "ACT",
-                        "音声あり": "有声音",
-                        "音楽あり": "有音乐",
-                        "動画あり": "有动画",
-                    }
-                    details["作品形式"] = [
-                        mapping.get(s["title"].strip(), s["title"].strip()) for s in spans
-                    ]
-                elif key == "ファイル容量":
-                    value_container = td.select_one(".main_genre") or td
-                    details["容量"] = (
-                        value_container.get_text(strip=True).replace("総計", "").strip()
-                    )
+            cover_tag = soup.find("meta", property="og:image")
+            if cover_tag:
+                details["封面图链接"] = cover_tag["content"]
+            if details.get("标签"):
+                append_new_tags(TAG_JP_PATH, details["标签"])
 
-        cover_tag = soup.find("meta", property="og:image")
-        if cover_tag:
-            details["封面图链接"] = cover_tag["content"]
-        if details.get("标签"):
-            append_new_tags(TAG_JP_PATH, details["标签"])
-
-        return {
-            "品牌": brand,
-            "发售日": details.get("发售日"),
-            "剧本": details.get("剧本", []),
-            "原画": details.get("原画", []),
-            "声优": details.get("声优", []),
-            "音乐": details.get("音乐", []),
-            "标签": details.get("标签", []),
-            "作品形式": details.get("作品形式", []),
-            "封面图链接": details.get("封面图链接"),
-            "品牌页链接": brand_page_url,
-            "容量": details.get("容量"),
-        }
+            return {
+                "品牌": brand,
+                "发售日": details.get("发售日"),
+                "剧本": details.get("剧本", []),
+                "原画": details.get("原画", []),
+                "声优": details.get("声优", []),
+                "音乐": details.get("音乐", []),
+                "标签": details.get("标签", []),
+                "作品形式": details.get("作品形式", []),
+                "封面图链接": details.get("封面图链接"),
+                "品牌页链接": brand_page_url,
+                "容量": details.get("容量"),
+            }
+        except Exception as e:
+            logger.error(f"[Dlsite] 解析详情页失败: {url} - {e}")
+            traceback.print_exc()
+            return {}
 
     async def get_brand_extra_info_with_selenium(self, brand_page_url):
         logger.info(f"[Dlsite] 正在用Selenium抓取品牌额外信息...")

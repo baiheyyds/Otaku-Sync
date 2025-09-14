@@ -6,22 +6,12 @@ from typing import Dict, List
 
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID
 from utils import logger
+from core.interaction import InteractionProvider
+
 
 MAPPING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mapping")
 BGM_PROP_MAPPING_PATH = os.path.join(MAPPING_DIR, "bangumi_prop_mapping.json")
 BGM_IGNORE_LIST_PATH = os.path.join(MAPPING_DIR, "bangumi_ignore_list.json")
-
-
-TYPE_SELECTION_MAP = {
-    "1": ("rich_text", "文本"),
-    "2": ("number", "数字"),
-    "3": ("select", "单选"),
-    "4": ("multi_select", "多选"),
-    "5": ("date", "日期"),
-    "6": ("url", "网址"),
-    "7": ("files", "文件"),
-    "8": ("checkbox", "复选框"),
-}
 
 DB_ID_TO_NAMESPACE = {
     GAME_DB_ID: "games",
@@ -31,17 +21,14 @@ DB_ID_TO_NAMESPACE = {
 
 
 class BangumiMappingManager:
-    def __init__(self, file_path: str = BGM_PROP_MAPPING_PATH):
+    def __init__(self, interaction_provider: InteractionProvider, file_path: str = BGM_PROP_MAPPING_PATH):
         self.file_path = file_path
+        self.interaction_provider = interaction_provider
         self._mapping: Dict[str, Dict[str, List[str]]] = {}
         self._reverse_mapping: Dict[str, Dict[str, str]] = {}
         self._ignored_keys: set = set()
         self._permanent_ignored_keys: set = set()
-
-        # --- [核心修复 1/2] ---
-        # 在管理器中创建一个异步锁，用于协调对新属性的交互处理
         self._interaction_lock = asyncio.Lock()
-        # --- [修复结束] ---
 
         self._load_mapping()
         self._load_ignore_list()
@@ -141,25 +128,11 @@ class BangumiMappingManager:
         schema_manager,
         target_db_id: str,
     ) -> str | None:
-        # ... (此内部函数无需修改)
-        def _get_type_input():
-            type_prompt = f"   请为新属性 '{new_prop_name}' 选择 Notion 中的类型:\n"
-            for key, (api_type, display_name) in TYPE_SELECTION_MAP.items():
-                default_str = " (默认)" if api_type == "rich_text" else ""
-                type_prompt += f"     [{key}] {display_name}{default_str}\n"
-            type_prompt += "     [c] 取消创建\n"
-            return input(type_prompt + "   请输入选项: ").strip().lower()
-
-        while True:
-            type_choice = await asyncio.to_thread(_get_type_input)
-            if type_choice == "c":
-                return None
-            selected_type = TYPE_SELECTION_MAP.get(type_choice or "1")
-            if selected_type:
-                notion_type, _ = selected_type
-                break
-            else:
-                logger.error("无效的类型选项，请重新输入。")
+        
+        notion_type = await self.interaction_provider.ask_for_new_property_type(new_prop_name)
+        if not notion_type:
+            logger.warn(f"未选择属性类型，已取消为 '{new_prop_name}' 创建属性的操作。")
+            return None
 
         success = await notion_client.add_new_property_to_db(
             target_db_id, new_prop_name, notion_type
@@ -180,89 +153,58 @@ class BangumiMappingManager:
         schema_manager,
         target_db_id: str,
     ) -> str | None:
-        # --- [核心修复 2/2] ---
-        # 使用锁来确保只有一个任务可以执行交互式输入
         async with self._interaction_lock:
-            # 关键一步：在获取锁之后，再次检查该属性是否已经被其他任务处理完毕
-            # 这被称为“双重检查锁定模式” (Double-Checked Locking)
             if (
                 existing_prop := self.get_notion_prop(bangumi_key, target_db_id)
             ) or self.is_ignored(bangumi_key):
                 return existing_prop
 
-            # 如果在等待锁的过程中，其他任务没有处理过这个key，那么就由当前任务负责处理
             db_name = "未知数据库"
             if namespace := DB_ID_TO_NAMESPACE.get(target_db_id):
                 db_name = f"{namespace.capitalize()}数据库"
+            
+            mappable_props = schema_manager.get_mappable_properties(target_db_id)
 
-            # ... (下面的交互逻辑和之前完全一样)
-            def _get_action_input():
-                mappable_props = schema_manager.get_mappable_properties(target_db_id)
-                prompt_header = (
-                    f"\n❓ [Bangumi] 在【{db_name}】中发现新属性:\n"
-                    f"   - 键 (Key)  : '{bangumi_key}'\n"
-                    f"   - 值 (Value): {bangumi_value}\n"
-                    f"   - 来源 (URL) : {bangumi_url}\n\n"
-                    f"   请选择如何处理:\n\n   --- 映射到现有 Notion 属性 ---\n"
-                )
-                prop_lines, prop_map = [], {}
-                COLUMNS, COLUMN_WIDTH = 6, 25
+            result = await self.interaction_provider.handle_new_bangumi_key(
+                bangumi_key=bangumi_key,
+                bangumi_value=bangumi_value,
+                bangumi_url=bangumi_url,
+                db_name=db_name,
+                mappable_props=mappable_props,
+            )
+            
+            action = result.get("action")
+            data = result.get("data")
 
-                def get_visual_width(s: str) -> int:
-                    return sum(2 if "\u4e00" <= char <= "\u9fff" else 1 for char in s)
-
-                for i in range(0, len(mappable_props), COLUMNS):
-                    line_parts = []
-                    for j in range(COLUMNS):
-                        if (idx := i + j) < len(mappable_props):
-                            prop_name = mappable_props[idx]
-                            prop_map[str(idx + 1)] = prop_name
-                            display_text = f"[{idx + 1}] {prop_name}"
-                            padding = " " * max(0, COLUMN_WIDTH - get_visual_width(display_text))
-                            line_parts.append(display_text + padding)
-                    prop_lines.append("   " + "".join(line_parts))
-                prompt_body = "\n".join(prop_lines)
-                prompt_footer = (
-                    f"\n\n   --- 或执行其他操作 ---\n"
-                    f"     [y] 在 Notion 中创建同名新属性 '{bangumi_key}' (默认)\n"
-                    f"     [n] 本次运行中忽略此属性\n"
-                    f"     [p] 永久忽略此属性 (例如 '开发', '发行' 等)\n"
-                    f"     [c] 自定义新属性名称并创建\n\n"
-                    f"请输入您的选择 (数字或字母): "
-                )
-                return input(prompt_header + prompt_body + prompt_footer).strip().lower(), prop_map
-
-            action, prop_map = await asyncio.to_thread(_get_action_input)
-
-            if action.isdigit() and action in prop_map:
-                selected_prop = prop_map[action]
+            if action == "map":
+                selected_prop = data
                 self.add_new_mapping(bangumi_key, selected_prop, target_db_id)
                 return selected_prop
 
-            if action == "n":
+            if action == "ignore_session":
                 self.ignore_key_session(bangumi_key)
                 return None
 
-            if action == "p":
+            if action == "ignore_permanent":
                 self._add_to_permanent_ignore_list(bangumi_key)
                 return None
 
-            if action in {"", "y"}:
+            if action == "create_same_name":
                 return await self._create_and_map_new_property(
                     bangumi_key, bangumi_key, notion_client, schema_manager, target_db_id
                 )
 
-            if action == "c":
-                if custom_name := (
-                    await asyncio.to_thread(input, "请输入要创建的自定义 Notion 属性名: ")
-                ).strip():
+            if action == "create_custom_name":
+                if custom_name := data:
                     return await self._create_and_map_new_property(
                         custom_name, bangumi_key, notion_client, schema_manager, target_db_id
                     )
                 else:
-                    logger.warn("未输入名称，已取消操作。")
+                    logger.warn("未提供自定义名称，操作已取消。")
+                    self.ignore_key_session(bangumi_key)
                     return None
-
-            logger.error("输入无效，将忽略此属性。")
+            
+            # Default case if action is unknown or None
+            logger.error("无效操作，将忽略此属性。")
             self.ignore_key_session(bangumi_key)
             return None

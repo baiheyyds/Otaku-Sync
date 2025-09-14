@@ -142,17 +142,26 @@ async def process_and_update_brand(context: dict, detail: dict, secondary_data: 
 
 
 async def get_or_create_driver(context: dict, driver_key: str):
-    """按需创建并缓存Selenium WebDriver实例。"""
-    if context.get(driver_key) is None:
-        logger.system(f"正在按需创建 {driver_key}...")
-        driver = await asyncio.to_thread(create_driver)
-        context[driver_key] = driver
-        if driver_key == "dlsite_driver":
+    """向 DriverFactory 请求一个驱动程序，如果需要则等待其创建完成。"""
+    driver_factory = context["driver_factory"]
+    driver = await driver_factory.get_driver(driver_key)
+
+    if not driver:
+        logger.error(f"无法获取 {driver_key}，后续相关操作将跳过。")
+        return None
+
+    # 确保客户端与驱动程序关联
+    if driver_key == "dlsite_driver":
+        # 检查客户端是否已经设置了驱动，避免重复设置
+        if not context["dlsite"].has_driver():
             context["dlsite"].set_driver(driver)
-        elif driver_key == "ggbases_driver":
+            logger.info(f"{driver_key} 已设置到 DlsiteClient。")
+    elif driver_key == "ggbases_driver":
+        if not context["ggbases"].has_driver():
             context["ggbases"].set_driver(driver)
-        logger.success(f"{driver_key} 已成功创建并设置。")
-    return context[driver_key]
+            logger.info(f"{driver_key} 已设置到 GGBasesClient。")
+            
+    return driver
 
 
 async def run_single_game_flow(context: dict) -> bool:

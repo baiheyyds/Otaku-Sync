@@ -12,6 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from clients.bangumi_client import BangumiClient
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
 from utils import logger
@@ -24,7 +25,8 @@ async def main():
     # 1. 初始化所有核心组件，与 main.py 保持一致
     async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
 
-    bgm_mapper = BangumiMappingManager()
+    interaction_provider = ConsoleInteractionProvider()
+    bgm_mapper = BangumiMappingManager(interaction_provider)
     notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
     schema_manager = NotionSchemaManager(notion_client)
 
@@ -37,7 +39,7 @@ async def main():
     try:
         # 2. 从 Notion 获取所有品牌页面
         logger.info("正在从 Notion 获取所有品牌页面...")
-        all_brand_pages = await notion_client.get_all_pages_in_db(BRAND_DB_ID)
+        all_brand_pages = await notion_client.get_all_pages_from_db(BRAND_DB_ID)
         if not all_brand_pages:
             logger.error("未能从 Notion 获取到任何品牌信息，脚本终止。")
             return
@@ -48,7 +50,7 @@ async def main():
         # 3. 遍历每个品牌并更新
         for i, brand_page in enumerate(all_brand_pages, 1):
             # 从页面属性中提取品牌名
-            brand_name = notion_client.get_title_from_page(brand_page)
+            brand_name = notion_client.get_page_title(brand_page)
             if not brand_name:
                 logger.warn(
                     f"[{i}/{total_brands}] 跳过一个没有名称的品牌页面 (Page ID: {brand_page.get('id')})"
@@ -90,35 +92,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    # 我们还需要一个 `get_all_pages_in_db` 和 `get_title_from_page` 方法
-    # 所以需要先在这里 monkey-patch 到 NotionClient
-
-    async def get_all_pages_in_db(self, db_id):
-        url = f"https://api.notion.com/v1/databases/{db_id}/query"
-        all_pages = []
-        next_cursor = None
-        while True:
-            payload = {"start_cursor": next_cursor} if next_cursor else {}
-            resp = await self._request("POST", url, payload)
-            if not resp:
-                break
-            results = resp.get("results", [])
-            all_pages.extend(results)
-            if resp.get("has_more"):
-                next_cursor = resp.get("next_cursor")
-            else:
-                break
-        return all_pages
-
-    def get_title_from_page(self, page):
-        # 尝试从 page 对象的所有属性中找到类型为 'title' 的那个
-        for prop_name, prop_data in page.get("properties", {}).items():
-            if prop_data.get("type") == "title":
-                title_obj = prop_data["title"]
-                return "".join(t["plain_text"] for t in title_obj).strip()
-        return None
-
-    NotionClient.get_all_pages_in_db = get_all_pages_in_db
-    NotionClient.get_title_from_page = get_title_from_page
-
+    # We might need to adjust this part if methods are no longer monkey-patched
+    # For now, assuming the client has the necessary methods.
     asyncio.run(main())

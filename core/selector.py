@@ -8,6 +8,42 @@ from utils.similarity_check import normalize
 SIMILARITY_THRESHOLD = 0.9
 
 
+async def search_all_sites(
+    dlsite_client, fanza_client, keyword: str, site: str = "all"
+) -> tuple[list, str]:
+    """
+    Non-interactively search DLSite and/or Fanza.
+
+    :param dlsite_client: The DLSite client.
+    :param fanza_client: The Fanza client.
+    :param keyword: The keyword to search for.
+    :param site: The site to search, can be "dlsite", "fanza", or "all".
+    :return: A tuple containing the results and the source site.
+    """
+    if site == "dlsite" or site == "all":
+        logger.info(f"正在以 '{keyword}' 为关键词在 DLsite 上搜索...")
+        results = await dlsite_client.search(keyword)
+        if results:
+            logger.success(f"在 DLsite 上找到 {len(results)} 个结果。")
+            return results, "dlsite"
+        if site == "dlsite":
+            logger.error("DLsite 未找到结果。")
+            return [], None
+
+    if site == "fanza" or site == "all":
+        logger.info(f"正在以 '{keyword}' 为关键词在 Fanza 上搜索...")
+        results = await fanza_client.search(keyword)
+        if results:
+            logger.success(f"在 Fanza 上找到 {len(results)} 个结果。")
+            return results, "fanza"
+        if site == "fanza":
+            logger.error("Fanza 未找到结果。")
+            return [], None
+
+    logger.error("所有平台均未找到结果。")
+    return [], None
+
+
 def _find_best_match(keyword: str, results: list) -> tuple[float, dict | None]:
     """
     在结果列表中找到与关键词最匹配的项。

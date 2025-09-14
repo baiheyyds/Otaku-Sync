@@ -40,6 +40,10 @@ class DlsiteClient(BaseClient):
             fix_hairline=True,
         )
 
+    def has_driver(self):
+        """检查是否已设置驱动程序。"""
+        return self.driver is not None
+
     async def search(self, keyword, limit=30):
         logger.info(f"[Dlsite] 正在搜索关键词: {keyword}")
         query = urllib.parse.quote_plus(keyword)

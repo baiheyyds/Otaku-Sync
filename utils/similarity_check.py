@@ -10,6 +10,31 @@ from pathlib import Path
 
 from utils import logger
 
+async def find_similar_games_non_interactive(
+    notion_client, new_title, cached_titles=None, threshold=0.78
+):
+    """Non-interactively finds similar games and returns candidates."""
+    if not cached_titles or not isinstance(cached_titles[0], dict):
+        cached_titles = await load_or_update_titles(notion_client)
+
+    candidates = filter_similar_titles(new_title, cached_titles, threshold)
+    valid_candidates, updated_cache, changed = await remove_invalid_pages(
+        candidates, cached_titles, notion_client
+    )
+
+    if changed:
+        save_cache(updated_cache)
+        cached_titles = updated_cache
+
+    notion_results = await notion_client.search_game(new_title)
+    if notion_results:
+        existing_page_data = {"id": notion_results[0]["id"], "title": new_title}
+        valid_candidates = [
+            (p, s) for p, s in valid_candidates if p["id"] != existing_page_data["id"]
+        ]
+        valid_candidates.insert(0, (existing_page_data, 1.0))
+    
+    return sorted(valid_candidates, key=lambda x: x[1], reverse=True), cached_titles
 
 def load_cache_quick():
     path = get_cache_path()

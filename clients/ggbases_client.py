@@ -34,6 +34,10 @@ class GGBasesClient(BaseClient):
             fix_hairline=True,
         )
 
+    def has_driver(self):
+        """检查是否已设置驱动程序。"""
+        return self.driver is not None
+
     async def choose_or_parse_popular_url_with_requests(self, keyword: str) -> list:
         logger.info(f"[GGBases] 正在搜索: {keyword}")
         try:

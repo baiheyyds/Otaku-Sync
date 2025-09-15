@@ -1,11 +1,7 @@
 beautifulsoup4
 httpx
 python-dotenv
-beautifulsoup4
-httpx
-python-dotenv
 selenium
 selenium-stealth
 webdriver-manager
-PySide6
 PySide6

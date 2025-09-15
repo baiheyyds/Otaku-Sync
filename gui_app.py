@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QGroupBox
 )
 from PySide6.QtCore import Qt, QThread, Signal, QObject
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QScreen
 
 from utils.gui_bridge import patch_logger, log_bridge
 from core.gui_worker import GameSyncWorker
@@ -19,6 +19,116 @@ from core.init import close_context
 
 
 # --- Dialog Classes ---
+
+class NameSplitterDialog(QDialog):
+    def __init__(self, text, parts, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("高风险名称分割确认")
+        self.setMinimumWidth(500)
+        self.result = {"action": "keep", "save_exception": False} # Default
+
+        layout = QVBoxLayout(self)
+        info_group = QGroupBox("检测到可能不正确的名称分割")
+        info_layout = QVBoxLayout(info_group)
+        info_layout.addWidget(QLabel(f"<b>原始名称:</b> {text}"))
+        info_layout.addWidget(QLabel(f"<b>初步分割为:</b> {parts}"))
+        info_layout.addWidget(QLabel("原因: 分割后存在过短的部分，可能是误分割。\n请选择如何处理："))
+        layout.addWidget(info_group)
+
+        self.save_exception_checkbox = QCheckBox("将原始名称加入例外列表，今后不再提示")
+        self.save_exception_checkbox.setChecked(True)
+        layout.addWidget(self.save_exception_checkbox)
+
+        button_box = QDialogButtonBox()
+        keep_button = button_box.addButton("保持原始名称不分割", QDialogButtonBox.AcceptRole)
+        split_button = button_box.addButton("确认当前分割", QDialogButtonBox.ActionRole)
+        
+        keep_button.clicked.connect(self.keep_original)
+        split_button.clicked.connect(self.confirm_split)
+        layout.addWidget(button_box)
+
+    def keep_original(self):
+        self.result["action"] = "keep"
+        self.result["save_exception"] = self.save_exception_checkbox.isChecked()
+        self.accept()
+
+    def confirm_split(self):
+        self.result["action"] = "split"
+        self.result["save_exception"] = False # Splitting correctly means it's not an exception
+        self.accept()
+
+class TagTranslationDialog(QDialog):
+    def __init__(self, tag, source_name, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("发现新标签")
+        self.setMinimumWidth(400)
+        self.result = "s"  # Default to skip
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(f"发现新的<b>【{source_name}】</b>标签: <b>{tag}</b>"))
+        layout.addWidget(QLabel("请输入它的中文翻译:"))
+
+        self.translation_input = QLineEdit()
+        layout.addWidget(self.translation_input)
+
+        button_box = QDialogButtonBox()
+        ok_button = button_box.addButton("确认翻译", QDialogButtonBox.AcceptRole)
+        skip_button = button_box.addButton("本次跳过", QDialogButtonBox.ActionRole)
+        ignore_perm_button = button_box.addButton("永久忽略", QDialogButtonBox.ActionRole)
+        cancel_button = button_box.addButton("取消操作", QDialogButtonBox.RejectRole)
+
+        ok_button.clicked.connect(self.accept_translation)
+        skip_button.clicked.connect(lambda: self.set_result_and_accept("s"))
+        ignore_perm_button.clicked.connect(lambda: self.set_result_and_accept("p"))
+        cancel_button.clicked.connect(self.reject)
+        
+        layout.addWidget(button_box)
+
+    def accept_translation(self):
+        translation = self.translation_input.text().strip()
+        if not translation:
+            QMessageBox.warning(self, "输入为空", "翻译内容不能为空。\n")
+            return
+        self.result = translation
+        self.accept()
+
+    def set_result_and_accept(self, result):
+        self.result = result
+        self.accept()
+
+class BangumiSelectionDialog(QDialog):
+    def __init__(self, candidates, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("手动选择Bangumi条目")
+        self.setMinimumWidth(700)
+        self.selected_id = None
+
+        layout = QVBoxLayout(self)
+        self.list_widget = QListWidget()
+        for candidate in candidates:
+            item = QListWidgetItem(candidate['display'])
+            item.setData(Qt.UserRole, candidate['id'])
+            self.list_widget.addItem(item)
+        
+        # Add a "skip" option
+        skip_item = QListWidgetItem("0. 放弃匹配")
+        skip_item.setData(Qt.UserRole, None) # Represent skipping with None
+        self.list_widget.addItem(skip_item)
+
+        self.list_widget.setCurrentRow(0)
+        self.list_widget.itemDoubleClicked.connect(self.accept)
+        layout.addWidget(self.list_widget)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def accept(self):
+        selected_item = self.list_widget.currentItem()
+        if selected_item:
+            self.selected_id = selected_item.data(Qt.UserRole)
+        super().accept()
 
 class BangumiMappingDialog(QDialog):
     def __init__(self, request_data, parent=None):
@@ -191,7 +301,13 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Otaku Sync - 图形工具")
-        self.setGeometry(100, 100, 900, 800)
+        
+        # Set window size based on screen geometry
+        screen = QApplication.primaryScreen()
+        available_geometry = screen.availableGeometry()
+        self.resize(int(available_geometry.width() * 0.7), int(available_geometry.height() * 0.8))
+        self.move(available_geometry.center() - self.rect().center())
+
         self.worker = None
         self.shared_context = None # Will be created by the first worker
         self.current_mapping_file = None
@@ -311,9 +427,56 @@ class MainWindow(QMainWindow):
         self.worker.duplicate_check_required.connect(self.handle_duplicate_check)
         self.worker.bangumi_mapping_required.connect(self.handle_bangumi_mapping)
         self.worker.property_type_required.connect(self.handle_property_type)
+        self.worker.bangumi_selection_required.connect(self.handle_bangumi_selection_required)
+        self.worker.tag_translation_required.connect(self.handle_tag_translation_required)
+        self.worker.concept_merge_required.connect(self.handle_concept_merge_required)
+        self.worker.name_split_decision_required.connect(self.handle_name_split_decision_required)
         self.worker.process_completed.connect(self.process_finished)
         self.worker.finished.connect(self.cleanup_worker)
         self.worker.start()
+
+    def handle_name_split_decision_required(self, text, parts):
+        project_logger.info(f"需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")
+        dialog = NameSplitterDialog(text, parts, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.worker.set_interaction_response(dialog.result)
+        else:
+            self.worker.set_interaction_response({"action": "keep", "save_exception": False})
+
+    def handle_tag_translation_required(self, tag, source_name):
+        project_logger.info(f"需要为新标签 '{tag}' ({source_name}) 提供翻译...")
+        dialog = TagTranslationDialog(tag, source_name, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.worker.set_interaction_response(dialog.result)
+        else:
+            self.worker.set_interaction_response("s") # Treat cancel as skip
+
+    def handle_concept_merge_required(self, concept, candidate):
+        project_logger.info(f"需要为新概念 '{concept}' 选择合并策略...")
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("概念合并")
+        msg_box.setText(f"新标签概念 '<b>{concept}</b>' 与现有标签 '<b>{candidate}</b>' 高度相似。")
+        msg_box.setInformativeText("是否要将新概念合并到现有标签中？")
+        merge_button = msg_box.addButton("合并 (推荐)", QMessageBox.AcceptRole)
+        create_button = msg_box.addButton("创建为新标签", QMessageBox.ActionRole)
+        msg_box.addButton("取消", QMessageBox.RejectRole)
+        
+        msg_box.exec()
+
+        if msg_box.clickedButton() == merge_button:
+            self.worker.set_interaction_response("merge")
+        elif msg_box.clickedButton() == create_button:
+            self.worker.set_interaction_response("create")
+        else:
+            self.worker.set_interaction_response(None) # Cancel
+
+    def handle_bangumi_selection_required(self, candidates):
+        project_logger.system("[GUI] Received bangumi_selection_required, creating dialog.")
+        dialog = BangumiSelectionDialog(candidates, self)
+        if dialog.exec() == QDialog.Accepted:
+            self.worker.set_interaction_response(dialog.selected_id)
+        else:
+            self.worker.set_interaction_response(None) # User cancelled
 
     def handle_bangumi_mapping(self, request_data):
         project_logger.info("需要进行 Bangumi 属性映射，等待用户操作...\n")
@@ -392,7 +555,7 @@ class MainWindow(QMainWindow):
                 return
         
         if self.shared_context:
-            project_logger.system("正在清理应用资源 (浏览器、缓存等)...")
+            project_logger.system("正在清理应用资源 (浏览器、缓存等)")
             try:
                 # Use a new loop to run the async cleanup function
                 asyncio.run(close_context(self.shared_context))

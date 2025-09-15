@@ -42,7 +42,7 @@ class NotionClient:
             return None
         except httpx.RequestError as e:
             # 对于网络层面的错误
-            logger.error(f"Notion API 网络请求失败: {e}")
+            logger.error(f"Notion API 网络请求失败: {e.__class__.__name__} - {e}. 请求: {e.request.method} {e.request.url}")
             return None
         except Exception as e:
             # 其他未知异常
@@ -148,7 +148,10 @@ class NotionClient:
         return await self._request("GET", url)
 
     async def add_new_property_to_db(
-        self, db_id: str, prop_name: str, prop_type: str = "rich_text"
+        self,
+        db_id: str,
+        prop_name: str,
+        prop_type: str = "rich_text"
     ) -> bool:
         """向指定的数据库添加一个指定类型的新属性"""
         url = f"https://api.notion.com/v1/databases/{db_id}"
@@ -315,10 +318,12 @@ class NotionClient:
                 elif prop_type == "number":
                     try:
                         if final_value:
-                            props[notion_prop_name] = {
-                                "number": float(re.sub(r"[^\d.]", "", str(final_value)))
-                            }
+                            # 修正: 正则表达式移除所有非数字和非小数点的字符
+                            cleaned_value = re.sub(r"[^\d.]", "", str(final_value))
+                            if cleaned_value:
+                                props[notion_prop_name] = {"number": float(cleaned_value)}
                     except (ValueError, TypeError):
+                        # 如果转换失败（例如，值是“多人”），则忽略此属性
                         pass
                 elif prop_type == "files" and final_value:
                     props[notion_prop_name] = {
@@ -373,7 +378,7 @@ class NotionClient:
 
         resp = await self._request(method, url, payload)
         if resp:
-            logger.success(f"{"已更新" if page_id else "已创建"}游戏: {title}")
+            logger.success(f"{ '已更新' if page_id else '已创建'}游戏: {title}")
             return resp.get("id")
         else:
             logger.error(f"提交游戏失败: {title}")

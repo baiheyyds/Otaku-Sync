@@ -64,6 +64,10 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
     """GUI implementation for user interaction using Qt signals."""
     handle_new_bangumi_key_requested = Signal(dict)
     ask_for_new_property_type_requested = Signal(dict)
+    select_bangumi_game_requested = Signal(list)
+    tag_translation_required = Signal(str, str)
+    concept_merge_required = Signal(str, str)
+    name_split_decision_required = Signal(str, list)
 
     def __init__(self):
         super().__init__()
@@ -78,6 +82,21 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
         self.mutex.unlock()
         self.wait_condition.wakeAll()
 
+    async def _wait_for_response(self):
+        """Helper to wait for the response from the GUI thread."""
+        self.mutex.lock()
+        try:
+            # Set a timeout of 5 minutes for safety
+            timed_out = not self.wait_condition.wait(self.mutex, 300000)
+            if timed_out:
+                project_logger.error("等待GUI响应超时（5分钟），操作被强制取消。")
+                return None
+            response = self._response
+        finally:
+            self._response = None  # Reset for next use
+            self.mutex.unlock()
+        return response
+
     async def handle_new_bangumi_key(
         self,
         bangumi_key: str,
@@ -86,7 +105,6 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
         db_name: str,
         mappable_props: List[str],
     ) -> Dict[str, Any]:
-        self.mutex.lock()
         request_data = {
             "bangumi_key": bangumi_key,
             "bangumi_value": bangumi_value,
@@ -94,25 +112,41 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
             "db_name": db_name,
             "mappable_props": mappable_props,
         }
+        # Emit signal before locking
         self.handle_new_bangumi_key_requested.emit(request_data)
-        self.wait_condition.wait(self.mutex)
-        response = self._response
-        self._response = None  # Reset for next use
-        self.mutex.unlock()
-        return response
+        # Wait for the response
+        response = await self._wait_for_response()
+        # Default to ignore_session if GUI fails or times out
+        return response or {"action": "ignore_session"}
 
     async def ask_for_new_property_type(self, prop_name: str) -> str | None:
-        self.mutex.lock()
+        # Emit signal before locking
         self.ask_for_new_property_type_requested.emit({"prop_name": prop_name})
-        self.wait_condition.wait(self.mutex)
-        response = self._response
-        self._response = None # Reset for next use
-        self.mutex.unlock()
+        # Wait for the response
+        response = await self._wait_for_response()
         return response
 
-    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> int | str:
-        # This part is handled by the existing selection dialog in the GUI worker,
-        # so we don't need a complex implementation here. This is a slight
-        # divergence from a pure provider model but avoids re-implementing
-        # the existing GUI flow.
-        pass
+    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> str | None:
+        """Asks the user to select a game from a list of candidates via the GUI."""
+        project_logger.system("[Bridge] Emitting select_bangumi_game_requested signal.")
+        self.select_bangumi_game_requested.emit(candidates)
+        response = await self._wait_for_response()
+        return response
+
+    async def get_tag_translation(self, tag: str, source_name: str) -> str | None:
+        """Asks for a translation for a new tag."""
+        self.tag_translation_required.emit(tag, source_name)
+        response = await self._wait_for_response()
+        return response
+
+    async def get_concept_merge_choice(self, concept: str, candidate: str) -> str | None:
+        """Asks the user whether to merge a new tag concept."""
+        self.concept_merge_required.emit(concept, candidate)
+        response = await self._wait_for_response()
+        return response
+
+    async def get_name_split_decision(self, text: str, parts: list) -> dict:
+        """Asks the user to decide on a risky name split."""
+        self.name_split_decision_required.emit(text, parts)
+        response = await self._wait_for_response()
+        return response or {"action": "keep", "save_exception": False} # Default to keeping original

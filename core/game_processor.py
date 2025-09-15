@@ -1,9 +1,9 @@
 # core/game_processor.py
 import re
 
-from core.name_splitter import name_splitter
 from utils import logger
 from utils.tag_manager import TagManager
+from core.name_splitter import NameSplitter
 
 
 async def process_and_sync_game(
@@ -15,6 +15,7 @@ async def process_and_sync_game(
     user_keyword,
     notion_game_schema,
     tag_manager: TagManager,
+    name_splitter: NameSplitter,
     interactive=False,
     ggbases_detail_url=None,
     ggbases_info=None,

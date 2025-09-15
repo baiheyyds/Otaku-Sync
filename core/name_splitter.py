@@ -3,9 +3,10 @@ import asyncio
 import json
 import os
 import re
-from typing import List, Set
+from typing import List, Set, Optional
 
 from utils import logger
+from core.interaction import InteractionProvider
 
 EXCEPTION_FILE_PATH = os.path.join(
     os.path.dirname(__file__), "..", "mapping", "name_split_exceptions.json"
@@ -17,7 +18,8 @@ SPLIT_REGEX = re.compile(r"[、・,／/\s;]+")
 
 
 class NameSplitter:
-    def __init__(self):
+    def __init__(self, interaction_provider: Optional[InteractionProvider] = None):
+        self.interaction_provider = interaction_provider
         self._exceptions: Set[str] = self._load_exceptions()
 
     def _load_exceptions(self) -> Set[str]:
@@ -47,7 +49,6 @@ class NameSplitter:
         except Exception as e:
             logger.error(f"自动更新例外文件失败: {e}")
 
-    # --- [核心升级 2] 重构 smart_split 方法，引入启发式检测 ---
     async def smart_split(self, text: str) -> List[str]:
         """
         智能分割名称字符串。
@@ -56,60 +57,62 @@ class NameSplitter:
         if not text:
             return []
 
-        # 1. 检查是否是已知的例外情况 (最高优先级)
         if text in self._exceptions:
             return [text]
 
-        # 2. 使用增强的正则表达式进行初步分割
         parts = SPLIT_REGEX.split(text)
         cleaned_parts = [p.strip() for p in parts if p.strip()]
 
-        # 3. 如果分割后只有一个或零个部分，说明没有歧义，直接返回
         if len(cleaned_parts) <= 1:
             return cleaned_parts
 
-        # 4. 启发式风险评估：检查是否有分割出长度<=1的可疑部分
-        #    例如 "白家ミカ・S" -> ["白家ミカ", "S"]，"S" 的长度为 1，是可疑的。
         is_dangerous = any(len(p) <= 1 for p in cleaned_parts)
 
-        # 5. 决策
-        # 如果没有检测到风险，则认为分割是安全的，直接返回结果
         if not is_dangerous:
             return cleaned_parts
 
-        # --- 只有在检测到风险时，才会执行以下交互代码 ---
-        def _get_input():
-            logger.warn(f"检测到【高风险】的名称分割: '{text}'")
-            print(f"  初步分割为: {cleaned_parts}")
-            print("  原因: 检测到分割后有极短的部分 (如单个字母)，可能分割错误。")
-            print("  请选择如何处理:")
-            print("    [1] 这是一个完整的名字，不要分割 (例如 '白家ミカ・S') (默认)")
-            print("    [2] 以上分割是正确的 (例如 'A、B、C')")
-            return input("  请输入你的选择 (1/2): ").strip()
+        # --- Interactive part ---
+        choice = "keep"  # Default action
+        save_exception = False
 
-        choice = await asyncio.to_thread(_get_input)
+        if self.interaction_provider:
+            decision = await self.interaction_provider.get_name_split_decision(text, cleaned_parts)
+            choice = decision.get("action", "keep")
+            save_exception = decision.get("save_exception", False)
+        else:
+            # CLI Fallback
+            def _get_input():
+                logger.warn(f"检测到【高风险】的名称分割: '{text}'")
+                print(f"  初步分割为: {cleaned_parts}")
+                print("  原因: 检测到分割后有极短的部分 (如单个字母)，可能分割错误。")
+                print("  请选择如何处理:")
+                print("    [1] 这是一个完整的名字，不要分割 (例如 '白家ミカ・S') (默认)")
+                print("    [2] 以上分割是正确的 (例如 'A、B、C')")
+                return input("  请输入你的选择 (1/2): ").strip()
 
-        if choice == "2":
-            # 用户确认分割是正确的
+            cli_choice = await asyncio.to_thread(_get_input)
+            if cli_choice == "2":
+                choice = "split"
+            else:
+                choice = "keep"
+            
+            if choice == "keep":
+                def _get_save_confirmation():
+                    return (
+                        input(f"  是否将 '{text}' 添加到例外列表，以便今后自动处理? (y/N): ")
+                        .strip()
+                        .lower()
+                    )
+                save_choice = await asyncio.to_thread(_get_save_confirmation)
+                if save_choice == "y":
+                    save_exception = True
+
+        # --- Process decision ---
+        if choice == "split":
             logger.info("用户确认为正确分割。")
             return cleaned_parts
-        else:
-            # 用户选择不分割 (默认)
+        else:  # "keep"
             logger.info(f"用户选择不分割 '{text}'。")
-
-            def _get_save_confirmation():
-                return (
-                    input(f"  是否将 '{text}' 添加到例外列表，以便今后自动处理? (y/N): ")
-                    .strip()
-                    .lower()
-                )
-
-            save_choice = await asyncio.to_thread(_get_save_confirmation)
-            if save_choice == "y":
+            if save_exception:
                 self._add_exception(text)
-
             return [text]
-
-
-# 创建一个全局实例，方便其他模块直接导入使用
-name_splitter = NameSplitter()

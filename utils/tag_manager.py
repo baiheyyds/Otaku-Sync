@@ -5,6 +5,7 @@ import os
 from typing import Dict, List, Set, Optional
 
 from utils import logger
+from core.interaction import InteractionProvider
 
 # --- 文件路径定义 ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,7 +20,8 @@ TAG_MAPPING_DICT_PATH = os.path.join(MAPPING_DIR, "tag_mapping_dict.json")
 class TagManager:
     """一个用于交互式处理、翻译和映射标签的中央管理器。"""
 
-    def __init__(self):
+    def __init__(self, interaction_provider: Optional[InteractionProvider] = None):
+        self.interaction_provider = interaction_provider
         self._interaction_lock = asyncio.Lock()
         self._jp_to_cn_map = self._load_map(TAG_JP_TO_CN_PATH)
         self._fanza_to_cn_map = self._load_map(TAG_FANZA_TO_CN_PATH)
@@ -50,7 +52,6 @@ class TagManager:
         except IOError as e:
             logger.error(f"保存映射文件失败 {os.path.basename(path)}: {e}")
 
-    # --- [新增] 公共方法，用于在程序退出时统一保存所有映射文件 ---
     def save_all_maps(self):
         """将所有内存中的映射关系保存到对应的JSON文件中。"""
         logger.system("正在保存所有标签映射文件...")
@@ -97,23 +98,30 @@ class TagManager:
     async def _get_translation_interactively(
         self, tag: str, source_map: dict, map_path: str, source_name: str
     ) -> str | None:
-        def get_input():
-            logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
-            print("  > 请输入对应的中文翻译。")
-            print("  > 输入 's' 跳过本次，'p' 永久忽略此标签。")
-            return input(f"  翻译为: ").strip()
+        if self.interaction_provider:
+            translation = await self.interaction_provider.get_tag_translation(tag, source_name)
+        else:
+            def get_input():
+                logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
+                print("  > 请输入对应的中文翻译。")
+                print("  > 输入 's' 跳过本次，'p' 永久忽略此标签。")
+                return input(f"  翻译为: ").strip()
+            translation = await asyncio.to_thread(get_input)
 
-        translation = await asyncio.to_thread(get_input)
-        if translation.lower() == "s":
+        if translation is None or translation.lower() == "s":
             logger.info(f"已跳过标签 '{tag}'。")
             return None
         if translation.lower() == "p":
             self._ignore_set.add(tag)
+            self._save_map(TAG_IGNORE_PATH, list(self._ignore_set))
+            logger.info(f"标签 '{tag}' 已被永久忽略。")
             return None
         if not translation:
             logger.warn("输入为空，已跳过。")
             return None
+        
         source_map[tag] = translation
+        self._save_map(map_path, source_map)
         logger.success(f"已添加新翻译: '{tag}' -> '{translation}'")
         return translation
 
@@ -122,37 +130,34 @@ class TagManager:
         final_concept = concept
 
         if candidate and candidate != concept:
-            def get_choice():
-                logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
-                print(f"  是否要将 '{concept}' 合并到 '{candidate}' 组中？")
-                print(f"    1. 【合并】(推荐)")
-                print(f"    2. 【创建】将 '{concept}' 作为独立标签")
-                return input("  请选择 [1]: ").strip()
+            if self.interaction_provider:
+                choice = await self.interaction_provider.get_concept_merge_choice(concept, candidate)
+            else:
+                def get_choice():
+                    logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
+                    print(f"  是否要将 '{concept}' 合并到 '{candidate}' 组中？")
+                    print(f"    1. 【合并】(推荐)")
+                    print(f"    2. 【创建】将 '{concept}' 作为独立标签")
+                    return input("  请选择 [1]: ").strip()
+                choice = await asyncio.to_thread(get_choice)
 
-            choice = await asyncio.to_thread(get_choice)
-
-            if choice in ["", "1"]:
+            if choice in [None, "", "1", "merge"]:
                 keywords = self._mapping_dict.get(candidate, [candidate])
                 new_keywords = set(keywords)
                 new_keywords.add(concept)
                 self._mapping_dict[candidate] = sorted(list(new_keywords))
+                self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
                 logger.success(f"操作成功！已将概念 '{concept}' 合并到 '{candidate}'。")
-                final_concept = candidate # 记录合并后的主概念
-            elif choice == "2":
-                # 当用户选择创建新标签时，将其作为新的主键添加到映射字典中
+                final_concept = candidate
+            elif choice in ["2", "create"]:
                 if concept not in self._mapping_dict:
                     self._mapping_dict[concept] = [concept]
+                    self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
                 logger.info(f"已将 '{concept}' 创建为新的独立标签。")
         
-        # --- [核心修复] --- #
-        # 无论是否合并，都立即更新内存中的反向映射表
-        # 如果合并了，就用主概念 candidate 更新
-        # 如果没合并，就用概念本身 concept 更新
         self._unified_reverse_map[concept.lower()] = final_concept
-        # 如果主概念本身还不在反向表里，也一并添加
         if final_concept.lower() not in self._unified_reverse_map:
              self._unified_reverse_map[final_concept.lower()] = final_concept
-        # --- [修复结束] --- #
 
         return final_concept
 
@@ -183,7 +188,6 @@ class TagManager:
                     translated_tags.append(translated)
 
             final_tags_set: Set[str] = set()
-            # 使用 list(dict.fromkeys(translated_tags)) 来去重并保持顺序
             for concept in list(dict.fromkeys(translated_tags)):
                 concept = concept.strip()
                 if not concept:

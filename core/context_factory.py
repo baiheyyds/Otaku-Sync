@@ -12,6 +12,7 @@ from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION
 from core.interaction import InteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
+from core.name_splitter import NameSplitter
 from utils.tag_manager import TagManager
 from utils import logger
 from utils.similarity_check import hash_titles, load_cache_quick, save_cache
@@ -25,7 +26,6 @@ def create_shared_context():
     driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
-    tag_manager = TagManager()
     cached_titles = load_cache_quick()
     logger.cache(f"本地缓存游戏条目数: {len(cached_titles)}")
 
@@ -34,7 +34,6 @@ def create_shared_context():
         "brand_cache": brand_cache,
         "brand_extra_info_cache": brand_extra_info_cache,
         "cached_titles": cached_titles,
-        "tag_manager": tag_manager,
         "data_manager": data_manager,
     }
 
@@ -53,10 +52,12 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
     await schema_manager.load_all_schemas(db_configs)
 
     bgm_mapper = BangumiMappingManager(interaction_provider)
-    bangumi = BangumiClient(notion, bgm_mapper, schema_manager, async_client)
+    bangumi = BangumiClient(notion, bgm_mapper, schema_manager, async_client, interaction_provider)
     dlsite = DlsiteClient(async_client)
     fanza = FanzaClient(async_client)
     ggbases = GGBasesClient(async_client)
+    tag_manager = TagManager(interaction_provider)
+    name_splitter = NameSplitter(interaction_provider)
 
     # Update cached_titles in the background
     asyncio.create_task(update_cache_background(notion, shared_context["cached_titles"]))
@@ -69,6 +70,8 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
         "dlsite": dlsite,
         "fanza": fanza,
         "ggbases": ggbases,
+        "tag_manager": tag_manager,
+        "name_splitter": name_splitter,
         "interaction_provider": interaction_provider,
     }
 

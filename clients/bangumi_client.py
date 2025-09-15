@@ -14,6 +14,7 @@ import httpx
 from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
 from config.config_token import BANGUMI_TOKEN, BRAND_DB_ID, CHARACTER_DB_ID
+from core.interaction import InteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
 from utils import logger
@@ -65,11 +66,13 @@ class BangumiClient:
         mapper: BangumiMappingManager,
         schema: NotionSchemaManager,
         client: httpx.AsyncClient,
+        interaction_provider: InteractionProvider,
     ):
         self.notion = notion
         self.mapper = mapper
         self.schema = schema
         self.client = client
+        self.interaction_provider = interaction_provider
         self.headers = HEADERS_API
         self.similarity_threshold = 0.85
 
@@ -132,21 +135,19 @@ class BangumiClient:
                     f"[Bangumi] 模糊匹配成功（放宽判定）: {best['name']} (相似度 {candidates[0][0]:.2f})"
                 )
                 return str(best["id"])
+        
         logger.warn("Bangumi自动匹配相似度不足，请手动选择:")
+        
+        # Format candidates for display in GUI
+        gui_candidates = []
         for idx, (ratio, item) in enumerate(candidates[:10]):
-            print(
-                f"  {idx + 1}. {item['name']} / {item.get('name_cn','') or ''} (相似度: {ratio:.2f})"
-            )
-        print("  0. 放弃匹配")
-        while True:
-            sel = input("请输入序号选择 Bangumi 条目（0放弃）：").strip()
-            if sel.isdigit():
-                sel_int = int(sel)
-                if sel_int == 0:
-                    return None
-                if 1 <= sel_int <= len(candidates):
-                    return str(candidates[sel_int - 1][1]["id"])
-            logger.error("输入无效，请重新输入。")
+            display_text = f"{idx + 1}. {item['name']} / {item.get('name_cn','') or ''} (相似度: {ratio:.2f})"
+            gui_candidates.append({'id': str(item['id']), 'display': display_text})
+
+        # Use the interaction provider to get the user's choice
+        selected_id = await self.interaction_provider.get_bangumi_game_choice(gui_candidates)
+        
+        return selected_id
 
     async def fetch_game(self, subject_id: str) -> dict:
         url = f"https://api.bgm.tv/v0/subjects/{subject_id}"

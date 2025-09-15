@@ -40,7 +40,7 @@ async def prompt_and_select_game(context: dict) -> tuple | None:
     )
 
     if not game or source == "cancel":
-        logger.info("操作已取消。")
+        logger.info("操作已取消。 সন")
         return "retry"
 
     logger.step(f"已选择来源: {source.upper()}, 游戏: {game['title']}")
@@ -84,9 +84,9 @@ async def _select_ggbases_game_interactively(candidates: list) -> dict | None:
         selected_idx = int(choice or 0)
         if 0 <= selected_idx < len(sorted_candidates):
             return sorted_candidates[selected_idx]
-        logger.error("序号超出范围，请重试。")
+        logger.error("序号超出范围，请重试。 সন")
     except (ValueError, IndexError):
-        logger.error("无效输入，请输入数字或'c'。")
+        logger.error("无效输入，请输入数字或'c'。 সন")
     return None
 
 
@@ -147,7 +147,7 @@ async def get_or_create_driver(context: dict, driver_key: str):
     driver = await driver_factory.get_driver(driver_key)
 
     if not driver:
-        logger.error(f"无法获取 {driver_key}，后续相关操作将跳过。")
+        logger.error(f"无法获取 {driver_key}，后续相关操作将跳过。 সন")
         return None
 
     # 确保客户端与驱动程序关联
@@ -155,11 +155,11 @@ async def get_or_create_driver(context: dict, driver_key: str):
         # 检查客户端是否已经设置了驱动，避免重复设置
         if not context["dlsite"].has_driver():
             context["dlsite"].set_driver(driver)
-            logger.info(f"{driver_key} 已设置到 DlsiteClient。")
+            logger.info(f"{driver_key} 已设置到 DlsiteClient。 সন")
     elif driver_key == "ggbases_driver":
         if not context["ggbases"].has_driver():
             context["ggbases"].set_driver(driver)
-            logger.info(f"{driver_key} 已设置到 GGBasesClient。")
+            logger.info(f"{driver_key} 已设置到 GGBasesClient。 সন")
             
     return driver
 
@@ -191,7 +191,7 @@ async def run_single_game_flow(context: dict) -> bool:
 
         # 步骤 4: 根据第一批数据，获取第二批（需要Selenium或有依赖的）数据
         secondary_data = await gather_secondary_data(context, primary_data, detail, manual_mode)
-        logger.success("所有信息获取完毕！")
+        logger.success("所有信息获取完毕！ সন")
 
         # 步骤 5: 处理并更新品牌信息
         brand_id = await process_and_update_brand(context, detail, secondary_data)
@@ -207,6 +207,7 @@ async def run_single_game_flow(context: dict) -> bool:
             user_keyword=keyword,
             notion_game_schema=context["schema_manager"].get_schema(GAME_DB_ID),
             tag_manager=context["tag_manager"],
+            name_splitter=context["name_splitter"],
             ggbases_detail_url=selected_ggbases_game.get("url"),
             ggbases_info=secondary_data.get("ggbases_info", {}),
             ggbases_search_result=selected_ggbases_game,
@@ -227,7 +228,7 @@ async def run_single_game_flow(context: dict) -> bool:
         if created_page_id and bangumi_id:
             await context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)
 
-        logger.success(f"游戏 '{game['title']}' 处理流程完成！\n")
+        logger.success(f"游戏 '{game['title']}' 处理流程完成！\n সন")
 
     except Exception as e:
         logger.error(f"处理流程出现严重错误: {e}")
@@ -256,11 +257,11 @@ async def main():
         # 这个保存操作在 close_context 中已经有了，但为了保险起见可以保留
         if context.get("brand_cache") and context.get("brand_extra_info_cache"):
             context["brand_cache"].save_cache(context["brand_extra_info_cache"])
-        logger.system("程序已安全退出。")
+        logger.system("程序已安全退出。 সন")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("程序被强制退出。")
+        logger.info("程序被强制退出。 সন")

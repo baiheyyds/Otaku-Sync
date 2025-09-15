@@ -19,6 +19,10 @@ class GameSyncWorker(QThread):
     bangumi_mapping_required = Signal(dict)
     property_type_required = Signal(dict)
     context_created = Signal(dict)
+    bangumi_selection_required = Signal(list)
+    tag_translation_required = Signal(str, str)
+    concept_merge_required = Signal(str, str)
+    name_split_decision_required = Signal(str, list)
 
     def __init__(self, keyword, manual_mode=False, parent=None, shared_context=None):
         super().__init__(parent)
@@ -49,8 +53,13 @@ class GameSyncWorker(QThread):
 
         try:
             self.interaction_provider = GuiInteractionProvider()
+            # Connect provider signals to worker slots
             self.interaction_provider.handle_new_bangumi_key_requested.connect(self._on_bangumi_mapping_requested)
             self.interaction_provider.ask_for_new_property_type_requested.connect(self._on_property_type_requested)
+            self.interaction_provider.select_bangumi_game_requested.connect(self._on_bangumi_selection_requested)
+            self.interaction_provider.tag_translation_required.connect(self._on_tag_translation_requested)
+            self.interaction_provider.concept_merge_required.connect(self._on_concept_merge_requested)
+            self.interaction_provider.name_split_decision_required.connect(self._on_name_split_decision_requested)
 
             # Run the entire context setup within the loop
             loop.run_until_complete(setup_context())
@@ -67,6 +76,10 @@ class GameSyncWorker(QThread):
                 try:
                     self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self._on_bangumi_mapping_requested)
                     self.interaction_provider.ask_for_new_property_type_requested.disconnect(self._on_property_type_requested)
+                    self.interaction_provider.select_bangumi_game_requested.disconnect(self._on_bangumi_selection_requested)
+                    self.interaction_provider.tag_translation_required.disconnect(self._on_tag_translation_requested)
+                    self.interaction_provider.concept_merge_required.disconnect(self._on_concept_merge_requested)
+                    self.interaction_provider.name_split_decision_required.disconnect(self._on_name_split_decision_requested)
                 except RuntimeError:
                     pass
             
@@ -82,6 +95,18 @@ class GameSyncWorker(QThread):
     def _on_property_type_requested(self, request_data):
         self.property_type_required.emit(request_data)
 
+    def _on_bangumi_selection_requested(self, candidates):
+        self.bangumi_selection_required.emit(candidates)
+
+    def _on_tag_translation_requested(self, tag, source_name):
+        self.tag_translation_required.emit(tag, source_name)
+
+    def _on_concept_merge_requested(self, concept, candidate):
+        self.concept_merge_required.emit(concept, candidate)
+
+    def _on_name_split_decision_requested(self, text, parts):
+        self.name_split_decision_required.emit(text, parts)
+
     def set_interaction_response(self, response):
         if self.interaction_provider:
             self.interaction_provider.set_response(response)
@@ -93,15 +118,27 @@ class GameSyncWorker(QThread):
         self.wait_condition.wakeAll()
 
     async def wait_for_choice(self, choices: list, title: str, source: str = ""):
-        self.mutex.lock()
+        # 1. 先发射信号，此时不持有任何锁，避免死锁
         if source:
             self.selection_required.emit(choices, title, source)
         else:
             self.duplicate_check_required.emit(choices)
-        self.wait_condition.wait(self.mutex)
-        choice = self.user_choice
-        self.user_choice = None
-        self.mutex.unlock()
+
+        # 2. 现在获取锁，并等待主线程的响应
+        self.mutex.lock()
+        try:
+            # 为等待用户输入设置60秒超时
+            timed_out = not self.wait_condition.wait(self.mutex, 60000)
+            if timed_out and self.user_choice is None:
+                logger.warn("等待用户选择超时（60秒），将自动执行‘跳过’操作。")
+                choice = "skip"
+            else:
+                choice = self.user_choice
+        finally:
+            # 3. 重置选择并解锁，为下一次交互做准备
+            self.user_choice = None
+            self.mutex.unlock()
+        
         return choice
 
     async def get_or_create_driver(self, driver_key: str):
@@ -190,8 +227,10 @@ class GameSyncWorker(QThread):
             if ggbases_candidates:
                 if self.manual_mode or len(ggbases_candidates) > 1:
                     choice = await self.wait_for_choice(ggbases_candidates, "请从GGBases结果中选择", "ggbases")
-                    if choice is not None and choice != -1:
+                    if isinstance(choice, int) and choice != -1:
                         selected_ggbases_game = ggbases_candidates[choice]
+                    elif choice == "skip":
+                        logger.info("GGBases选择被用户或超时跳过。")
                 elif ggbases_candidates:
                     selected_ggbases_game = max(ggbases_candidates, key=lambda x: x.get("popularity", 0))
                     logger.success(f"[GGBases] 自动选择热度最高结果: {selected_ggbases_game['title']}")
@@ -228,7 +267,9 @@ class GameSyncWorker(QThread):
                 game=game, detail=detail, notion_client=self.context["notion"], brand_id=brand_id,
                 ggbases_client=self.context["ggbases"], user_keyword=self.keyword,
                 notion_game_schema=self.context["schema_manager"].get_schema(GAME_DB_ID),
-                tag_manager=self.context["tag_manager"], ggbases_detail_url=ggbases_url,
+                tag_manager=self.context["tag_manager"], 
+                name_splitter=self.context["name_splitter"], 
+                ggbases_detail_url=ggbases_url,
                 ggbases_info=secondary_data.get("ggbases_info", {}),
                 ggbases_search_result=selected_ggbases_game or {},
                 bangumi_info=bangumi_game_info, source=source,

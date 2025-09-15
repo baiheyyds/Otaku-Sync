@@ -21,3 +21,4 @@ unused_tags.txt
 bangumi_search_results.json
 bangumi_search.py
 generate_requirements.py
+debug.log

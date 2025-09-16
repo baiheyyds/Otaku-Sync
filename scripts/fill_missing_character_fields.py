@@ -1,175 +1,139 @@
+# scripts/fill_missing_character_fields.py
+import asyncio
+import os
 import re
-import time
+import sys
 
-import requests
+import httpx
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from clients.bangumi_client import BangumiClient
+from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
-from config.config_token import BANGUMI_TOKEN, CHARACTER_DB_ID, NOTION_TOKEN
-
-HEADERS_NOTION = {
-    "Authorization": f"Bearer {NOTION_TOKEN}",
-    "Notion-Version": "2022-06-28",
-    "Content-Type": "application/json",
-}
-
-HEADERS_BANGUMI = {
-    "Authorization": f"Bearer {BANGUMI_TOKEN}",
-    "User-Agent": "BangumiSync/1.0",
-    "Accept": "application/json",
-}
+from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from core.interaction import ConsoleInteractionProvider
+from core.mapping_manager import BangumiMappingManager
+from core.schema_manager import NotionSchemaManager
+from utils import logger
 
 
-def query_all_characters():
-    url = f"https://api.notion.com/v1/databases/{CHARACTER_DB_ID}/query"
-    has_more = True
-    start_cursor = None
-    results = []
-
-    while has_more:
-        payload = {"page_size": 100}
-        if start_cursor:
-            payload["start_cursor"] = start_cursor
-        resp = requests.post(url, headers=HEADERS_NOTION, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-        results.extend(data.get("results", []))
-        has_more = data.get("has_more", False)
-        start_cursor = data.get("next_cursor")
-
-    return results
-
-
-def extract_bangumi_char_id(url):
+def extract_bangumi_char_id(url: str) -> str | None:
     if not url:
         return None
     m = re.search(r"/character/(\d+)", url)
     return m.group(1) if m else None
 
 
-def fetch_bangumi_character_detail(char_id):
-    url = f"https://api.bgm.tv/v0/characters/{char_id}"
-    resp = requests.get(url, headers=HEADERS_BANGUMI)
-    if resp.status_code != 200:
-        print(f"⚠️ 无法获取角色详情，ID={char_id}")
-        return None
-    return resp.json()
+def is_update_needed(properties: dict) -> bool:
+    """检查角色页面是否缺少需要补充的字段。"""
+    # 要检查的字段列表
+    fields_to_check = [
+        FIELDS["character_bwh"],
+        FIELDS["character_height"],
+        FIELDS["character_birthday"],
+        FIELDS["character_blood_type"],
+        FIELDS["character_gender"],
+    ]
+    # 检查任一字段是否不存在或其内容为空
+    for field in fields_to_check:
+        prop = properties.get(field)
+        if not prop:
+            return True  # 属性本身不存在
+        prop_type = prop.get("type")
+        if prop_type == "rich_text" and not prop.get("rich_text"):
+            return True
+        if prop_type == "select" and not prop.get("select"):
+            return True
+    return False
 
 
-def parse_bwh_and_height(infobox):
-    bwh = ""
-    height = ""
-    for info in infobox:
-        key = info.get("key", "")
-        val = info.get("value", "")
-        if key in ("三围", "BWH"):
-            bwh = val
-        elif key == "身高":
-            height = val
-    return bwh, height
-
-
-def parse_birthday_and_bloodtype(infobox):
-    birthday = ""
-    blood_type = ""
-    for info in infobox:
-        key = info.get("key", "")
-        val = info.get("value", "")
-        if key == "生日":
-            birthday = val
-        elif key == "血型":
-            blood_type = val
-    return birthday, blood_type
-
-
-def update_character_props(page_id, bwh, height, birthday, blood_type):
-    props = {}
-    if bwh:
-        props[FIELDS["character_bwh"]] = {"rich_text": [{"text": {"content": bwh}}]}
-    if height:
-        props[FIELDS["character_height"]] = {"rich_text": [{"text": {"content": height}}]}
-    if birthday:
-        props[FIELDS["character_birthday"]] = {"rich_text": [{"text": {"content": birthday}}]}
-    if blood_type:
-        # 血型是 select 类型，需要确保选项存在，否者更新失败
-        props[FIELDS["character_blood_type"]] = {"select": {"name": blood_type}}
-
-    if not props:
+async def fill_missing_character_fields(
+    notion_client: NotionClient, bangumi_client: BangumiClient
+):
+    """遍历角色数据库，为缺少特定字段的角色从Bangumi补充信息。"""
+    logger.info("开始扫描角色数据库以补充缺失字段...")
+    all_characters = await notion_client.get_all_pages_from_db(CHARACTER_DB_ID)
+    if not all_characters:
+        logger.warn("角色数据库中没有任何条目。")
         return
 
-    url = f"https://api.notion.com/v1/pages/{page_id}"
-    payload = {"properties": props}
-    resp = requests.patch(url, headers=HEADERS_NOTION, json=payload)
-    if resp.status_code == 200:
-        print(f"✅ 更新成功：{page_id} BWH={bwh}, 身高={height}, 生日={birthday}, 血型={blood_type}")
-    else:
-        print(f"❌ 更新失败：{page_id} 状态码={resp.status_code} 内容={resp.text}")
+    total = len(all_characters)
+    logger.info(f"共拉取到 {total} 个角色条目，开始检查和更新。")
+
+    updated_count = 0
+    skipped_count = 0
+
+    for idx, page in enumerate(all_characters, 1):
+        page_id = page["id"]
+        props = page.get("properties", {})
+        char_name = notion_client.get_page_title(page)
+
+        logger.info(f"\n[{idx}/{total}] 正在处理角色: {char_name}")
+
+        if not is_update_needed(props):
+            logger.info("✅ 所有关键字段已填写，跳过。")
+            skipped_count += 1
+            continue
+
+        detail_url = props.get(FIELDS["character_url"], {}).get("url")
+        char_id = extract_bangumi_char_id(detail_url)
+
+        if not char_id:
+            logger.warn(f"⚠️ 无法从URL中提取Bangumi角色ID，跳过: {detail_url}")
+            skipped_count += 1
+            continue
+
+        logger.info(f"正在从Bangumi获取角色 {char_id} 的详细信息...")
+        char_data_to_update = await bangumi_client.fetch_and_prepare_character_data(char_id)
+
+        if not char_data_to_update:
+            logger.error(f"❌ 从Bangumi获取角色 {char_id} 的信息失败。")
+            skipped_count += 1
+            continue
+
+        # create_or_update_character 会处理页面的创建或更新逻辑
+        result_id = await bangumi_client.create_or_update_character(char_data_to_update, set())
+        if result_id:
+            updated_count += 1
+        else:
+            skipped_count += 1
+
+        await asyncio.sleep(1)  # 尊重Bangumi API的速率限制
+
+    logger.system("\n--- 扫描完成 ---")
+    logger.success(f"✅ 成功更新或确认了 {updated_count} 个角色。")
+    logger.info(f"⏩ 跳过了 {skipped_count} 个无需更新或无法处理的角色。")
 
 
-def main():
-    print("开始扫描角色数据库补充 BWH、身高、生日和血型字段...")
-    characters = query_all_characters()
-    print(f"共拉取到角色条目数: {len(characters)}")
+async def main():
+    """脚本独立运行时的入口函数。"""
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as async_client:
+        # 1. 初始化所有必要的组件
+        interaction_provider = ConsoleInteractionProvider()
+        notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
+        schema_manager = NotionSchemaManager(notion_client)
+        await schema_manager.load_all_schemas({CHARACTER_DB_ID: "角色数据库"})
+        bgm_mapper = BangumiMappingManager(interaction_provider)
 
-    skipped = 0
-    updated = 0
+        bangumi_client = BangumiClient(
+            notion=notion_client,
+            mapper=bgm_mapper,
+            schema=schema_manager,
+            client=async_client,
+            interaction_provider=interaction_provider,
+        )
 
-    for item in characters:
-        try:
-            page_id = item["id"]
-            props = item.get("properties", {})
+        # 2. 执行核心逻辑
+        context = {
+            "notion": notion_client,
+            "bangumi": bangumi_client,
+        }
+        await fill_missing_character_fields(context)
 
-            def get_rich_text(prop_name):
-                if prop_name in props and props[prop_name].get("rich_text"):
-                    return props[prop_name]["rich_text"][0].get("text", {}).get("content", "").strip()
-                return ""
-
-            def get_select(prop_name):
-                if prop_name in props and props[prop_name].get("select"):
-                    return props[prop_name]["select"].get("name", "").strip()
-                return ""
-
-            # 先从 Notion 中取值
-            bwh_val = get_rich_text(FIELDS["character_bwh"])
-            height_val = get_rich_text(FIELDS["character_height"])
-            birthday_val = get_rich_text(FIELDS["character_birthday"])
-            blood_type_val = get_select(FIELDS["character_blood_type"])
-
-            # ✅ 全部存在就跳过，无需访问 Bangumi
-            if bwh_val and height_val and birthday_val and blood_type_val:
-                skipped += 1
-                continue
-
-            detail_url = props.get(FIELDS["character_url"], {}).get("url")
-            char_id = extract_bangumi_char_id(detail_url)
-            if not char_id:
-                print(f"⚠️ 无 Bangumi 角色ID，跳过: {page_id}")
-                continue
-
-            detail_json = fetch_bangumi_character_detail(char_id)
-            if not detail_json:
-                continue
-
-            bwh_new, height_new = parse_bwh_and_height(detail_json.get("infobox", []))
-            birthday_new, blood_type_new = parse_birthday_and_bloodtype(detail_json.get("infobox", []))
-
-            # ✅ 仅当字段有变动时才 update
-            if (
-                (bwh_new and bwh_new != bwh_val)
-                or (height_new and height_new != height_val)
-                or (birthday_new and birthday_new != birthday_val)
-                or (blood_type_new and blood_type_new != blood_type_val)
-            ):
-                update_character_props(page_id, bwh_new, height_new, birthday_new, blood_type_new)
-                updated += 1
-
-            time.sleep(0.2)  # 建议保留短暂 sleep，避免太快封IP
-        except Exception as e:
-            print(f"❌ 处理失败 {item.get('id')} 错误: {e}")
-
-    print(f"\n扫描完成，共处理 {len(characters)} 个角色：")
-    print(f"✅ 已更新: {updated}")
-    print(f"⏩ 跳过无需更新的: {skipped}")
+        # 3. 保存可能发生的映射变更
+        bgm_mapper.save_mappings()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

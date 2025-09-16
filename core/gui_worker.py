@@ -293,3 +293,80 @@ class GameSyncWorker(QThread):
             logger.error(traceback.format_exc())
             self.process_completed.emit(False)
             return False
+
+class ScriptWorker(QThread):
+    script_completed = Signal(str, bool)
+    context_created = Signal(dict)
+
+    def __init__(self, script_function, script_name, parent=None, shared_context=None):
+        super().__init__(parent)
+        self.script_function = script_function
+        self.script_name = script_name
+        self.shared_context = shared_context
+        self.context = {}
+        self.interaction_provider = None
+
+    def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def setup_context():
+            if not self.shared_context:
+                logger.system("正在为脚本运行创建新的共享应用上下文...")
+                self.shared_context = create_shared_context()
+                self.context_created.emit(self.shared_context)
+            
+            loop_specific_context = await create_loop_specific_context(
+                self.shared_context, self.interaction_provider
+            )
+            self.context = {**self.shared_context, **loop_specific_context}
+
+        try:
+            self.interaction_provider = GuiInteractionProvider()
+            # Connect signals for interactive scripts
+            # This is necessary for scripts using TagManager or BangumiMappingManager
+            self.interaction_provider.tag_translation_required.connect(self.parent().handle_tag_translation_required)
+            self.interaction_provider.concept_merge_required.connect(self.parent().handle_concept_merge_required)
+            self.interaction_provider.handle_new_bangumi_key_requested.connect(self.parent().handle_bangumi_mapping)
+            self.interaction_provider.ask_for_new_property_type_requested.connect(self.parent().handle_property_type)
+            self.interaction_provider.select_bangumi_game_requested.connect(self.parent().handle_bangumi_selection_required)
+
+            loop.run_until_complete(setup_context())
+            
+            # Set drivers for clients that need them
+            driver_keys = ["dlsite_driver", "ggbases_driver"]
+            for key in driver_keys:
+                driver = loop.run_until_complete(self.context["driver_factory"].get_driver(key))
+                if driver:
+                    if key == "dlsite_driver":
+                        self.context["dlsite"].set_driver(driver)
+                    elif key == "ggbases_driver":
+                        self.context["ggbases"].set_driver(driver)
+
+            logger.system(f"后台线程开始执行脚本: {self.script_name}")
+            awaitable_func = self.script_function(self.context)
+            loop.run_until_complete(awaitable_func)
+            logger.success(f"脚本 {self.script_name} 执行完毕。")
+            self.script_completed.emit(self.script_name, True)
+
+        except Exception as e:
+            logger.error(f"脚本 {self.script_name} 执行时出现致命错误: {e}")
+            logger.error(traceback.format_exc())
+            self.script_completed.emit(self.script_name, False)
+        finally:
+            # Disconnect signals
+            if self.interaction_provider:
+                try:
+                    self.interaction_provider.tag_translation_required.disconnect(self.parent().handle_tag_translation_required)
+                    self.interaction_provider.concept_merge_required.disconnect(self.parent().handle_concept_merge_required)
+                    self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self.parent().handle_bangumi_mapping)
+                    self.interaction_provider.ask_for_new_property_type_requested.disconnect(self.parent().handle_property_type)
+                    self.interaction_provider.select_bangumi_game_requested.disconnect(self.parent().handle_bangumi_selection_required)
+                except (RuntimeError, TypeError):
+                    pass # Ignore errors on disconnect
+
+            if self.context.get("async_client"):
+                loop.run_until_complete(self.context["async_client"].aclose())
+                logger.system("脚本线程内的HTTP客户端已关闭。")
+            
+            loop.close()

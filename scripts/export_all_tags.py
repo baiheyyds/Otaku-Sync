@@ -1,59 +1,68 @@
 # scripts/export_all_tags.py
+import asyncio
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 添加项目根目录到模块路径
-from notion_client import Client
+import httpx
 
-from config.config_fields import FIELDS  # 包含标签字段名
-from config.config_token import GAME_DB_ID, NOTION_TOKEN
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 初始化 Notion 客户端
-notion = Client(auth=NOTION_TOKEN)
-
-
-def get_all_games(database_id):
-    all_results = []
-    start_cursor = None
-    while True:
-        query = {
-            "database_id": database_id,
-            "page_size": 100,
-        }
-        if start_cursor:
-            query["start_cursor"] = start_cursor
-        response = notion.databases.query(**query)
-        all_results.extend(response["results"])
-        if response.get("has_more"):
-            start_cursor = response["next_cursor"]
-        else:
-            break
-    return all_results
+from clients.notion_client import NotionClient
+from config.config_fields import FIELDS
+from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from utils import logger
 
 
-def extract_all_tags(pages, tag_field_name):
+async def export_all_tags(context: dict) -> list[str]:
+    """
+    从 Notion 游戏数据库中导出所有使用过的标签。
+
+    :param context: 包含 notion_client 的应用上下文。
+    :return: 一个包含所有唯一标签的排序列表。
+    """
+    notion_client = context["notion"]
+    tag_field_name = FIELDS.get("tags", "标签")
+    logger.info(f"📥 正在从 Notion 获取所有游戏记录以提取 '{tag_field_name}' 标签...")
+
+    pages = await notion_client.get_all_pages_from_db(GAME_DB_ID)
+    if not pages:
+        logger.warn("⚠️ 未获取到任何游戏页面。")
+        return []
+
+    logger.info(f"✅ 获取到 {len(pages)} 条记录，开始解析标签。")
+
     tag_set = set()
     for page in pages:
         try:
-            tags = page["properties"][tag_field_name]["multi_select"]
-            tag_set.update(tag["name"] for tag in tags)
+            props = page.get("properties", {})
+            tags_prop = props.get(tag_field_name, {})
+            if tags_prop.get("type") == "multi_select":
+                tags = tags_prop.get("multi_select", [])
+                tag_set.update(tag["name"] for tag in tags)
         except Exception as e:
+            logger.printf("处理页面 %s 时出错: %s", page.get('id'), e)
             continue  # 跳过无法解析的条目
-    return sorted(tag_set)
+
+    return sorted(list(tag_set))
 
 
-def save_tags_to_txt(tags, filename="all_tags.txt"):
-    with open(filename, "w", encoding="utf-8") as f:
-        for tag in tags:
-            f.write(tag + "\n")
-    print(f"✅ 成功写入 {len(tags)} 个标签到 {filename}")
+async def main():
+    """脚本独立运行时的入口函数。"""
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as async_client:
+        # NotionClient 初始化需要 BRAND_DB_ID，即使此脚本不直接使用
+        notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
+
+        tags = await export_all_tags(notion_client)
+
+        if tags:
+            output_filename = "all_tags.txt"
+            with open(output_filename, "w", encoding="utf-8") as f:
+                for tag in tags:
+                    f.write(tag + "\n")
+            logger.system(f"✅ 成功将 {len(tags)} 个唯一标签写入到 {output_filename}")
+        else:
+            logger.warn("🤷‍♀️ 未提取到任何标签。")
 
 
 if __name__ == "__main__":
-    print("📥 正在从 Notion 获取所有游戏记录...")
-    pages = get_all_games(GAME_DB_ID)
-    print(f"✅ 获取到 {len(pages)} 条记录")
-
-    tag_field = FIELDS.get("标签", "标签")  # 从配置中读取字段名
-    tags = extract_all_tags(pages, tag_field)
-    save_tags_to_txt(tags)
+    asyncio.run(main())

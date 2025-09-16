@@ -182,7 +182,11 @@ async def run_single_game_flow(context: dict) -> bool:
 
         # 步骤 3: 并发获取第一批数据
         primary_data = await gather_primary_data(context, keyword, game["url"], source)
-        detail = primary_data.get("detail", {})
+        detail = primary_data.get("detail")
+        if not detail:
+            logger.error(f"获取游戏 '{game['title']}' 的核心详情失败，已跳过处理。")
+            return True
+
         detail["source"] = source  # 注入来源信息
         bangumi_id = primary_data.get("bangumi_id")
         bangumi_game_info = {}

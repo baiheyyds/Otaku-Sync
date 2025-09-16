@@ -1,62 +1,57 @@
 # scripts/extract_brands.py
+import asyncio
 import os
 import sys
-import time
 
-import requests
+import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.config_token import BRAND_DB_ID, NOTION_TOKEN
 
-headers = {
-    "Authorization": f"Bearer {NOTION_TOKEN}",
-    "Notion-Version": "2022-06-28",
-    "Content-Type": "application/json",
-}
+from clients.notion_client import NotionClient
+from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
+from utils import logger
 
 
-def query_all_brand_names():
-    url = f"https://api.notion.com/v1/databases/{BRAND_DB_ID}/query"
-    all_names = set()
-    next_cursor = None
+async def export_brand_names(notion_client: NotionClient) -> list[str]:
+    """
+    从 Notion 数据库中导出所有品牌名称。
 
-    print("🔍 正在读取品牌数据库条目...")
+    :param notion_client: 初始化好的 NotionClient 实例。
+    :return: 一个包含所有品牌名称的排序列表。
+    """
+    logger.info("🔍 正在从 Notion 读取所有品牌...")
+    all_brand_pages = await notion_client.get_all_pages_from_db(BRAND_DB_ID)
 
-    while True:
-        payload = {"page_size": 100}
-        if next_cursor:
-            payload["start_cursor"] = next_cursor
+    if not all_brand_pages:
+        logger.warn("⚠️ 未能从 Notion 获取到任何品牌信息。")
+        return []
 
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code != 200:
-            print("❌ 请求失败:", response.text)
-            break
+    brand_names = {
+        notion_client.get_page_title(page)
+        for page in all_brand_pages
+        if notion_client.get_page_title(page)
+    }
 
-        data = response.json()
-        for page in data.get("results", []):
-            prop = page["properties"].get("厂商名")
-            if prop and prop["type"] == "title":
-                name = "".join([t["text"]["content"] for t in prop["title"]])
-                if name:
-                    all_names.add(name)
-
-        next_cursor = data.get("next_cursor")
-        if not next_cursor:
-            break
-
-        time.sleep(0.3)
-
-    return sorted(all_names)
+    logger.success(f"✅ 成功提取到 {len(brand_names)} 个唯一的品牌名称。")
+    return sorted(list(brand_names))
 
 
-def main():
-    brand_names = query_all_brand_names()
-    with open("brand_names.txt", "w", encoding="utf-8") as f:
-        for name in brand_names:
-            f.write(name + "\n")
+async def main():
+    """脚本独立运行时的入口函数。"""
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as async_client:
+        # 注意：GAME_DB_ID 在此脚本中不是必需的，但 NotionClient 初始化需要它
+        notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
 
-    print(f"✅ 已写入 {len(brand_names)} 个品牌名到 brand_names.txt")
+        context = {"notion": notion_client}
+        brand_names = await export_brand_names(context)
+
+        if brand_names:
+            output_filename = "brand_names.txt"
+            with open(output_filename, "w", encoding="utf-8") as f:
+                for name in brand_names:
+                    f.write(name + "\n")
+            logger.system(f"✅ 已将 {len(brand_names)} 个品牌名写入到 {output_filename}")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

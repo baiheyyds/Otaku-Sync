@@ -1,7 +1,5 @@
 <div align="center">
   <br>
-  <img width="120" src="https://youke1.picui.cn/s1/2025/07/25/68829b028b263.png" alt="Otaku-Sync Logo">
-  <br>
   <h2 align="center">Otaku-Sync</h2>
   <p align="center">
     一款能自动同步 Galgame 游戏信息到 Notion 数据库的高效工具
@@ -25,8 +23,7 @@
 
 与繁琐的手动录入说再见。现在，你可以通过一个现代化的图形界面，轻松管理你的游戏收藏，并借助其强大的数据整合与映射能力，确保你的数据库信息高度统一和规范。
 
-<!-- 建议：在这里替换成你的GUI主界面截图 -->
-![Otaku-Sync GUI 主界面](https://raw.githubusercontent.com/baiheyyds/Otaku-Sync/main/assets/statistics.png)
+![Otaku-Sync GUI 主界面](./assets/gui.png)
 
 ## ✨ 项目特性
 
@@ -43,6 +40,8 @@
 -  **角色信息关联**: 自动从 Bangumi 抓取游戏关联的角色、声优等信息，并建立关系链接。
 -  **高度可定制**: 通过独立的映射文件和配置文件，你可以轻松自定义 Notion 字段、标签体系和品牌别名。
 -  **高效稳定**: 采用异步 IO 和共享浏览器驱动等技术，显著提升抓取效率，节约系统资源。
+
+![数据统计](./assets/statistics.png)
 
 ## 🎮 如何使用
 
@@ -61,8 +60,6 @@ python gui_app.py
 2.  程序会自动在后台搜索，并在下方的日志区域显示进度。
 3.  当需要你进行选择时（例如，从多个搜索结果中选择一个，或处理一个重复游戏），程序会自动弹出对话框，引导你完成操作。
 4.  同步完成后，结果会清晰地显示在日志中。
-
-<!-- 建议：在这里可以添加更多GUI操作的截图或GIF -->
 
 ### 方式二：使用命令行
 

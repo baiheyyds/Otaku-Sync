@@ -1,24 +1,37 @@
 # .gitignore
 
-# 忽略Python的缓存文件
+# Python
 __pycache__/
 *.pyc
 
-# 忽略敏感的配置文件
+# Environment variables
 .env
 
-# 忽略程序生成的缓存和备份文件
-cache/
-*.tmp
-*.bak_*
-
-# 忽略虚拟环境文件夹
+# Virtual Environments
 venv/
 .venv/
 
+# Application-generated files
+cache/
+*.tmp
+*.bak_*
+debug.log
 all_tags.txt
 unused_tags.txt
 bangumi_search_results.json
+
+# Scripts that should not be in repository
 bangumi_search.py
 generate_requirements.py
-debug.log
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# IDE configuration
+.idea/
+.vscode/
+
+# Test artifacts
+.pytest_cache/
+.coverage

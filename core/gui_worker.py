@@ -225,13 +225,14 @@ class GameSyncWorker(QThread):
             ggbases_candidates = primary_data.get("ggbases_candidates", [])
             selected_ggbases_game = None
             if ggbases_candidates:
-                if self.manual_mode or len(ggbases_candidates) > 1:
+                if self.manual_mode:
+                    logger.info("[GGBases] 手动模式，需要用户选择。")
                     choice = await self.wait_for_choice(ggbases_candidates, "请从GGBases结果中选择", "ggbases")
                     if isinstance(choice, int) and choice != -1:
                         selected_ggbases_game = ggbases_candidates[choice]
                     elif choice == "skip":
                         logger.info("GGBases选择被用户或超时跳过。")
-                elif ggbases_candidates:
+                else:
                     selected_ggbases_game = max(ggbases_candidates, key=lambda x: x.get("popularity", 0))
                     logger.success(f"[GGBases] 自动选择热度最高结果: {selected_ggbases_game['title']}")
 

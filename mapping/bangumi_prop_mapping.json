@@ -9,6 +9,9 @@
       "DLSite",
       "dlsite"
     ],
+    "FANZA": [
+      "FANZA"
+    ],
     "Fantia": [
       "Fantia"
     ],
@@ -35,9 +38,21 @@
       "blog",
       "Blog"
     ],
+    "booth": [
+      "booth"
+    ],
     "facebook": [
       "facebook",
       "Facebook"
+    ],
+    "fanbox": [
+      "fanbox"
+    ],
+    "pixiv": [
+      "pixiv"
+    ],
+    "youtube": [
+      "youtube"
     ],
     "公司地址": [
       "公司地址",

@@ -13,8 +13,8 @@ EXCEPTION_FILE_PATH = os.path.join(
 )
 
 # --- [核心升级 1] 使用更强大的正则表达式 ---
-# 涵盖了：、・,／/ ; 以及各种空白符
-SPLIT_REGEX = re.compile(r"[、・,／/\s;]+")
+# 涵盖了：、・,／/ ; 但不包括作为分隔符的空白符
+SPLIT_REGEX = re.compile(r"[、・,／/;]+")
 
 
 class NameSplitter:
@@ -57,18 +57,31 @@ class NameSplitter:
         if not text:
             return []
 
+        # --- [核心升级 3] 名称标准化 ---
+        # 将所有内部空白（包括全角空格）统一替换为单个标准空格
+        def normalize(name: str) -> str:
+            return re.sub(r'\s+', ' ', name).strip()
+
         if text in self._exceptions:
-            return [text]
+            return [normalize(text)]
 
         parts = SPLIT_REGEX.split(text)
-        cleaned_parts = [p.strip() for p in parts if p.strip()]
+        cleaned_parts = [normalize(p) for p in parts if p.strip()]
 
         if len(cleaned_parts) <= 1:
             return cleaned_parts
 
+        # --- [核心升级 2] 增强风险识别 ---
+        # 规则1: 分割后出现过短的部分 (例如: 'S')
         is_dangerous = any(len(p) <= 1 for p in cleaned_parts)
-
-        if not is_dangerous:
+        
+        # 规则2: 由'・'分割的全英文名称 (例如: 'Ryo・Lion')
+        is_alpha_dot_split = False
+        if not is_dangerous and '・' in text and len(cleaned_parts) > 1:
+            if all(re.fullmatch(r'[a-zA-Z]+', p) for p in cleaned_parts):
+                is_alpha_dot_split = True
+        
+        if not is_dangerous and not is_alpha_dot_split:
             return cleaned_parts
 
         # --- Interactive part ---
@@ -76,6 +89,7 @@ class NameSplitter:
         save_exception = False
 
         if self.interaction_provider:
+            # TODO: 将增强的风险原因传递给GUI
             decision = await self.interaction_provider.get_name_split_decision(text, cleaned_parts)
             choice = decision.get("action", "keep")
             save_exception = decision.get("save_exception", False)
@@ -84,10 +98,13 @@ class NameSplitter:
             def _get_input():
                 logger.warn(f"检测到【高风险】的名称分割: '{text}'")
                 print(f"  初步分割为: {cleaned_parts}")
-                print("  原因: 检测到分割后有极短的部分 (如单个字母)，可能分割错误。")
+                if is_alpha_dot_split:
+                    print("  原因: 检测到由'・'分割的纯英文名称，这可能是一个完整的名字。")
+                else:
+                    print("  原因: 检测到分割后有极短的部分 (如单个字母)，可能分割错误。")
                 print("  请选择如何处理:")
-                print("    [1] 这是一个完整的名字，不要分割 (例如 '白家ミカ・S') (默认)")
-                print("    [2] 以上分割是正确的 (例如 'A、B、C')")
+                print("    [1] 这是一个完整的名字，不要分割 (例如 'Ryo・Lion') (默认)")
+                print("    [2] 以上分割是正确的 (例如 'A・B')")
                 return input("  请输入你的选择 (1/2): ").strip()
 
             cli_choice = await asyncio.to_thread(_get_input)
@@ -109,10 +126,9 @@ class NameSplitter:
 
         # --- Process decision ---
         if choice == "split":
-            logger.info("用户确认为正确分割。")
             return cleaned_parts
         else:  # "keep"
             logger.info(f"用户选择不分割 '{text}'。")
             if save_exception:
                 self._add_exception(text)
-            return [text]
+            return [normalize(text)]

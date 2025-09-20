@@ -43,14 +43,25 @@ async def process_and_sync_game(
     ]
     fields_to_overwrite = ["发售日"]
     for field in list_fields_to_merge:
-        bangumi_values_raw = merged.get(field, [])
-        bangumi_values = []
-        if isinstance(bangumi_values_raw, str):
-            bangumi_values = await name_splitter.smart_split(bangumi_values_raw)
-        elif isinstance(bangumi_values_raw, list):
-            bangumi_values = bangumi_values_raw
-        detail_values = detail.get(field, [])
-        combined_set = set(bangumi_values) | set(detail_values)
+        combined_set = set()
+        
+        raw_values = []
+        bangumi_raw = merged.get(field, [])
+        if isinstance(bangumi_raw, list):
+            raw_values.extend(bangumi_raw)
+        elif isinstance(bangumi_raw, str):
+            raw_values.append(bangumi_raw)
+            
+        detail_raw = detail.get(field, [])
+        if isinstance(detail_raw, list):
+            raw_values.extend(detail_raw)
+        elif isinstance(detail_raw, str):
+            raw_values.append(detail_raw)
+
+        for raw_item in raw_values:
+            processed_names = await name_splitter.smart_split(raw_item)
+            combined_set.update(processed_names)
+
         merged[field] = sorted([item for item in list(combined_set) if item])
     for field in fields_to_overwrite:
         if detail.get(field):

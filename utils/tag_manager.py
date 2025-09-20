@@ -20,8 +20,7 @@ TAG_MAPPING_DICT_PATH = os.path.join(MAPPING_DIR, "tag_mapping_dict.json")
 class TagManager:
     """一个用于交互式处理、翻译和映射标签的中央管理器。"""
 
-    def __init__(self, interaction_provider: Optional[InteractionProvider] = None):
-        self.interaction_provider = interaction_provider
+    def __init__(self):
         self._interaction_lock = asyncio.Lock()
         self._jp_to_cn_map = self._load_map(TAG_JP_TO_CN_PATH)
         self._fanza_to_cn_map = self._load_map(TAG_FANZA_TO_CN_PATH)
@@ -96,10 +95,10 @@ class TagManager:
         return None
 
     async def _get_translation_interactively(
-        self, tag: str, source_map: dict, map_path: str, source_name: str
+        self, tag: str, source_map: dict, map_path: str, source_name: str, interaction_provider: InteractionProvider
     ) -> str | None:
-        if self.interaction_provider:
-            translation = await self.interaction_provider.get_tag_translation(tag, source_name)
+        if interaction_provider:
+            translation = await interaction_provider.get_tag_translation(tag, source_name)
         else:
             def get_input():
                 logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
@@ -113,7 +112,6 @@ class TagManager:
             return None
         if translation.lower() == "p":
             self._ignore_set.add(tag)
-            # self._save_map(TAG_IGNORE_PATH, list(self._ignore_set)) # 优化：移除立即保存
             logger.info(f"标签 '{tag}' 已被标记为永久忽略。")
             return None
         if not translation:
@@ -121,17 +119,16 @@ class TagManager:
             return None
         
         source_map[tag] = translation
-        # self._save_map(map_path, source_map) # 优化：移除立即保存
         logger.success(f"已在内存中添加新翻译: '{tag}' -> '{translation}'")
         return translation
 
-    async def _handle_new_concept_interactively(self, concept: str) -> str:
+    async def _handle_new_concept_interactively(self, concept: str, interaction_provider: InteractionProvider) -> str:
         candidate = self._find_best_merge_candidate(concept)
         final_concept = concept
 
         if candidate and candidate != concept:
-            if self.interaction_provider:
-                choice = await self.interaction_provider.get_concept_merge_choice(concept, candidate)
+            if interaction_provider:
+                choice = await interaction_provider.get_concept_merge_choice(concept, candidate)
             else:
                 def get_choice():
                     logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
@@ -146,13 +143,11 @@ class TagManager:
                 new_keywords = set(keywords)
                 new_keywords.add(concept)
                 self._mapping_dict[candidate] = sorted(list(new_keywords))
-                # self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict) # 优化：移除立即保存
                 logger.success(f"操作成功！已在内存中将概念 '{concept}' 合并到 '{candidate}'。")
                 final_concept = candidate
             elif choice in ["2", "create"]:
                 if concept not in self._mapping_dict:
                     self._mapping_dict[concept] = [concept]
-                    # self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict) # 优化：移除立即保存
                 logger.info(f"已在内存中将 '{concept}' 创建为新的独立标签。")
         
         self._unified_reverse_map[concept.lower()] = final_concept
@@ -162,7 +157,11 @@ class TagManager:
         return final_concept
 
     async def process_tags(
-        self, dlsite_tags: List[str], fanza_tags: List[str], ggbases_tags: List[str]
+        self,
+        dlsite_tags: List[str],
+        fanza_tags: List[str],
+        ggbases_tags: List[str],
+        interaction_provider: InteractionProvider,
     ) -> List[str]:
         async with self._interaction_lock:
             translated_tags = []
@@ -177,7 +176,7 @@ class TagManager:
                     translation = source_map.get(tag)
                     if not translation:
                         translation = await self._get_translation_interactively(
-                            tag, source_map, map_path, source_name
+                            tag, source_map, map_path, source_name, interaction_provider
                         )
                     if translation:
                         translated_tags.append(translation)
@@ -196,7 +195,7 @@ class TagManager:
                 main_tag = self._unified_reverse_map.get(concept.lower())
 
                 if not main_tag:
-                    main_tag = await self._handle_new_concept_interactively(concept)
+                    main_tag = await self._handle_new_concept_interactively(concept, interaction_provider)
                 
                 final_tags_set.add(main_tag)
 

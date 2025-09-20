@@ -22,8 +22,8 @@ async def close_context(context: dict):
         await context["async_client"].aclose()
         logger.system("HTTP 客户端已关闭。")
 
-    # Save all caches
-    logger.system("正在保存所有缓存数据...")
+    # Save all caches and mappings
+    logger.system("正在保存所有缓存和映射数据...")
     if context.get("brand_cache") and context.get("brand_extra_info_cache"):
         context["brand_cache"].save_cache(context["brand_extra_info_cache"])
 
@@ -32,6 +32,6 @@ async def close_context(context: dict):
 
     if context.get("tag_manager"):
         context["tag_manager"].save_all_maps()
-
+    
     if context.get("name_splitter"):
         context["name_splitter"].save_exceptions()

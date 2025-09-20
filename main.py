@@ -212,6 +212,7 @@ async def run_single_game_flow(context: dict) -> bool:
             notion_game_schema=context["schema_manager"].get_schema(GAME_DB_ID),
             tag_manager=context["tag_manager"],
             name_splitter=context["name_splitter"],
+            interaction_provider=context["interaction_provider"],
             ggbases_detail_url=selected_ggbases_game.get("url"),
             ggbases_info=secondary_data.get("ggbases_info", {}),
             ggbases_search_result=selected_ggbases_game,

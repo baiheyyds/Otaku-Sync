@@ -4,6 +4,7 @@ import re
 from utils import logger
 from utils.tag_manager import TagManager
 from core.name_splitter import NameSplitter
+from core.interaction import InteractionProvider
 
 
 async def process_and_sync_game(
@@ -16,6 +17,7 @@ async def process_and_sync_game(
     notion_game_schema,
     tag_manager: TagManager,
     name_splitter: NameSplitter,
+    interaction_provider: InteractionProvider,
     interactive=False,
     ggbases_detail_url=None,
     ggbases_info=None,
@@ -59,7 +61,7 @@ async def process_and_sync_game(
             raw_values.append(detail_raw)
 
         for raw_item in raw_values:
-            processed_names = await name_splitter.smart_split(raw_item)
+            processed_names = await name_splitter.smart_split(raw_item, interaction_provider)
             combined_set.update(processed_names)
 
         merged[field] = sorted([item for item in list(combined_set) if item])
@@ -80,6 +82,7 @@ async def process_and_sync_game(
         dlsite_tags=detail.get("标签", []) if source == "dlsite" else [],
         fanza_tags=detail.get("标签", []) if source == "fanza" else [],
         ggbases_tags=ggbases_info.get("标签", []),
+        interaction_provider=interaction_provider,
     )
     merged["标签"] = final_tags
     logger.success("标签处理完成！")

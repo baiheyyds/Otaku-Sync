@@ -643,21 +643,17 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
         
-        project_logger.system("正在清理应用资源 (浏览器、缓存等)...")
-        # 1. 安全地关闭浏览器驱动和后台线程
-        from core.driver_factory import driver_factory
-        driver_factory.shutdown()
-
-        # 2. 保存其他共享的缓存
+        project_logger.system("正在清理应用资源并保存所有数据...")
+        # Use the unified shutdown function
         if self.shared_context:
+            # Running an async function from a sync event handler
+            # is tricky. A simple way is to run it in a new event loop.
             try:
-                brand_cache = self.shared_context.get("brand_cache")
-                brand_extra_info_cache = self.shared_context.get("brand_extra_info_cache")
-                if brand_cache and brand_extra_info_cache:
-                    project_logger.system("正在保存品牌缓存...")
-                    brand_cache.save_cache(brand_extra_info_cache)
+                # The loop specific context (like http client) is not available here,
+                # but close_context is designed to handle that.
+                asyncio.run(close_context(self.shared_context))
             except Exception as e:
-                project_logger.error(f"保存品牌缓存时发生错误: {e}")
+                project_logger.error(f"关闭应用时发生错误: {e}")
 
         project_logger.system("程序已安全退出。\n")
         event.accept()

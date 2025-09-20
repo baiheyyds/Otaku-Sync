@@ -46,23 +46,23 @@ class GameSyncWorker(QThread):
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
+            self.interaction_provider = GuiInteractionProvider()
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
             )
             self.context = {**self.shared_context, **loop_specific_context}
 
         try:
-            self.interaction_provider = GuiInteractionProvider()
-            # Connect provider signals to worker slots
+            # Run setup first to create the provider
+            loop.run_until_complete(setup_context())
+
+            # Then connect signals
             self.interaction_provider.handle_new_bangumi_key_requested.connect(self._on_bangumi_mapping_requested)
             self.interaction_provider.ask_for_new_property_type_requested.connect(self._on_property_type_requested)
             self.interaction_provider.select_bangumi_game_requested.connect(self._on_bangumi_selection_requested)
             self.interaction_provider.tag_translation_required.connect(self._on_tag_translation_requested)
             self.interaction_provider.concept_merge_required.connect(self._on_concept_merge_requested)
             self.interaction_provider.name_split_decision_required.connect(self._on_name_split_decision_requested)
-
-            # Run the entire context setup within the loop
-            loop.run_until_complete(setup_context())
 
             # Now run the main game flow
             loop.run_until_complete(self.game_flow())
@@ -270,6 +270,7 @@ class GameSyncWorker(QThread):
                 notion_game_schema=self.context["schema_manager"].get_schema(GAME_DB_ID),
                 tag_manager=self.context["tag_manager"], 
                 name_splitter=self.context["name_splitter"], 
+                interaction_provider=self.interaction_provider,
                 ggbases_detail_url=ggbases_url,
                 ggbases_info=secondary_data.get("ggbases_info", {}),
                 ggbases_search_result=selected_ggbases_game or {},
@@ -317,23 +318,22 @@ class ScriptWorker(QThread):
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
+            self.interaction_provider = GuiInteractionProvider()
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
             )
             self.context = {**self.shared_context, **loop_specific_context}
 
         try:
-            self.interaction_provider = GuiInteractionProvider()
+            loop.run_until_complete(setup_context())
             # Connect signals for interactive scripts
-            # This is necessary for scripts using TagManager or BangumiMappingManager
             self.interaction_provider.tag_translation_required.connect(self.parent().handle_tag_translation_required)
             self.interaction_provider.concept_merge_required.connect(self.parent().handle_concept_merge_required)
             self.interaction_provider.handle_new_bangumi_key_requested.connect(self.parent().handle_bangumi_mapping)
             self.interaction_provider.ask_for_new_property_type_requested.connect(self.parent().handle_property_type)
             self.interaction_provider.select_bangumi_game_requested.connect(self.parent().handle_bangumi_selection_required)
+            self.interaction_provider.name_split_decision_required.connect(self.parent().handle_name_split_decision_required)
 
-            loop.run_until_complete(setup_context())
-            
             # Set drivers for clients that need them
             driver_keys = ["dlsite_driver", "ggbases_driver"]
             for key in driver_keys:
@@ -345,6 +345,7 @@ class ScriptWorker(QThread):
                         self.context["ggbases"].set_driver(driver)
 
             logger.system(f"后台线程开始执行脚本: {self.script_name}")
+            # Pass the entire context, which now includes the interaction_provider
             awaitable_func = self.script_function(self.context)
             loop.run_until_complete(awaitable_func)
             logger.success(f"脚本 {self.script_name} 执行完毕。")
@@ -363,6 +364,7 @@ class ScriptWorker(QThread):
                     self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self.parent().handle_bangumi_mapping)
                     self.interaction_provider.ask_for_new_property_type_requested.disconnect(self.parent().handle_property_type)
                     self.interaction_provider.select_bangumi_game_requested.disconnect(self.parent().handle_bangumi_selection_required)
+                    self.interaction_provider.name_split_decision_required.disconnect(self.parent().handle_name_split_decision_required)
                 except (RuntimeError, TypeError):
                     pass # Ignore errors on disconnect
 

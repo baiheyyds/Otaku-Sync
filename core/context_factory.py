@@ -22,8 +22,13 @@ from .driver_factory import driver_factory
 
 def create_shared_context():
     """Creates context with objects that are shared across the application's lifetime."""
-    logger.system("正在初始化共享应用上下文 (缓存、驱动工厂等)...")
+    logger.system("正在初始化共享应用上下文 (缓存、管理器、驱动工厂等)...")
     driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
+    
+    # 管理器现在是共享的
+    tag_manager = TagManager()
+    name_splitter = NameSplitter()
+
     brand_cache = BrandCache()
     brand_extra_info_cache = brand_cache.load_cache()
     cached_titles = load_cache_quick()
@@ -35,6 +40,8 @@ def create_shared_context():
         "brand_extra_info_cache": brand_extra_info_cache,
         "cached_titles": cached_titles,
         "data_manager": data_manager,
+        "tag_manager": tag_manager,
+        "name_splitter": name_splitter,
     }
 
 async def create_loop_specific_context(shared_context: dict, interaction_provider: InteractionProvider):
@@ -57,8 +64,6 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
     dlsite = DlsiteClient(async_client)
     fanza = FanzaClient(async_client)
     ggbases = GGBasesClient(async_client)
-    tag_manager = TagManager(interaction_provider)
-    name_splitter = NameSplitter(interaction_provider)
 
     # Update cached_titles in the background
     asyncio.create_task(update_cache_background(notion, shared_context["cached_titles"]))
@@ -71,8 +76,6 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
         "dlsite": dlsite,
         "fanza": fanza,
         "ggbases": ggbases,
-        "tag_manager": tag_manager,
-        "name_splitter": name_splitter,
         "interaction_provider": interaction_provider,
     }
 

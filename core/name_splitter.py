@@ -18,8 +18,7 @@ SPLIT_REGEX = re.compile(r"[、・,／/;]+")
 
 
 class NameSplitter:
-    def __init__(self, interaction_provider: Optional[InteractionProvider] = None):
-        self.interaction_provider = interaction_provider
+    def __init__(self):
         self._exceptions: Set[str] = self._load_exceptions()
 
     def _load_exceptions(self) -> Set[str]:
@@ -52,7 +51,7 @@ class NameSplitter:
         self._exceptions.add(name)
         logger.info(f"已在内存中将 '{name}' 标记为本次运行的例外。")
 
-    async def smart_split(self, text: str) -> List[str]:
+    async def smart_split(self, text: str, interaction_provider: InteractionProvider) -> List[str]:
         """
         智能分割名称字符串。
         默认使用增强的规则进行分割，仅在发现可疑结果时请求用户确认。
@@ -91,9 +90,9 @@ class NameSplitter:
         choice = "keep"  # Default action
         save_exception = False
 
-        if self.interaction_provider:
+        if interaction_provider:
             # TODO: 将增强的风险原因传递给GUI
-            decision = await self.interaction_provider.get_name_split_decision(text, cleaned_parts)
+            decision = await interaction_provider.get_name_split_decision(text, cleaned_parts)
             choice = decision.get("action", "keep")
             save_exception = decision.get("save_exception", False)
         else:

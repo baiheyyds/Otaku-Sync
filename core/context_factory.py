@@ -39,14 +39,15 @@ def create_shared_context():
 
 async def create_loop_specific_context(shared_context: dict, interaction_provider: InteractionProvider):
     """Creates context with objects that are specific to a single event loop (e.g. http clients)."""
-    transport = httpx.AsyncHTTPTransport(retries=3, http2=True)
+    # transport = httpx.AsyncHTTPTransport(retries=3, http2=True) # The client-level retry is removed in favor of manual retry in background task
+    transport = httpx.AsyncHTTPTransport(http2=True)
     async_client = httpx.AsyncClient(transport=transport, timeout=20, follow_redirects=True)
 
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
     schema_manager = NotionSchemaManager(notion)
     db_configs = {
         GAME_DB_ID: "游戏数据库",
-        CHARACTER_DB_ID: "角色数据库",
+        # CHARACTER_DB_ID: "角色数据库", # 暂时禁用
         BRAND_DB_ID: "厂商数据库",
     }
     await schema_manager.load_all_schemas(db_configs)
@@ -76,21 +77,40 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
     }
 
 async def update_cache_background(notion_client, local_cache):
-    try:
-        logger.system("正在后台刷新查重缓存...")
-        await asyncio.sleep(0.1)
-        remote_data = await notion_client.get_all_game_titles()
-        local_hash = hash_titles(local_cache)
-        remote_hash = hash_titles(remote_data)
-        if local_hash != remote_hash:
-            if remote_data:
-                save_cache(remote_data)
+    """后台更新查重缓存，带有网络错误重试逻辑。"""
+    for attempt in range(3):
+        try:
+            if attempt == 0:
+                logger.system("正在后台刷新查重缓存...")
             else:
-                logger.warn("拉取到的远程缓存为空，跳过保存以避免清空本地缓存")
-        else:
-            logger.info("游戏标题缓存已是最新")
-    except Exception as e:
-        logger.warn(f"后台更新缓存失败: {e}")
+                logger.system(f"后台缓存刷新重试... ({attempt + 1}/3)")
+
+            await asyncio.sleep(1)
+            remote_data = await notion_client.get_all_game_titles()
+
+            if remote_data is None:
+                logger.error("获取远程缓存时发生不可恢复的API错误，后台更新中止。")
+                return
+
+            local_hash = hash_titles(local_cache)
+            remote_hash = hash_titles(remote_data)
+            if local_hash != remote_hash:
+                save_cache(remote_data)
+                logger.info("后台查重缓存已成功更新。")
+            else:
+                logger.info("游戏标题缓存已是最新。")
+            return  # Exit function on success
+
+        except httpx.RequestError as e:
+            logger.warn(f"后台缓存更新时发生网络错误 (尝试 {attempt + 1}/3): {e}")
+            if attempt < 2:
+                await asyncio.sleep(5 * (attempt + 1))  # 5s, 10s wait
+            continue  # continue to the next attempt
+        except Exception as e:
+            logger.error(f"处理后台缓存更新时发生未知严重错误: {e}")
+            return  # Abort on unknown errors
+
+    logger.error("后台缓存更新任务在多次网络尝试后彻底失败。")
 
 async def create_context(interaction_provider: InteractionProvider):
     """Creates and initializes all the clients and managers for the application."""

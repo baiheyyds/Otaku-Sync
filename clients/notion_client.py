@@ -41,9 +41,9 @@ class NotionClient:
             logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
             return None
         except httpx.RequestError as e:
-            # 对于网络层面的错误
+            # 对于网络层面的错误, 重新抛出让上层处理
             logger.error(f"Notion API 网络请求失败: {e.__class__.__name__} - {e}. 请求: {e.request.method} {e.request.url}")
-            return None
+            raise
         except Exception as e:
             # 其他未知异常
             logger.error(f"Notion API 未知错误: {e}")

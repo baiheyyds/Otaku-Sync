@@ -1,5 +1,6 @@
 # core/context_factory.py
 import asyncio
+
 import httpx
 
 from clients.bangumi_client import BangumiClient
@@ -11,11 +12,12 @@ from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from core.interaction import InteractionProvider
 from core.mapping_manager import BangumiMappingManager
-from core.schema_manager import NotionSchemaManager
 from core.name_splitter import NameSplitter
-from utils.tag_manager import TagManager
+from core.schema_manager import NotionSchemaManager
 from utils import logger
 from utils.similarity_check import hash_titles, load_cache_quick, save_cache
+from utils.tag_manager import TagManager
+
 from .data_manager import data_manager
 from .driver_factory import driver_factory
 
@@ -24,7 +26,7 @@ def create_shared_context():
     """Creates context with objects that are shared across the application's lifetime."""
     logger.system("正在初始化共享应用上下文 (缓存、管理器、驱动工厂等)...")
     driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
-    
+
     # 管理器现在是共享的
     tag_manager = TagManager()
     name_splitter = NameSplitter()
@@ -44,7 +46,10 @@ def create_shared_context():
         "name_splitter": name_splitter,
     }
 
-async def create_loop_specific_context(shared_context: dict, interaction_provider: InteractionProvider):
+
+async def create_loop_specific_context(
+    shared_context: dict, interaction_provider: InteractionProvider
+):
     """Creates context with objects that are specific to a single event loop (e.g. http clients)."""
     # transport = httpx.AsyncHTTPTransport(retries=3, http2=True) # The client-level retry is removed in favor of manual retry in background task
     transport = httpx.AsyncHTTPTransport(http2=True)
@@ -54,7 +59,7 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
     schema_manager = NotionSchemaManager(notion)
     db_configs = {
         GAME_DB_ID: "游戏数据库",
-        # CHARACTER_DB_ID: "角色数据库", # 暂时禁用
+        CHARACTER_DB_ID: "角色数据库",
         BRAND_DB_ID: "厂商数据库",
     }
     await schema_manager.load_all_schemas(db_configs)
@@ -78,6 +83,7 @@ async def create_loop_specific_context(shared_context: dict, interaction_provide
         "ggbases": ggbases,
         "interaction_provider": interaction_provider,
     }
+
 
 async def update_cache_background(notion_client, local_cache):
     """后台更新查重缓存，带有网络错误重试逻辑。"""
@@ -114,6 +120,7 @@ async def update_cache_background(notion_client, local_cache):
             return  # Abort on unknown errors
 
     logger.error("后台缓存更新任务在多次网络尝试后彻底失败。")
+
 
 async def create_context(interaction_provider: InteractionProvider):
     """Creates and initializes all the clients and managers for the application."""

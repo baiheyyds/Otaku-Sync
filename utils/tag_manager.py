@@ -113,16 +113,16 @@ class TagManager:
             return None
         if translation.lower() == "p":
             self._ignore_set.add(tag)
-            self._save_map(TAG_IGNORE_PATH, list(self._ignore_set))
-            logger.info(f"标签 '{tag}' 已被永久忽略。")
+            # self._save_map(TAG_IGNORE_PATH, list(self._ignore_set)) # 优化：移除立即保存
+            logger.info(f"标签 '{tag}' 已被标记为永久忽略。")
             return None
         if not translation:
             logger.warn("输入为空，已跳过。")
             return None
         
         source_map[tag] = translation
-        self._save_map(map_path, source_map)
-        logger.success(f"已添加新翻译: '{tag}' -> '{translation}'")
+        # self._save_map(map_path, source_map) # 优化：移除立即保存
+        logger.success(f"已在内存中添加新翻译: '{tag}' -> '{translation}'")
         return translation
 
     async def _handle_new_concept_interactively(self, concept: str) -> str:
@@ -146,14 +146,14 @@ class TagManager:
                 new_keywords = set(keywords)
                 new_keywords.add(concept)
                 self._mapping_dict[candidate] = sorted(list(new_keywords))
-                self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
-                logger.success(f"操作成功！已将概念 '{concept}' 合并到 '{candidate}'。")
+                # self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict) # 优化：移除立即保存
+                logger.success(f"操作成功！已在内存中将概念 '{concept}' 合并到 '{candidate}'。")
                 final_concept = candidate
             elif choice in ["2", "create"]:
                 if concept not in self._mapping_dict:
                     self._mapping_dict[concept] = [concept]
-                    self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
-                logger.info(f"已将 '{concept}' 创建为新的独立标签。")
+                    # self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict) # 优化：移除立即保存
+                logger.info(f"已在内存中将 '{concept}' 创建为新的独立标签。")
         
         self._unified_reverse_map[concept.lower()] = final_concept
         if final_concept.lower() not in self._unified_reverse_map:

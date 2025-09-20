@@ -32,3 +32,6 @@ async def close_context(context: dict):
 
     if context.get("tag_manager"):
         context["tag_manager"].save_all_maps()
+
+    if context.get("name_splitter"):
+        context["name_splitter"].save_exceptions()

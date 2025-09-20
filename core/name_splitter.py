@@ -33,21 +33,24 @@ class NameSplitter:
             logger.warn(f"加载名称分割例外文件失败: {e}")
         return set()
 
+    def save_exceptions(self):
+        """将内存中的例外列表保存到文件。"""
+        if not self._exceptions:
+            return
+        logger.system("正在保存名称分割例外列表...")
+        try:
+            with open(EXCEPTION_FILE_PATH, "w", encoding="utf-8") as f:
+                json.dump(sorted(list(self._exceptions)), f, ensure_ascii=False, indent=2)
+            logger.success("名称分割例外列表已保存。")
+        except Exception as e:
+            logger.error(f"保存名称分割例外文件失败: {e}")
+
     def _add_exception(self, name: str):
-        """将新的例外添加到内存和文件中"""
+        """将新的例外添加到内存中。"""
         if name in self._exceptions:
             return
         self._exceptions.add(name)
-        try:
-            # 读取现有列表以追加，而不是覆盖
-            current_exceptions = list(self._load_exceptions())
-            if name not in current_exceptions:
-                current_exceptions.append(name)
-                with open(EXCEPTION_FILE_PATH, "w", encoding="utf-8") as f:
-                    json.dump(sorted(current_exceptions), f, ensure_ascii=False, indent=2)
-                logger.success(f"已将 '{name}' 添加到例外列表，今后将自动处理。")
-        except Exception as e:
-            logger.error(f"自动更新例外文件失败: {e}")
+        logger.info(f"已在内存中将 '{name}' 标记为本次运行的例外。")
 
     async def smart_split(self, text: str) -> List[str]:
         """

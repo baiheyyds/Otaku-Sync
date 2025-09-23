@@ -342,27 +342,30 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.search_button)
         main_layout.addLayout(top_layout)
 
-        # Main splitter
-        controls_splitter = QSplitter(Qt.Horizontal)
-        
-        # Left side with batch tools and mapping editor
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.addWidget(self.create_batch_tools_group())
-        left_layout.addWidget(self.create_mapping_editor())
-        controls_splitter.addWidget(left_widget)
+        # Main splitter for controls and log
+        main_splitter = QSplitter(Qt.Vertical)
 
-        # Right side with log console
+        # Top widget with all controls
+        controls_widget = QWidget()
+        controls_layout = QVBoxLayout(controls_widget)
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.addWidget(self.create_batch_tools_group())
+        controls_layout.addWidget(self.create_mapping_editor())
+        
+        # Bottom widget for the log console
         log_widget = QWidget()
         log_layout = QVBoxLayout(log_widget)
         log_layout.addWidget(QLabel("运行日志"))
         self.log_console = QPlainTextEdit()
         self.log_console.setReadOnly(True)
         log_layout.addWidget(self.log_console)
-        controls_splitter.addWidget(log_widget)
 
-        controls_splitter.setSizes([int(self.width() * 0.4), int(self.width() * 0.6)])
-        main_layout.addWidget(controls_splitter)
+        main_splitter.addWidget(controls_widget)
+        main_splitter.addWidget(log_widget)
+
+        # Adjust splitter sizes (e.g., 70% for controls, 30% for log)
+        main_splitter.setSizes([int(self.height() * 0.7), int(self.height() * 0.3)])
+        main_layout.addWidget(main_splitter)
         
         patch_logger()
         log_bridge.log_received.connect(self.log_console.appendPlainText)
@@ -383,7 +386,7 @@ class MainWindow(QMainWindow):
 
     def create_batch_tools_group(self):
         batch_tools_group = QGroupBox("批处理工具")
-        layout = QGridLayout(batch_tools_group)
+        layout = QHBoxLayout(batch_tools_group)
 
         buttons_to_create = [
             ("补全Bangumi链接", fill_missing_bangumi_links),
@@ -396,12 +399,13 @@ class MainWindow(QMainWindow):
         ]
 
         self.script_buttons = []
-        for i, (name, func) in enumerate(buttons_to_create):
+        for (name, func) in buttons_to_create:
             button = QPushButton(name)
             button.clicked.connect(partial(self.start_script_execution, func, name))
-            layout.addWidget(button, i // 2, i % 2)
+            layout.addWidget(button)
             self.script_buttons.append(button)
-            
+        
+        layout.addStretch()
         return batch_tools_group
 
     def create_mapping_editor(self):
@@ -660,8 +664,9 @@ class MainWindow(QMainWindow):
 
     def populate_mapping_files(self):
         self.mapping_dir = os.path.join(os.path.dirname(__file__), 'mapping')
+        NON_EDITABLE_FILES = ['tag_ignore_list.json', 'bangumi_ignore_list.json', 'name_split_exceptions.json']
         try:
-            files = [f for f in os.listdir(self.mapping_dir) if f.endswith('.json')]
+            files = [f for f in os.listdir(self.mapping_dir) if f.endswith('.json') and f not in NON_EDITABLE_FILES]
             self.mapping_files_combo.addItems(files)
             if files:
                 self.load_selected_file(files[0])
@@ -678,6 +683,28 @@ class MainWindow(QMainWindow):
         self.detail_list.setEnabled(enabled)
         self.master_list.setEnabled(enabled)
 
+    def flatten_dict(self, d, parent_key='', sep='.'):
+        items = []
+        for k, v in d.items():
+            new_key = parent_key + sep + k if parent_key else k
+            if isinstance(v, dict):
+                items.extend(self.flatten_dict(v, new_key, sep=sep).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
+
+    def unflatten_dict(self, d, sep='.'):
+        result = {}
+        for key, value in d.items():
+            parts = key.split(sep)
+            d = result
+            for part in parts[:-1]:
+                if part not in d:
+                    d[part] = {}
+                d = d[part]
+            d[parts[-1]] = value
+        return result
+
     def load_selected_file(self, filename=None):
         if filename is None:
             filename = self.mapping_files_combo.currentText()
@@ -686,26 +713,28 @@ class MainWindow(QMainWindow):
         self.current_mapping_file = os.path.join(self.mapping_dir, filename)
         try:
             with open(self.current_mapping_file, 'r', encoding='utf-8') as f:
-                self.current_data = json.load(f)
+                data = json.load(f)
         except (json.JSONDecodeError, FileNotFoundError) as e:
             log_bridge.log_received.emit(f"❌ 加载文件 \'{filename}\'失败: {e}\n")
-            self.current_data = {}
+            data = {}
         
         self.master_list.clear()
         self.detail_list.clear()
 
-        if not isinstance(self.current_data, dict):
+        if isinstance(data, dict):
+            self.current_data = self.flatten_dict(data)
+            self.set_editor_enabled(True)
+            sorted_keys = sorted(self.current_data.keys())
+            self.master_list.addItems(sorted_keys)
+            if sorted_keys:
+                self.master_list.setCurrentRow(0)
+        elif isinstance(data, list):
             log_bridge.log_received.emit(f"⚠️ 文件 \'{os.path.basename(self.current_mapping_file)}\' 是一个列表，当前编辑器不支持直接编辑。\n")
             self.set_editor_enabled(False)
-            self.detail_list.addItems([json.dumps(item, ensure_ascii=False, indent=4) for item in self.current_data])
-            return
-
-        self.set_editor_enabled(True)
-        sorted_keys = sorted(self.current_data.keys())
-        self.master_list.addItems(sorted_keys)
-        
-        if sorted_keys:
-            self.master_list.setCurrentRow(0)
+            self.detail_list.addItems([str(item) for item in data])
+        else:
+            self.set_editor_enabled(False)
+            log_bridge.log_received.emit(f"❌ 不支持的数据格式: {type(data)}\n")
 
     def display_details(self, current_item, _=None):
         self.detail_list.clear()
@@ -713,15 +742,16 @@ class MainWindow(QMainWindow):
             return
         key = current_item.text()
         values = self.current_data.get(key, [])
-        if isinstance(values, list):
-            self.detail_list.addItems(values)
-        elif isinstance(values, str):
-            self.detail_list.addItem(values)
+        
+        # Ensure values are always treated as a list for display
+        if not isinstance(values, list):
+            values = [values]
+            
+        self.detail_list.addItems([str(v) for v in values])
 
     def edit_detail_item(self, item):
         key_item = self.master_list.currentItem()
-        if not key_item:
-            return
+        if not key_item: return
         key = key_item.text()
         
         old_value = item.text()
@@ -730,48 +760,66 @@ class MainWindow(QMainWindow):
         new_value, ok = QInputDialog.getText(self, "修改映射值", "新值:", QLineEdit.Normal, old_value)
 
         if ok and new_value != old_value:
-            item.setText(new_value)
             current_values = self.current_data.get(key)
             if isinstance(current_values, list):
                 current_values[row] = new_value
-            elif isinstance(current_values, str):
+            else: # It's a single value (str, int, etc.)
                 self.current_data[key] = new_value
+            
+            # Refresh the view for the edited item
+            self.display_details(key_item)
+            # Reselect the edited item
+            self.detail_list.setCurrentRow(row)
             log_bridge.log_received.emit(f"🔧 值已在界面中更新，请记得保存。\n")
 
     def save_current_file(self):
         if not self.current_mapping_file:
             QMessageBox.warning(self, "没有文件", "没有选择要保存的文件。\n")
             return
+        
         try:
+            # Unflatten the data before saving
+            unflattened_data = self.unflatten_dict(self.current_data)
             with open(self.current_mapping_file, 'w', encoding='utf-8') as f:
-                json.dump(self.current_data, f, indent=4, ensure_ascii=False)
+                json.dump(unflattened_data, f, indent=4, ensure_ascii=False)
             log_bridge.log_received.emit(f"✅ 文件 \'{os.path.basename(self.current_mapping_file)}\' 已成功保存。\n")
+            # Reload to reflect the correct structure if there were any structural changes
+            self.load_selected_file()
         except Exception as e:
             log_bridge.log_received.emit(f"❌ 保存文件失败: {e}\n")
             QMessageBox.critical(self, "保存失败", f"无法保存文件: {e}\n")
 
     def add_key(self):
-        key, ok = QInputDialog.getText(self, "添加新键", "输入新的原始值 (Key):")
+        key, ok = QInputDialog.getText(self, "添加新键", "输入新的原始值 (Key), 可用 '.' 来创建层级:")
         if ok and key:
             if key in self.current_data:
                 QMessageBox.warning(self, "键已存在", f"键 \'{key}\' 已存在。\n")
                 return
             self.current_data[key] = [] 
             self.master_list.addItem(key)
-            self.master_list.setCurrentItem(self.master_list.findItems(key, Qt.MatchExactly)[0])
+            self.master_list.sortItems()
+            # Find and select the newly added item
+            items = self.master_list.findItems(key, Qt.MatchExactly)
+            if items:
+                self.master_list.setCurrentItem(items[0])
             log_bridge.log_received.emit(f"🔧 已添加新键 \'{key}\'，请为其添加值并保存。\n")
 
     def delete_key(self):
         current_item = self.master_list.currentItem()
-        if not current_item:
-            return
+        if not current_item: return
+        
         key = current_item.text()
         reply = QMessageBox.question(self, "确认删除", f"确定要删除键 \'{key}\' 及其所有映射值吗？",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
+            # Remove from master list
             row = self.master_list.row(current_item)
             self.master_list.takeItem(row)
-            del self.current_data[key]
+            
+            # Delete from data
+            if key in self.current_data:
+                del self.current_data[key]
+                
             self.detail_list.clear()
             log_bridge.log_received.emit(f"🔧 已删除键 \'{key}\'，请记得保存。\n")
 
@@ -784,47 +832,59 @@ class MainWindow(QMainWindow):
 
         value, ok = QInputDialog.getText(self, "添加新值", f"为 \'{key}\' 添加新的映射值:")
         if ok and value:
-            values = self.current_data.get(key)
-            if isinstance(values, list):
-                if value in values:
-                    QMessageBox.warning(self, "值已存在", f"值 \'{value}\' 已经存在于 \'{key}\' 的映射中。\n")
-                    return
-                values.append(value)
-                self.detail_list.addItem(value)
-            elif isinstance(values, str):
-                self.current_data[key] = [values, value]
-                self.display_details(current_key_item) 
-            else:
-                 self.current_data[key] = [value]
-                 self.detail_list.addItem(value)
+            current_values = self.current_data.get(key)
+            
+            if not isinstance(current_values, list): # If it's not a list, make it one
+                if current_values is not None and str(current_values).strip() != "":
+                    current_values = [current_values]
+                else:
+                    current_values = []
 
+            if value in [str(v) for v in current_values]:
+                QMessageBox.warning(self, "值已存在", f"值 \'{value}\' 已经存在于 \'{key}\' 的映射中。\n")
+                return
+            
+            current_values.append(value)
+            self.current_data[key] = current_values
+            self.display_details(current_key_item) # Refresh details
             log_bridge.log_received.emit(f"🔧 已为 \'{key}\' 添加值 \'{value}\'，请记得保存。\n")
 
     def delete_value(self):
         current_key_item = self.master_list.currentItem()
         current_value_item = self.detail_list.currentItem()
-        if not current_key_item or not current_value_item:
-            return
+        if not current_key_item or not current_value_item: return
         
         key = current_key_item.text()
         value_to_delete = current_value_item.text()
         
-        values = self.current_data.get(key)
-        if isinstance(values, list):
+        current_values = self.current_data.get(key)
+        
+        if isinstance(current_values, list):
             reply = QMessageBox.question(self, "确认删除", f"确定要从 \'{key}\' 中删除值 \'{value_to_delete}\' 吗？",
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
+                # Find the value to remove, converting to string for comparison
                 try:
-                    values.remove(value_to_delete)
-                    self.detail_list.takeItem(self.detail_list.row(current_value_item))
-                    log_bridge.log_received.emit(f"🔧 已删除值 \'{value_to_delete}\'，请记得保存。\n")
+                    # Find the index of the value to delete
+                    index_to_del = -1
+                    for i, v in enumerate(current_values):
+                        if str(v) == value_to_delete:
+                            index_to_del = i
+                            break
+                    
+                    if index_to_del != -1:
+                        current_values.pop(index_to_del)
+                        self.current_data[key] = current_values
+                        self.display_details(current_key_item) # Refresh
+                        log_bridge.log_received.emit(f"🔧 已删除值 \'{value_to_delete}\'，请记得保存。\n")
+
                 except ValueError:
-                    pass # Should not happen if item is in the list
-        elif isinstance(values, str) and values == value_to_delete:
+                    pass # Should not happen
+        else: # Single value
              reply = QMessageBox.question(self, "确认删除", f"确定要删除 \'{key}\' 的值 \'{value_to_delete}\' 吗？ (这会清空该键的值)",
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
              if reply == QMessageBox.Yes:
-                self.current_data[key] = [] 
+                self.current_data[key] = "" # Set to empty string
                 self.display_details(current_key_item)
                 log_bridge.log_received.emit(f"🔧 已清空键 \'{key}\' 的值，请记得保存。\n")
 

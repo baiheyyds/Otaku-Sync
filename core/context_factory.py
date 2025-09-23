@@ -71,7 +71,7 @@ async def create_loop_specific_context(
     ggbases = GGBasesClient(async_client)
 
     # Update cached_titles in the background
-    asyncio.create_task(update_cache_background(notion, shared_context["cached_titles"]))
+    cache_update_task = asyncio.create_task(update_cache_background(notion, shared_context["cached_titles"]))
 
     return {
         "async_client": async_client,
@@ -82,6 +82,7 @@ async def create_loop_specific_context(
         "fanza": fanza,
         "ggbases": ggbases,
         "interaction_provider": interaction_provider,
+        "background_tasks": [cache_update_task]
     }
 
 

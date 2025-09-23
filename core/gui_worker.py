@@ -82,10 +82,24 @@ class GameSyncWorker(QThread):
                     self.interaction_provider.name_split_decision_required.disconnect(self._on_name_split_decision_requested)
                 except RuntimeError:
                     pass
-            
-            if self.context.get("async_client"):
-                loop.run_until_complete(self.context["async_client"].aclose())
-                logger.system("线程内HTTP客户端已关闭。")
+
+            async def cleanup_tasks():
+                # Cancel background tasks first
+                background_tasks = self.context.get("background_tasks", [])
+                if background_tasks:
+                    logger.system(f"正在取消 {len(background_tasks)} 个后台任务...")
+                    for task in background_tasks:
+                        task.cancel()
+                    await asyncio.gather(*background_tasks, return_exceptions=True)
+                    logger.system("所有后台任务已处理。")
+
+                # Close HTTP client
+                if self.context.get("async_client"):
+                    await self.context["async_client"].aclose()
+                    logger.system("线程内HTTP客户端已关闭。")
+
+            if loop.is_running():
+                loop.run_until_complete(cleanup_tasks())
             
             loop.close()
 
@@ -368,8 +382,22 @@ class ScriptWorker(QThread):
                 except (RuntimeError, TypeError):
                     pass # Ignore errors on disconnect
 
-            if self.context.get("async_client"):
-                loop.run_until_complete(self.context["async_client"].aclose())
-                logger.system("脚本线程内的HTTP客户端已关闭。")
+            async def cleanup_tasks():
+                # Cancel background tasks first
+                background_tasks = self.context.get("background_tasks", [])
+                if background_tasks:
+                    logger.system(f"正在取消 {len(background_tasks)} 个后台任务...")
+                    for task in background_tasks:
+                        task.cancel()
+                    await asyncio.gather(*background_tasks, return_exceptions=True)
+                    logger.system("所有后台任务已处理。")
+
+                # Close HTTP client
+                if self.context.get("async_client"):
+                    await self.context["async_client"].aclose()
+                    logger.system("脚本线程内的HTTP客户端已关闭。")
+
+            if loop.is_running():
+                loop.run_until_complete(cleanup_tasks())
             
             loop.close()

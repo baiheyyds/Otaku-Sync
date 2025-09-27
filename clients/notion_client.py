@@ -352,12 +352,7 @@ class NotionClient:
                             options.append(str(item))
                 else:
                     for item in values_to_process:
-                        if isinstance(item, str):
-                            split_items = [
-                                v.strip() for v in re.split(r"[、・,／/;]+", item) if v.strip()
-                            ]
-                            options.extend(split_items)
-                        elif item:
+                        if item:
                             options.append(str(item))
 
                 if options:

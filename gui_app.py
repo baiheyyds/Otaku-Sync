@@ -520,7 +520,7 @@ class MainWindow(QMainWindow):
             button.setEnabled(enabled)
 
     def handle_name_split_decision_required(self, text, parts):
-        project_logger.info(f"需要为名称 \'{text}\' 的分割方式 \'{parts}\' 做出决策...")
+        project_logger.info(f"需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")
         dialog = NameSplitterDialog(text, parts, self)
         worker = self.sender()
         if dialog.exec() == QDialog.Accepted:

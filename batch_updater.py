@@ -135,6 +135,8 @@ async def write_item_to_notion(context, item_data: Dict[str, Any], db_key: str):
     第二阶段：将预处理好的数据写入Notion。
     """
     notion_client = context["notion"]
+    name_splitter = context["name_splitter"]
+    interaction_provider = context["interaction_provider"]
     config = DB_CONFIG[db_key]
     page = item_data["page"]
     page_id = page["id"]
@@ -144,6 +146,22 @@ async def write_item_to_notion(context, item_data: Dict[str, Any], db_key: str):
     try:
         if db_key == "games":
             schema = context["schema_manager"].get_schema(config["id"])
+            
+            # [关键修复] 在提交通知前，对需要分割的字段进行处理
+            fields_to_split = ["剧本", "原画", "声优", "音乐", "作品形式"]
+            for field in fields_to_split:
+                if field in bangumi_data:
+                    raw_values = bangumi_data[field]
+                    if not isinstance(raw_values, list):
+                        raw_values = [raw_values]
+                    
+                    processed_names = set()
+                    for raw_item in raw_values:
+                        split_results = await name_splitter.smart_split(raw_item, interaction_provider)
+                        processed_names.update(split_results)
+                    
+                    bangumi_data[field] = sorted(list(processed_names))
+
             await notion_client.create_or_update_game(
                 properties_schema=schema, page_id=page_id, **bangumi_data
             )

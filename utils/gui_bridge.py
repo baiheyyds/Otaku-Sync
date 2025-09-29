@@ -104,6 +104,7 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
         bangumi_url: str,
         db_name: str,
         mappable_props: List[str],
+        recommended_props: List[str] = None,
     ) -> Dict[str, Any]:
         request_data = {
             "bangumi_key": bangumi_key,
@@ -111,6 +112,7 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
             "bangumi_url": bangumi_url,
             "db_name": db_name,
             "mappable_props": mappable_props,
+            "recommended_props": recommended_props or [],
         }
         # Emit signal before locking
         self.handle_new_bangumi_key_requested.emit(request_data)

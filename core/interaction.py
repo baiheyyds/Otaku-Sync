@@ -31,6 +31,7 @@ class InteractionProvider(ABC):
         bangumi_url: str,
         db_name: str,
         mappable_props: List[str],
+        recommended_props: List[str] = None,
     ) -> Dict[str, Any]:
         """
         Handle a new, unmapped key from Bangumi.
@@ -59,6 +60,7 @@ class ConsoleInteractionProvider(InteractionProvider):
         bangumi_url: str,
         db_name: str,
         mappable_props: List[str],
+        recommended_props: List[str] = None,
     ) -> Dict[str, Any]:
         
         def _get_action_input():
@@ -67,9 +69,21 @@ class ConsoleInteractionProvider(InteractionProvider):
                 f"   - 键 (Key)  : '{bangumi_key}'\n"
                 f"   - 值 (Value): {bangumi_value}\n"
                 f"   - 来源 (URL) : {bangumi_url}\n\n"
-                f"   请选择如何处理:\n\n   --- 映射到现有 Notion 属性 ---"
+                f"   请选择如何处理:\n"
             )
+
+            recommend_lines, recommend_map = [], {}
+            if recommended_props:
+                recommend_lines.append("   --- 推荐映射 ---")
+                rec_parts = []
+                for i, prop_name in enumerate(recommended_props):
+                    shortcut = chr(ord('a') + i)
+                    recommend_map[shortcut] = prop_name
+                    rec_parts.append(f"[{shortcut}] {prop_name}")
+                recommend_lines.append("   " + "   ".join(rec_parts))
+
             prop_lines, prop_map = [], {}
+            prop_lines.append("\n   --- 映射到现有 Notion 属性 ---")
             COLUMNS, COLUMN_WIDTH = 6, 25
 
             for i in range(0, len(mappable_props), COLUMNS):
@@ -82,7 +96,8 @@ class ConsoleInteractionProvider(InteractionProvider):
                         padding = " " * max(0, COLUMN_WIDTH - get_visual_width(display_text))
                         line_parts.append(display_text + padding)
                 prop_lines.append("   " + "".join(line_parts))
-            prompt_body = "\n".join(prop_lines)
+            
+            prompt_body = "\n".join(recommend_lines + prop_lines)
             prompt_footer = (
                 f"\n\n   --- 或执行其他操作 ---"
                 f"     [y] 在 Notion 中创建同名新属性 '{bangumi_key}' (默认)"
@@ -91,12 +106,16 @@ class ConsoleInteractionProvider(InteractionProvider):
                 f"     [c] 自定义新属性名称并创建\n\n"
                 f"请输入您的选择 (数字或字母): "
             )
-            return input(prompt_header + prompt_body + prompt_footer).strip().lower(), prop_map
+            return input(prompt_header + prompt_body + prompt_footer).strip().lower(), prop_map, recommend_map
 
-        action, prop_map = await asyncio.to_thread(_get_action_input)
+        action, prop_map, recommend_map = await asyncio.to_thread(_get_action_input)
 
         if action.isdigit() and action in prop_map:
             selected_prop = prop_map[action]
+            return {"action": "map", "data": selected_prop}
+        
+        if action.isalpha() and action in recommend_map:
+            selected_prop = recommend_map[action]
             return {"action": "map", "data": selected_prop}
 
         if action == "n":

@@ -153,6 +153,7 @@ class BangumiMappingDialog(QDialog):
         self.bangumi_url = request_data["bangumi_url"]
         self.db_name = request_data["db_name"]
         self.mappable_props = request_data["mappable_props"]
+        self.recommended_props = request_data.get("recommended_props", [])
 
         main_layout = QVBoxLayout(self)
 
@@ -175,7 +176,25 @@ class BangumiMappingDialog(QDialog):
         mapping_group = QGroupBox("映射到现有 Notion 属性")
         mapping_layout = QVBoxLayout(mapping_group)
         self.prop_list = QListWidget()
-        self.prop_list.addItems(self.mappable_props)
+        
+        # Populate list with recommendations first
+        other_props = [p for p in self.mappable_props if p not in self.recommended_props]
+        
+        for prop in self.recommended_props:
+            item = QListWidgetItem(f"[推荐] {prop}")
+            item.setData(Qt.UserRole, prop) # Store original name
+            self.prop_list.addItem(item)
+
+        if self.recommended_props and other_props:
+            separator = QListWidgetItem("------ 其他所有属性 ------")
+            separator.setFlags(separator.flags() & ~Qt.ItemIsSelectable)
+            self.prop_list.addItem(separator)
+
+        for prop in other_props:
+            item = QListWidgetItem(prop)
+            item.setData(Qt.UserRole, prop)
+            self.prop_list.addItem(item)
+
         self.prop_list.itemDoubleClicked.connect(self.map_to_selected)
         mapping_layout.addWidget(self.prop_list)
         map_button = QPushButton("映射到选中属性")
@@ -208,10 +227,13 @@ class BangumiMappingDialog(QDialog):
 
     def map_to_selected(self):
         selected_item = self.prop_list.currentItem()
-        if not selected_item:
-            QMessageBox.warning(self, "未选择", "请先从列表中选择一个要映射的属性。\n")
+        if not selected_item or not selected_item.flags() & Qt.ItemIsSelectable:
+            QMessageBox.warning(self, "未选择或无效选择", "请从列表中选择一个有效的属性。\n")
             return
-        self.result = {"action": "map", "data": selected_item.text()}
+        
+        # Retrieve the original property name from item data
+        prop_name = selected_item.data(Qt.UserRole)
+        self.result = {"action": "map", "data": prop_name}
         self.accept()
 
     def create_same_name(self):

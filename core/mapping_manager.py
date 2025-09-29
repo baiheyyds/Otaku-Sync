@@ -5,6 +5,7 @@ import os
 from typing import Dict, List
 
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID
+from utils.similarity_check import get_close_matches_with_ratio
 from utils import logger
 from core.interaction import InteractionProvider
 
@@ -164,6 +165,9 @@ class BangumiMappingManager:
                 db_name = f"{namespace.capitalize()}数据库"
             
             mappable_props = schema_manager.get_mappable_properties(target_db_id)
+            recommended_props = get_close_matches_with_ratio(
+                bangumi_key, mappable_props, limit=3, threshold=0.6
+            )
 
             result = await self.interaction_provider.handle_new_bangumi_key(
                 bangumi_key=bangumi_key,
@@ -171,6 +175,7 @@ class BangumiMappingManager:
                 bangumi_url=bangumi_url,
                 db_name=db_name,
                 mappable_props=mappable_props,
+                recommended_props=recommended_props,
             )
             
             action = result.get("action")

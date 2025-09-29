@@ -208,3 +208,29 @@ async def check_existing_similar_games(
         selected_id = sorted_candidates[0][0].get("id")
         logger.info(f"已选择更新游戏：{sorted_candidates[0][0].get('title')}")
         return True, cached_titles, "update", selected_id
+
+def get_close_matches_with_ratio(query, candidates, limit=3, threshold=0.6):
+    """Finds close matches, giving a strong boost to substring matches."""
+    if not query or not candidates:
+        return []
+
+    scored_candidates = []
+    for cand in candidates:
+        # Start with the standard difflib ratio
+        ratio = difflib.SequenceMatcher(None, query, cand).ratio()
+
+        # Boost score significantly if one is a substring of the other
+        if query.startswith(cand) or cand.startswith(query):
+            # This is a very strong indicator, especially for cases like '售价' vs '售价-初回限定版'
+            ratio = max(ratio, 0.9) 
+        elif cand in query:
+            ratio = max(ratio, 0.8) # A slightly lower boost for contains
+
+        if ratio >= threshold:
+            scored_candidates.append((cand, ratio))
+
+    # Sort by score (descending) and then alphabetically (ascending)
+    scored_candidates.sort(key=lambda x: (-x[1], x[0]))
+
+    # Return only the names of the top candidates
+    return [cand for cand, score in scored_candidates[:limit]]

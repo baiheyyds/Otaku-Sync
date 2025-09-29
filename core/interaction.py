@@ -39,7 +39,7 @@ class InteractionProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> int | str:
+    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> str | None:
         """Ask user to select a game from Bangumi search results."""
         pass
 
@@ -119,11 +119,33 @@ class ConsoleInteractionProvider(InteractionProvider):
         logger.error("输入无效，将忽略此属性。")
         return {"action": "ignore_session"}
 
-    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> int | str:
-        # This is just an example, the actual implementation is in bangumi_client.py
-        # We can centralize it here later if needed.
-        sel = await asyncio.to_thread(input, "请输入序号选择 Bangumi 条目（0放弃）：")
-        return sel.strip()
+    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> str | None:
+        if not candidates:
+            return None
+
+        print("")  # Add a newline for better formatting
+        for candidate in candidates:
+            print(f"  {candidate['display']}")
+        print("")  # Add a newline for better formatting
+
+        try:
+            raw_choice = await asyncio.to_thread(input, "请输入序号选择 Bangumi 条目（0 放弃）：")
+            choice = int(raw_choice.strip())
+
+            if choice == 0:
+                logger.info("用户放弃选择。")
+                return None
+            
+            if 1 <= choice <= len(candidates):
+                # User enters 1-based index, convert to 0-based
+                selected_candidate = candidates[choice - 1]
+                return selected_candidate['id']
+            else:
+                logger.error("无效的序号，操作已取消。")
+                return None
+        except (ValueError, IndexError):
+            logger.error("无效输入，请输入数字。操作已取消。")
+            return None
 
     async def ask_for_new_property_type(self, prop_name: str) -> str | None:
         def _get_type_input():

@@ -59,13 +59,22 @@ async def check_and_prepare_sync(context: dict, game_title: str) -> tuple[bool, 
 async def gather_primary_data(context: dict, keyword: str, game_url: str, source: str) -> dict:
     """并发获取第一批数据（Bangumi ID, 游戏详情, GGBases候选列表）。"""
     logger.info("正在并发获取所有来源的详细信息...")
-    tasks = {
+    # 先执行非交互式任务
+    background_tasks = {
         "detail": context[source].get_game_detail(game_url),
         "ggbases_candidates": context["ggbases"].choose_or_parse_popular_url_with_requests(keyword),
-        "bangumi_id": context["bangumi"].search_and_select_bangumi_id(keyword),
     }
-    results = await asyncio.gather(*tasks.values(), return_exceptions=True)
-    return {key: res for key, res in zip(tasks.keys(), results) if not isinstance(res, Exception)}
+    results = await asyncio.gather(*background_tasks.values(), return_exceptions=True)
+    primary_data = {key: res for key, res in zip(background_tasks.keys(), results) if not isinstance(res, Exception)}
+
+    # 再执行可能交互的任务
+    try:
+        primary_data['bangumi_id'] = await context["bangumi"].search_and_select_bangumi_id(keyword)
+    except Exception as e:
+        logger.error(f"获取 Bangumi ID 时出错: {e}")
+        primary_data['bangumi_id'] = None
+        
+    return primary_data
 
 
 async def _select_ggbases_game_interactively(candidates: list) -> dict | None:

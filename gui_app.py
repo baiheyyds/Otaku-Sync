@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QInputDialog, QLineEdit, QPlainTextEdit, QDialog, QDialogButtonBox, QCheckBox,
     QGroupBox, QGridLayout
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QScreen
 
 from utils.gui_bridge import patch_logger, log_bridge
@@ -383,6 +383,12 @@ class MainWindow(QMainWindow):
         self.shared_context = create_shared_context()
         project_logger.system("✅ 应用程序级共享上下文已准备就绪。\n")
 
+    def changeEvent(self, event):
+        """捕获窗口状态变更，例如当窗口获得焦点时。"""
+        super().changeEvent(event)
+        if event.type() == QEvent.ActivationChange and self.isActiveWindow():
+            self.keyword_input.setFocus()
+            self.keyword_input.selectAll()
 
     def create_batch_tools_group(self):
         batch_tools_group = QGroupBox("批处理工具")

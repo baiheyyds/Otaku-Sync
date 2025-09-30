@@ -10,3 +10,4 @@ selenium==4.35.0
 selenium_stealth==1.0.6
 tqdm==4.66.6
 webdriver_manager==4.0.2
+rapidfuzz==3.9.4

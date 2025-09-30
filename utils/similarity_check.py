@@ -1,6 +1,6 @@
 # utils/similarity_check.py
 import asyncio
-import difflib
+from rapidfuzz import fuzz
 import hashlib
 import json
 import re
@@ -78,7 +78,7 @@ def save_cache(titles):
 
 def hash_titles(data):
     items = sorted(
-        f"{item.get('id')}:{item.get('title')}"
+        f'{item.get("id")}:{item.get("title")}'
         for item in data
         if item.get("id") and item.get("title")
     )
@@ -105,14 +105,13 @@ async def load_or_update_titles(notion_client):
             logger.error(f"无法连接 Notion，仅使用旧缓存: {e2}")
             return load_cache_quick()
 
-
 def filter_similar_titles(new_title, cached_titles, threshold):
     new_norm = normalize(new_title)
     candidates = []
     for item in cached_titles:
         title = item.get("title")
         norm_title = normalize(title)
-        ratio = difflib.SequenceMatcher(None, norm_title, new_norm).ratio()
+        ratio = fuzz.ratio(norm_title, new_norm) / 100.0
         if ratio >= threshold or new_norm in norm_title or norm_title in new_norm:
             candidates.append((item, max(ratio, 0.95)))
     return candidates
@@ -193,7 +192,7 @@ async def check_existing_similar_games(
     choice, sorted_candidates = await asyncio.to_thread(_interactive_selection)
 
     if choice == "s":
-        logger.info("已选择跳过。")
+        logger.info("已选择跳过。 ולאחר מכן")
         return False, cached_titles, "skip", None
     elif choice == "c":
         # 强制创建前再次检查，因为用户输入时可能有其他进程写入了
@@ -202,7 +201,7 @@ async def check_existing_similar_games(
             logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
             return True, cached_titles, "update", confirm_check[0].get("id")
         else:
-            logger.success("确认创建为新游戏。")
+            logger.success("确认创建为新游戏。 ולאחר מכן")
             return True, cached_titles, "create", None
     else:  # 默认为 u
         selected_id = sorted_candidates[0][0].get("id")
@@ -216,8 +215,8 @@ def get_close_matches_with_ratio(query, candidates, limit=3, threshold=0.6):
 
     scored_candidates = []
     for cand in candidates:
-        # Start with the standard difflib ratio
-        ratio = difflib.SequenceMatcher(None, query, cand).ratio()
+        # Start with the rapidfuzz ratio
+        ratio = fuzz.ratio(query, cand) / 100.0
 
         # Boost score significantly if one is a substring of the other
         if query.startswith(cand) or cand.startswith(query):

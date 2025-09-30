@@ -27,6 +27,11 @@ def create_driver():
     options.add_experimental_option("useAutomationExtension", False)
 
     # --- 核心改动：创建服务时彻底重定向所有输出 ---
+    # 定义驱动程序缓存路径
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    driver_path = os.path.join(project_root, ".drivers")
+    os.environ['WDM_LOCAL'] = driver_path  # 设置webdriver-manager的下载路径
+
     service = Service(
         ChromeDriverManager().install(),
         log_output=subprocess.DEVNULL,

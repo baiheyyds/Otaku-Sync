@@ -66,7 +66,10 @@ class DlsiteClient(BaseClient):
                     break
                 container = container.parent
             price = price_tag.get_text(strip=True) if price_tag else "无"
-            title = a.get("title", "").strip()
+            # Prioritize visible text, as it's often more complete than the title attribute.
+            visible_text = a.get_text(strip=True)
+            attribute_title = a.get("title", "").strip()
+            title = visible_text or attribute_title
             href = a["href"]
             full_url = href if href.startswith("http") else self.base_url + href
             li_tag = a.find_parent("li", class_="search_result_img_box_inner")

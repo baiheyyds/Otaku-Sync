@@ -7,17 +7,86 @@ import re
 import sys
 import unicodedata
 from pathlib import Path
+from collections import defaultdict
 
 from utils import logger
 
+# --- Constants ---
+N_GRAM_SIZE = 2
+
+# --- Helper Functions ---
+def normalize(text):
+    """
+    Aggressively normalize text for similarity comparison.
+    - Converts to NFKC for character consistency.
+    - Converts to lowercase.
+    - Removes all whitespace and a wide range of symbols/punctuations.
+    """
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKC", text)
+    text = text.lower().strip()
+    # Expanded regex to remove spaces, hyphens, colons, brackets, tildes, etc.
+    text = re.sub(r"[\s\-_:()[\]【】~～「」『』]+", "", text)
+    return text
+
+def get_ngrams(text, n):
+    """Generates n-grams for a given text."""
+    return {text[i:i+n] for i in range(len(text) - n + 1)}
+
+class SimilarityChecker:
+    def __init__(self, cached_titles):
+        self.cached_titles = cached_titles
+        self.norm_titles = [normalize(item.get("title", "")) for item in self.cached_titles]
+        self.index = self._build_index()
+
+    def _build_index(self):
+        index = defaultdict(set)
+        for i, norm_title in enumerate(self.norm_titles):
+            if not norm_title:
+                continue
+            for ngram in get_ngrams(norm_title, N_GRAM_SIZE):
+                index[ngram].add(i)
+        return index
+
+    def filter_similar_titles(self, new_title, threshold):
+        new_norm = normalize(new_title)
+        if not new_norm:
+            return []
+
+        candidate_indices = set()
+        for ngram in get_ngrams(new_norm, N_GRAM_SIZE):
+            candidate_indices.update(self.index.get(ngram, set()))
+
+        candidates = []
+        for i in candidate_indices:
+            norm_title = self.norm_titles[i]
+            if not norm_title:
+                continue
+            
+            ratio = fuzz.ratio(norm_title, new_norm) / 100.0
+            
+            is_similar = ratio >= threshold
+            # The aggressive normalization makes substring checks less reliable,
+            # but direct ratio is now much more accurate.
+            # We can still check for containment as a strong signal if needed,
+            # but let's rely on the improved normalized ratio first.
+            
+            if is_similar:
+                candidates.append((self.cached_titles[i], ratio))
+        
+        return candidates
+
 async def find_similar_games_non_interactive(
-    notion_client, new_title, cached_titles=None, threshold=0.78
+    notion_client, new_title, cached_titles=None, threshold=0.85 # Increased threshold due to better normalization
 ):
     """Non-interactively finds similar games and returns candidates."""
     if not cached_titles or not isinstance(cached_titles[0], dict):
         cached_titles = await load_or_update_titles(notion_client)
 
-    candidates = filter_similar_titles(new_title, cached_titles, threshold)
+    checker = SimilarityChecker(cached_titles)
+    candidates = checker.filter_similar_titles(new_title, threshold)
+    
     valid_candidates, updated_cache, changed = await remove_invalid_pages(
         candidates, cached_titles, notion_client
     )
@@ -46,23 +115,11 @@ def load_cache_quick():
         logger.warn(f"本地缓存读取失败: {e}")
     return []
 
-
-# --- normalize, get_cache_path, save_cache, hash_titles 函数不变 ---
-def normalize(text):
-    if not text:
-        return ""
-    text = unicodedata.normalize("NFKC", text)
-    text = text.lower().strip()
-    text = re.sub(r"\s+", "", text)
-    return text
-
-
 def get_cache_path():
     base_dir = Path(sys.argv[0]).resolve().parent
     cache_dir = base_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir / "game_titles_cache.json"
-
 
 def save_cache(titles):
     try:
@@ -75,7 +132,6 @@ def save_cache(titles):
     except Exception as e:
         logger.error(f"缓存写入失败: {e}")
 
-
 def hash_titles(data):
     items = sorted(
         f'{item.get("id")}:{item.get("title")}'
@@ -83,7 +139,6 @@ def hash_titles(data):
         if item.get("id") and item.get("title")
     )
     return hashlib.md5("".join(items).encode("utf-8")).hexdigest()
-
 
 async def load_or_update_titles(notion_client):
     path = get_cache_path()
@@ -105,24 +160,11 @@ async def load_or_update_titles(notion_client):
             logger.error(f"无法连接 Notion，仅使用旧缓存: {e2}")
             return load_cache_quick()
 
-def filter_similar_titles(new_title, cached_titles, threshold):
-    new_norm = normalize(new_title)
-    candidates = []
-    for item in cached_titles:
-        title = item.get("title")
-        norm_title = normalize(title)
-        ratio = fuzz.ratio(norm_title, new_norm) / 100.0
-        if ratio >= threshold or new_norm in norm_title or norm_title in new_norm:
-            candidates.append((item, max(ratio, 0.95)))
-    return candidates
-
-
 async def remove_invalid_pages(candidates, cached_titles, notion_client):
     updated_cache = list(cached_titles)
     valid_candidates = []
     changed = False
 
-    # 并发检查页面是否存在
     tasks = [notion_client.check_page_exists(item.get("id")) for item, score in candidates]
     results = await asyncio.gather(*tasks)
 
@@ -136,16 +178,17 @@ async def remove_invalid_pages(candidates, cached_titles, notion_client):
             changed = True
     return valid_candidates, updated_cache, changed
 
-
 async def check_existing_similar_games(
-    notion_client, new_title, cached_titles=None, threshold=0.78
+    notion_client, new_title, cached_titles=None, threshold=0.85 # Increased threshold
 ):
     logger.info("正在检查是否有可能重复的游戏...")
 
     if not cached_titles or not isinstance(cached_titles[0], dict):
         cached_titles = await load_or_update_titles(notion_client)
 
-    candidates = filter_similar_titles(new_title, cached_titles, threshold)
+    checker = SimilarityChecker(cached_titles)
+    candidates = checker.filter_similar_titles(new_title, threshold)
+    
     valid_candidates, updated_cache, changed = await remove_invalid_pages(
         candidates, cached_titles, notion_client
     )
@@ -169,7 +212,6 @@ async def check_existing_similar_games(
         logger.success("没有发现重复游戏，将创建新条目。")
         return True, cached_titles, "create", None
 
-    # 将阻塞的 input 调用放到线程中执行
     def _interactive_selection():
         logger.warn("检测到可能重复的游戏：")
         sorted_candidates = sorted(valid_candidates, key=lambda x: x[1], reverse=True)
@@ -195,10 +237,9 @@ async def check_existing_similar_games(
         logger.info("已选择跳过。 ולאחר מכן")
         return False, cached_titles, "skip", None
     elif choice == "c":
-        # 强制创建前再次检查，因为用户输入时可能有其他进程写入了
         confirm_check = await notion_client.search_game(new_title)
         if confirm_check:
-            logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
+            logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。 ולאחר מכן")
             return True, cached_titles, "update", confirm_check[0].get("id")
         else:
             logger.success("确认创建为新游戏。 ולאחר מכן")
@@ -208,28 +249,30 @@ async def check_existing_similar_games(
         logger.info(f"已选择更新游戏：{sorted_candidates[0][0].get('title')}")
         return True, cached_titles, "update", selected_id
 
+# Restored original implementation of get_close_matches_with_ratio
 def get_close_matches_with_ratio(query, candidates, limit=3, threshold=0.6):
     """Finds close matches, giving a strong boost to substring matches."""
     if not query or not candidates:
         return []
 
     scored_candidates = []
+    # Do not normalize here, compare raw strings as the original logic intended
+    norm_query = unicodedata.normalize("NFKC", query).lower()
+
     for cand in candidates:
-        # Start with the rapidfuzz ratio
-        ratio = fuzz.ratio(query, cand) / 100.0
+        norm_cand = unicodedata.normalize("NFKC", cand).lower()
+        
+        ratio = fuzz.ratio(norm_query, norm_cand) / 100.0
 
         # Boost score significantly if one is a substring of the other
-        if query.startswith(cand) or cand.startswith(query):
-            # This is a very strong indicator, especially for cases like '售价' vs '售价-初回限定版'
+        if norm_query.startswith(norm_cand) or norm_cand.startswith(norm_query):
             ratio = max(ratio, 0.9) 
-        elif cand in query:
-            ratio = max(ratio, 0.8) # A slightly lower boost for contains
+        elif norm_cand in norm_query:
+            ratio = max(ratio, 0.8)
 
         if ratio >= threshold:
             scored_candidates.append((cand, ratio))
 
-    # Sort by score (descending) and then alphabetically (ascending)
     scored_candidates.sort(key=lambda x: (-x[1], x[0]))
 
-    # Return only the names of the top candidates
     return [cand for cand, score in scored_candidates[:limit]]

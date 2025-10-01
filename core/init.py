@@ -24,8 +24,8 @@ async def close_context(context: dict):
 
     # Save all caches and mappings
     logger.system("正在保存所有缓存和映射数据...")
-    if context.get("brand_cache") and context.get("brand_extra_info_cache"):
-        context["brand_cache"].save_cache(context["brand_extra_info_cache"])
+    if context.get("brand_cache"):
+        context["brand_cache"].save_cache()
 
     if context.get("schema_manager"):
         context["schema_manager"].save_schemas_to_cache()

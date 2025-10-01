@@ -94,6 +94,24 @@ class NotionClient:
         resp = await self._request("POST", url, payload)
         return resp.get("results", []) if resp else []
 
+    async def get_brand_details_by_name(self, name: str) -> dict | None:
+        """根据品牌名称查找品牌，并返回其ID和图标状态。"""
+        results = await self.search_brand(name)
+        if not results:
+            return None
+
+        # 假设第一个结果是正确的
+        page = results[0]
+        page_id = page.get("id")
+        properties = page.get("properties", {})
+        icon_prop = properties.get(FIELDS["brand_icon"], {})
+
+        # 修正：仅当品牌logo文件（files属性）存在时，才认为已有图标。
+        # 移除 or bool(page.get("icon"))，避免将页面的Emoji误判为有效图标。
+        has_icon = bool(icon_prop.get("files"))
+
+        return {"page_id": page_id, "has_icon": has_icon}
+
     async def get_all_game_titles(self):
         url = f"https://api.notion.com/v1/databases/{self.game_db_id}/query"
         all_games = []

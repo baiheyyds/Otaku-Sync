@@ -3,7 +3,7 @@ import traceback
 from PySide6.QtCore import QThread, Signal, QMutex, QWaitCondition
 
 from utils import logger
-from core.brand_handler import handle_brand_info
+from core.brand_handler import check_brand_status, finalize_brand_update
 from core.game_processor import process_and_sync_game
 from core.selector import search_all_sites, _find_best_match, SIMILARITY_THRESHOLD
 from utils.similarity_check import find_similar_games_non_interactive
@@ -155,22 +155,9 @@ class GameSyncWorker(QThread):
         
         return choice
 
-    async def get_or_create_driver(self, driver_key: str):
-        driver_factory = self.context["driver_factory"]
-        driver = await driver_factory.get_driver(driver_key)
-        if not driver:
-            logger.error(f"无法获取 {driver_key}，后续相关操作将跳过。")
-            return None
-        
-        client_map = {"dlsite_driver": "dlsite", "ggbases_driver": "ggbases"}
-        client_name = client_map.get(driver_key)
-        if client_name and not self.context[client_name].has_driver():
-            self.context[client_name].set_driver(driver)
-            logger.info(f"{driver_key} 已设置到 {client_name.capitalize()}Client。")
-        return driver
-
     async def game_flow(self) -> bool:
         try:
+            # 步骤 1: 搜索并选择游戏
             results, source = await search_all_sites(self.context["dlsite"], self.context["fanza"], self.keyword)
             game = None
             while True:
@@ -202,6 +189,7 @@ class GameSyncWorker(QThread):
                 break
             logger.info(f"已选择来源: {source.upper()}, 游戏: {game['title']}")
 
+            # 步骤 2: 检查Notion中是否存在相似游戏
             candidates, updated_cache = await find_similar_games_non_interactive(
                 self.context["notion"], game["title"], self.context["cached_titles"]
             )
@@ -220,6 +208,7 @@ class GameSyncWorker(QThread):
                     logger.info("已选择强制创建新游戏。")
                     selected_similar_page_id = None
 
+            # 步骤 3: 并发获取第一批数据 (游戏详情, Bangumi, GGBases候选)
             logger.info("正在并发获取所有来源的详细信息...")
             tasks = {
                 "detail": self.context[source].get_game_detail(game["url"]),
@@ -230,12 +219,23 @@ class GameSyncWorker(QThread):
             primary_data = {key: res for key, res in zip(tasks.keys(), primary_data_results) if not isinstance(res, Exception)}
             
             detail = primary_data.get("detail", {})
+            if not detail:
+                logger.error(f"获取游戏 '{game['title']}' 的核心详情失败，已跳过处理。")
+                self.process_completed.emit(False)
+                return False
+
             detail["source"] = source
             bangumi_id = primary_data.get("bangumi_id")
             bangumi_game_info = {}
             if bangumi_id:
                 bangumi_game_info = await self.context["bangumi"].fetch_game(bangumi_id)
 
+            # ==================================================================
+            # 步骤 4: 并发处理耗时的后台任务 (GGBases, Dlsite, Bangumi Brand)
+            # ==================================================================
+            secondary_tasks = {}
+
+            # --- 准备 GGBases 任务 ---
             ggbases_candidates = primary_data.get("ggbases_candidates", [])
             selected_ggbases_game = None
             if ggbases_candidates:
@@ -244,39 +244,45 @@ class GameSyncWorker(QThread):
                     choice = await self.wait_for_choice(ggbases_candidates, "请从GGBases结果中选择", "ggbases")
                     if isinstance(choice, int) and choice != -1:
                         selected_ggbases_game = ggbases_candidates[choice]
-                    elif choice == "skip":
-                        logger.info("GGBases选择被用户或超时跳过。")
                 else:
                     selected_ggbases_game = max(ggbases_candidates, key=lambda x: x.get("popularity", 0))
-                    logger.success(f"[GGBases] 自动选择热度最高结果: {selected_ggbases_game['title']}")
+                
+                if selected_ggbases_game:
+                    logger.success(f"[GGBases] 已选择结果: {selected_ggbases_game['title']}")
+                    ggbases_url = selected_ggbases_game.get("url")
+                    if ggbases_url:
+                        driver = await self.context["driver_factory"].get_driver("ggbases_driver")
+                        if driver and not self.context["ggbases"].has_driver():
+                            self.context["ggbases"].set_driver(driver)
+                        secondary_tasks["ggbases_info"] = self.context["ggbases"].get_info_by_url_with_selenium(ggbases_url)
 
-            ggbases_url = selected_ggbases_game.get("url") if selected_ggbases_game else None
-            selenium_tasks = {}
-            if ggbases_url:
-                await self.get_or_create_driver("ggbases_driver")
-                selenium_tasks["ggbases_info"] = self.context["ggbases"].get_info_by_url_with_selenium(ggbases_url)
-
+            # --- 准备品牌任务 ---
             brand_name = detail.get("品牌")
-            brand_page_url = detail.get("品牌页链接")
-            if detail.get("source") == "dlsite" and brand_page_url and "/maniax/circle" in brand_page_url:
-                await self.get_or_create_driver("dlsite_driver")
-                selenium_tasks["brand_extra_info"] = self.context["dlsite"].get_brand_extra_info_with_selenium(brand_page_url)
+            brand_page_id, needs_fetching = await check_brand_status(self.context, brand_name)
+            if needs_fetching and brand_name:
+                logger.step(f"品牌 '{brand_name}' 需要抓取新信息...")
+                secondary_tasks["bangumi_brand_info"] = self.context["bangumi"].fetch_brand_info_from_bangumi(brand_name)
+                
+                dlsite_brand_url = detail.get("品牌页链接") if source == 'dlsite' else None
+                if dlsite_brand_url and "/maniax/circle" in dlsite_brand_url:
+                    driver = await self.context["driver_factory"].get_driver("dlsite_driver")
+                    if driver and not self.context["dlsite"].has_driver():
+                        self.context["dlsite"].set_driver(driver)
+                    secondary_tasks["brand_extra_info"] = self.context["dlsite"].get_brand_extra_info_with_selenium(dlsite_brand_url)
 
-            if brand_name:
-                selenium_tasks["bangumi_brand_info"] = self.context["bangumi"].fetch_brand_info_from_bangumi(brand_name)
+            # --- 执行所有后台任务 ---
+            fetched_data = {}
+            if secondary_tasks:
+                logger.info(f"正在并发执行 {len(secondary_tasks)} 个后台任务 (Selenium/品牌信息)... ")
+                results = await asyncio.gather(*secondary_tasks.values(), return_exceptions=True)
+                fetched_data = {key: res for key, res in zip(secondary_tasks.keys(), results) if not isinstance(res, Exception)}
+                logger.success("所有后台任务执行完毕！")
 
-            secondary_data = {}
-            if selenium_tasks:
-                logger.info("正在并发获取剩余的后台信息 (Selenium & Bangumi Brand)...")
-                results = await asyncio.gather(*selenium_tasks.values(), return_exceptions=True)
-                secondary_data = {key: res for key, res in zip(selenium_tasks.keys(), results) if not isinstance(res, Exception)}
-            logger.success("所有信息获取完毕！")
-
-            final_brand_info = await handle_brand_info(
-                bangumi_brand_info=secondary_data.get("bangumi_brand_info", {}),
-                dlsite_extra_info=secondary_data.get("brand_extra_info", {}),
-            )
-            brand_id = await self.context["notion"].create_or_update_brand(brand_name, **final_brand_info)
+            # ==================================================================
+            # 步骤 5: 收尾处理并同步到Notion
+            # ==================================================================
+            brand_id = await finalize_brand_update(self.context, brand_name, brand_page_id, fetched_data)
+            ggbases_info = fetched_data.get("ggbases_info", {})
 
             created_page_id = await process_and_sync_game(
                 game=game, detail=detail, notion_client=self.context["notion"], brand_id=brand_id,
@@ -285,8 +291,8 @@ class GameSyncWorker(QThread):
                 tag_manager=self.context["tag_manager"], 
                 name_splitter=self.context["name_splitter"], 
                 interaction_provider=self.interaction_provider,
-                ggbases_detail_url=ggbases_url,
-                ggbases_info=secondary_data.get("ggbases_info", {}),
+                ggbases_detail_url=(selected_ggbases_game or {}).get("url"),
+                ggbases_info=ggbases_info or {},
                 ggbases_search_result=selected_ggbases_game or {},
                 bangumi_info=bangumi_game_info, source=source,
                 selected_similar_page_id=selected_similar_page_id,

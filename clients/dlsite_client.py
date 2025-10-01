@@ -184,6 +184,7 @@ class DlsiteClient(BaseClient):
             try:
                 self.driver.get(brand_page_url)
                 try:
+                    # 尝试自动通过年龄验证，设置较短的等待时间
                     age_check_wait = WebDriverWait(self.driver, 3)
                     yes_button = age_check_wait.until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn_yes a"))
@@ -191,29 +192,36 @@ class DlsiteClient(BaseClient):
                     yes_button.click()
                     logger.info("[Dlsite] (Selenium) 已自动通过年龄验证。")
                 except Exception:
-                    pass
+                    pass # 年龄验证不是每次都有，忽略失败
+
+                # 主要内容等待
+                wait = WebDriverWait(self.driver, self.selenium_timeout)
+                cien_url = None
+                icon_url = None
 
                 try:
-                    wait = WebDriverWait(self.driver, self.selenium_timeout)
-                    link_block_element = wait.until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "div.link_cien"))
+                    # 策略1: 直接、独立地等待每个目标元素加载完成
+                    cien_link_element = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='ci-en.dlsite.com']"))
                     )
-                    soup = BeautifulSoup(
-                        link_block_element.get_attribute("outerHTML"), "html.parser"
+                    cien_url = cien_link_element.get_attribute("href").strip()
+                except TimeoutException:
+                    logger.warn("[Dlsite] (Selenium) 在品牌页面未找到 Ci-en 链接。")
+
+                try:
+                    icon_img_element = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, ".creator_icon img[src]"))
                     )
-                    cien_link_tag = soup.select_one("a[href*='ci-en.dlsite.com']")
-                    icon_img_tag = soup.select_one(".creator_icon img[src]")
-                    cien_url = cien_link_tag["href"].strip() if cien_link_tag else None
-                    icon_url = icon_img_tag["src"].strip() if icon_img_tag else None
+                    icon_url = icon_img_element.get_attribute("src").strip()
+                except TimeoutException:
+                    logger.warn("[Dlsite] (Selenium) 在品牌页面未找到图标。")
+
+                if cien_url or icon_url:
                     logger.success(
                         f"[Dlsite] (Selenium) 获取成功: Ci-en={cien_url}, 图标={icon_url}"
                     )
-                    return {"ci_en_url": cien_url, "icon_url": icon_url}
-                except TimeoutException:
-                    logger.warn(
-                        f"[Dlsite] (Selenium) 在品牌页面未找到 Ci-en 等额外链接信息，这可能是正常的。"
-                    )
-                    return {}
+                return {"ci_en_url": cien_url, "icon_url": icon_url}
+
             except Exception as e:
                 logger.error(
                     f"[Dlsite] (Selenium) 抓取品牌信息时发生未知错误 {brand_page_url}: {e}"

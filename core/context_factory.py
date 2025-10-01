@@ -27,19 +27,18 @@ def create_shared_context():
     logger.system("正在初始化共享应用上下文 (缓存、管理器、驱动工厂等)...")
     driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
 
-    # 管理器现在是共享的
+    # 管理器是共享的
     tag_manager = TagManager()
     name_splitter = NameSplitter()
 
     brand_cache = BrandCache()
-    brand_extra_info_cache = brand_cache.load_cache()
+    brand_cache.load_cache()
     cached_titles = load_cache_quick()
     logger.cache(f"本地缓存游戏条目数: {len(cached_titles)}")
 
     return {
         "driver_factory": driver_factory,
         "brand_cache": brand_cache,
-        "brand_extra_info_cache": brand_extra_info_cache,
         "cached_titles": cached_titles,
         "data_manager": data_manager,
         "tag_manager": tag_manager,
@@ -51,9 +50,14 @@ async def create_loop_specific_context(
     shared_context: dict, interaction_provider: InteractionProvider
 ):
     """Creates context with objects that are specific to a single event loop (e.g. http clients)."""
-    # transport = httpx.AsyncHTTPTransport(retries=3, http2=True) # The client-level retry is removed in favor of manual retry in background task
+    # 恢复: HTTP客户端在每个线程循环中独立创建和管理
     transport = httpx.AsyncHTTPTransport(http2=True)
     async_client = httpx.AsyncClient(transport=transport, timeout=20, follow_redirects=True)
+
+    # 恢复: 各个API客户端在每个线程循环中独立创建
+    dlsite = DlsiteClient(async_client)
+    ggbases = GGBasesClient(async_client)
+    fanza = FanzaClient(async_client)
 
     notion = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
     schema_manager = NotionSchemaManager(notion)
@@ -66,21 +70,18 @@ async def create_loop_specific_context(
 
     bgm_mapper = BangumiMappingManager(interaction_provider)
     bangumi = BangumiClient(notion, bgm_mapper, schema_manager, async_client, interaction_provider)
-    dlsite = DlsiteClient(async_client)
-    fanza = FanzaClient(async_client)
-    ggbases = GGBasesClient(async_client)
 
     # Update cached_titles in the background
     cache_update_task = asyncio.create_task(update_cache_background(notion, shared_context["cached_titles"]))
 
     return {
         "async_client": async_client,
+        "dlsite": dlsite,
+        "ggbases": ggbases,
+        "fanza": fanza,
         "notion": notion,
         "schema_manager": schema_manager,
         "bangumi": bangumi,
-        "dlsite": dlsite,
-        "fanza": fanza,
-        "ggbases": ggbases,
         "interaction_provider": interaction_provider,
         "background_tasks": [cache_update_task]
     }

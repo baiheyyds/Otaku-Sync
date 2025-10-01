@@ -49,10 +49,10 @@
 
 ### 方式一：使用图形界面 (推荐)
 
-在项目根目录运行 `gui_app.py` 启动图形化工具：
+在项目根目录运行 `run_gui.py` 启动图形化工具：
 
 ```bash
-python gui_app.py
+python run_gui.py
 ```
 
 **使用流程:**
@@ -82,7 +82,7 @@ python main.py
 -   **核心逻辑 (`core/`)**: 包含所有的数据抓取、处理和同步逻辑。这些模块是纯粹的业务层，不依赖于任何特定的UI实现。
 -   **交互提供者 (`core/interaction.py`)**: 定义了一个抽象接口，用于处理所有需要用户输入的场景（例如，选择、确认、文本输入）。
 -   **UI 实现**:
-    -   **GUI (`gui_app.py`, `utils/gui_bridge.py`)**: `GuiInteractionProvider` 实现了交互接口，通过 Qt 信号和槽机制将后台逻辑的请求转化为图形化的对话框。
+    -   **GUI (`run_gui.py`, `utils/gui_bridge.py`)**: `GuiInteractionProvider` 实现了交互接口，通过 Qt 信号和槽机制将后台逻辑的请求转化为图形化的对话框。
     -   **CLI (`main.py`)**: 命令行界面通过一个简单的 `CliInteractionProvider` 实现，将交互请求转化为控制台的 `input()` 提示。
 
 这种架构使得项目具有极高的可维护性和可扩展性。未来可以轻松地为其添加新的前端，例如 Web 界面，而无需改动任何核心业务代码。
@@ -99,7 +99,7 @@ Otaku-Sync/
 ├── mapping/              # 品牌、标签等映射文件（可自定义）
 ├── utils/                # 通用工具（日志、驱动、GUI桥接等）
 ├── .env.example          # 环境变量模板
-├── gui_app.py            # 🚀 图形界面 (GUI) 程序入口
+├── run_gui.py            # 🚀 图形界面 (GUI) 程序入口
 ├── main.py               # ⌨️ 命令行 (CLI) 程序入口
 └── requirements.txt      # Python 依赖库
 ```

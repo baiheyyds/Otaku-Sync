@@ -153,7 +153,8 @@ async def run_single_game_flow(context: dict) -> bool:
                     secondary_tasks["ggbases_info"] = context["ggbases"].get_info_by_url_with_selenium(ggbases_url)
 
         # --- 准备品牌任务 ---
-        brand_name = detail.get("品牌")
+        raw_brand_name = detail.get("品牌")
+        brand_name = context["brand_mapping_manager"].get_canonical_name(raw_brand_name)
         brand_page_id, needs_fetching = await check_brand_status(context, brand_name)
         if needs_fetching and brand_name:
             logger.step(f"品牌 '{brand_name}' 需要抓取新信息...")

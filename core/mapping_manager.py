@@ -8,11 +8,13 @@ from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID
 from utils.similarity_check import get_close_matches_with_ratio
 from utils import logger
 from core.interaction import InteractionProvider
+from utils.utils import normalize_brand_name
 
 
 MAPPING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mapping")
 BGM_PROP_MAPPING_PATH = os.path.join(MAPPING_DIR, "bangumi_prop_mapping.json")
 BGM_IGNORE_LIST_PATH = os.path.join(MAPPING_DIR, "bangumi_ignore_list.json")
+BRAND_MAPPING_PATH = os.path.join(MAPPING_DIR, "brand_mapping.json")
 
 DB_ID_TO_NAMESPACE = {
     GAME_DB_ID: "games",
@@ -20,6 +22,41 @@ DB_ID_TO_NAMESPACE = {
     BRAND_DB_ID: "brands",
 }
 
+class BrandMappingManager:
+    def __init__(self, file_path: str = BRAND_MAPPING_PATH):
+        self.file_path = file_path
+        self._mapping: Dict[str, List[str]] = {}
+        self._reverse_mapping: Dict[str, str] = {}
+        self._load_mapping()
+
+    def _load_mapping(self):
+        if not os.path.exists(self.file_path):
+            logger.warn(f"品牌映射文件不存在: {self.file_path}")
+            return
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                self._mapping = json.loads(content) if content else {}
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"加载品牌映射文件失败: {e}")
+            self._mapping = {}
+        self._build_reverse_mapping()
+
+    def _build_reverse_mapping(self):
+        self._reverse_mapping = {}
+        for canonical_name, aliases in self._mapping.items():
+            # The canonical name itself is an alias
+            normalized_canonical = normalize_brand_name(canonical_name)
+            self._reverse_mapping[normalized_canonical] = canonical_name
+            for alias in aliases:
+                normalized_alias = normalize_brand_name(alias)
+                self._reverse_mapping[normalized_alias] = canonical_name
+
+    def get_canonical_name(self, name: str) -> str:
+        if not name:
+            return ""
+        normalized_name = normalize_brand_name(name)
+        return self._reverse_mapping.get(normalized_name, name)
 
 class BangumiMappingManager:
     def __init__(self, interaction_provider: InteractionProvider, file_path: str = BGM_PROP_MAPPING_PATH):

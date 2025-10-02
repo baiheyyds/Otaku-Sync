@@ -9,7 +9,7 @@ import httpx
 
 from config.config_fields import FIELDS
 from utils import logger
-from utils.utils import convert_date_jp_to_iso
+from utils.utils import convert_date_jp_to_iso, normalize_brand_name
 
 
 class NotionClient:
@@ -23,6 +23,7 @@ class NotionClient:
             "Notion-Version": "2022-06-28",
             "Content-Type": "application/json",
         }
+        self._all_brands_cache = None
 
     async def _request(self, method, url, json_data=None):
         try:
@@ -88,29 +89,39 @@ class NotionClient:
         except Exception:
             return False
 
-    async def search_brand(self, brand_name):
-        url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"
-        payload = {"filter": {"property": FIELDS["brand_name"], "title": {"equals": brand_name}}}
-        resp = await self._request("POST", url, payload)
-        return resp.get("results", []) if resp else []
+    async def get_all_brands(self):
+        if self._all_brands_cache is not None:
+            return self._all_brands_cache
+
+        all_pages = await self.get_all_pages_from_db(self.brand_db_id)
+        brands = []
+        for page in all_pages:
+            props = page.get("properties", {})
+            title_data = props.get(FIELDS["brand_name"], {}).get("title", [])
+            title = "".join([t.get("plain_text", "") for t in title_data]).strip()
+            if title:
+                brands.append({"title": title, "id": page["id"]})
+        self._all_brands_cache = brands
+        return brands
 
     async def get_brand_details_by_name(self, name: str) -> dict | None:
         """根据品牌名称查找品牌，并返回其ID和图标状态。"""
-        results = await self.search_brand(name)
-        if not results:
+        if not name:
             return None
+        
+        all_brands = await self.get_all_brands()
+        normalized_name = normalize_brand_name(name)
 
-        # 假设第一个结果是正确的
-        page = results[0]
-        page_id = page.get("id")
-        properties = page.get("properties", {})
-        icon_prop = properties.get(FIELDS["brand_icon"], {})
-
-        # 修正：仅当品牌logo文件（files属性）存在时，才认为已有图标。
-        # 移除 or bool(page.get("icon"))，避免将页面的Emoji误判为有效图标。
-        has_icon = bool(icon_prop.get("files"))
-
-        return {"page_id": page_id, "has_icon": has_icon}
+        for brand in all_brands:
+            if normalize_brand_name(brand["title"]) == normalized_name:
+                page = await self.get_page(brand["id"])
+                if not page:
+                    continue
+                properties = page.get("properties", {})
+                icon_prop = properties.get(FIELDS["brand_icon"], {})
+                has_icon = bool(icon_prop.get("files"))
+                return {"page_id": brand["id"], "has_icon": has_icon}
+        return None
 
     async def get_all_game_titles(self):
         url = f"https://api.notion.com/v1/databases/{self.game_db_id}/query"
@@ -399,8 +410,9 @@ class NotionClient:
 
     async def create_or_update_brand(self, brand_name, page_id=None, **info):
         if not page_id:
-            existing = await self.search_brand(brand_name)
-            page_id = existing[0]["id"] if existing else None
+            brand_details = await self.get_brand_details_by_name(brand_name)
+            if brand_details:
+                page_id = brand_details.get("id")
 
         schema_data = await self.get_database_schema(self.brand_db_id)
         if not schema_data:

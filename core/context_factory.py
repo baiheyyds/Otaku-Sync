@@ -11,7 +11,7 @@ from clients.ggbases_client import GGBasesClient
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from core.interaction import InteractionProvider
-from core.mapping_manager import BangumiMappingManager
+from core.mapping_manager import BangumiMappingManager, BrandMappingManager
 from core.name_splitter import NameSplitter
 from core.schema_manager import NotionSchemaManager
 from utils import logger
@@ -30,6 +30,7 @@ def create_shared_context():
     # 管理器是共享的
     tag_manager = TagManager()
     name_splitter = NameSplitter()
+    brand_mapping_manager = BrandMappingManager()
 
     brand_cache = BrandCache()
     brand_cache.load_cache()
@@ -43,6 +44,7 @@ def create_shared_context():
         "data_manager": data_manager,
         "tag_manager": tag_manager,
         "name_splitter": name_splitter,
+        "brand_mapping_manager": brand_mapping_manager,
     }
 
 

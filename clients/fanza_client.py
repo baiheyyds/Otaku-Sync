@@ -150,9 +150,19 @@ class FanzaClient(BaseClient):
                 if tags_div := find_row_value("ジャンル"):
                     details["标签"] = [a.get_text(strip=True) for a in tags_div.select("li a")]
 
-            if cover_img_tag := soup.select_one(".productPreview__mainImage img, #fn-main_image"):
-                if cover_img_tag.has_attr("src"):
-                    details["封面图链接"] = urljoin(self.base_url, cover_img_tag["src"])
+            # 优先使用 og:image 获取封面图
+            if cover_tag := soup.find("meta", property="og:image"):
+                details["封面图链接"] = urljoin(self.base_url, cover_tag["content"])
+            else:
+                # 兼容旧的封面图提取逻辑，并为未发售游戏增加选择器
+                cover_selector = (
+                    ".productPreview__mainImage img, "
+                    "#fn-main_image, "
+                    ".main-visual img"
+                )
+                if cover_img_tag := soup.select_one(cover_selector):
+                    if src := cover_img_tag.get("src"):
+                        details["封面图链接"] = urljoin(self.base_url, src)
             if title_tag := soup.select_one("h1.productTitle__txt"):
                 details["标题"] = title_tag.get_text(strip=True)
             if price_tag := soup.select_one(".priceInformation__price"):

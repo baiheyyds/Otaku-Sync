@@ -234,15 +234,15 @@ async def check_existing_similar_games(
     choice, sorted_candidates = await asyncio.to_thread(_interactive_selection)
 
     if choice == "s":
-        logger.info("已选择跳过。 ולאחר מכן")
+        logger.info("已选择跳过。")
         return False, cached_titles, "skip", None
     elif choice == "c":
         confirm_check = await notion_client.search_game(new_title)
         if confirm_check:
-            logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。 ולאחר מכן")
+            logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
             return True, cached_titles, "update", confirm_check[0].get("id")
         else:
-            logger.success("确认创建为新游戏。 ולאחר מכן")
+            logger.success("确认创建为新游戏。")
             return True, cached_titles, "create", None
     else:  # 默认为 u
         selected_id = sorted_candidates[0][0].get("id")

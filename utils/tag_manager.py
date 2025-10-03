@@ -164,6 +164,18 @@ class TagManager:
         interaction_provider: InteractionProvider,
     ) -> List[str]:
         async with self._interaction_lock:
+            
+            def _split_tags(tags: List[str]) -> List[str]:
+                processed_tags = []
+                for tag in tags:
+                    # 拆分可能包含逗号或分号的标签字符串
+                    processed_tags.extend([t.strip() for t in tag.replace('，', ',').replace('；', ',').split(',') if t.strip()])
+                return processed_tags
+
+            dlsite_tags = _split_tags(dlsite_tags)
+            fanza_tags = _split_tags(fanza_tags)
+            ggbases_tags = _split_tags(ggbases_tags)
+
             translated_tags = []
             source_maps = [
                 (dlsite_tags, self._jp_to_cn_map, TAG_JP_TO_CN_PATH, "DLsite"),
@@ -179,12 +191,14 @@ class TagManager:
                             tag, source_map, map_path, source_name, interaction_provider
                         )
                     if translation:
-                        translated_tags.append(translation)
+                        # Also split the translated tags
+                        translated_tags.extend([t.strip() for t in translation.replace('，', ',').replace('；', ',').split(',') if t.strip()])
 
             for tag in ggbases_tags:
                 translated = self._ggbase_map.get(tag, tag) or tag
                 if translated:
-                    translated_tags.append(translated)
+                    # Also split the translated tags
+                    translated_tags.extend([t.strip() for t in translated.replace('，', ',').replace('；', ',').split(',') if t.strip()])
 
             final_tags_set: Set[str] = set()
             for concept in list(dict.fromkeys(translated_tags)):

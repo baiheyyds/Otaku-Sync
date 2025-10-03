@@ -89,26 +89,42 @@ class DriverFactory:
         logger.warn(f"{driver_key} 既未创建也无创建任务。可能需要先调用 start_background_creation。")
         return None
 
-    def shutdown(self):
-        """关闭所有驱动并停止后台事件循环。"""
+    def shutdown_sync(self):
+        """同步关闭所有驱动并停止后台事件循环。会阻塞调用线程。"""
         if not self._loop:
             return
         logger.system("正在关闭驱动工厂...")
-        # 提交关闭所有驱动的任务
         if self._drivers or self._creation_futures:
             future = asyncio.run_coroutine_threadsafe(self.close_all_drivers(), self._loop)
             try:
-                future.result(timeout=10) # 等待关闭完成
+                # 在同步上下文中，我们阻塞等待，直到驱动程序关闭
+                future.result()
             except Exception as e:
                 logger.error(f"关闭驱动时发生错误: {e}")
 
-        # 停止事件循环
         if self._loop.is_running():
             self._loop.call_soon_threadsafe(self._loop.stop)
         
-        # 等待线程结束
         if self._thread:
-            self._thread.join(timeout=5)
+            self._thread.join()
+        logger.system("驱动工厂已关闭。")
+
+    async def shutdown_async(self):
+        """异步关闭所有驱动并停止后台事件循环。"""
+        if not self._loop:
+            return
+        logger.system("正在关闭驱动工厂...")
+        if self._drivers or self._creation_futures:
+            await self.close_all_drivers()
+
+        if self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        
+        if self._thread:
+            # 在异步函数中，为了不阻塞事件循环，我们不能直接join
+            # 但由于这是程序退出的最后一步，短暂的阻塞是可以接受的
+            # 更好的方法是使用 to_thread，但对于退出逻辑，join是清晰的
+            await asyncio.to_thread(self._thread.join)
         logger.system("驱动工厂已关闭。")
 
     async def close_all_drivers(self):

@@ -375,14 +375,34 @@ class NotionClient:
                 options = []
                 values_to_process = value if isinstance(value, list) else [value]
 
+                # For tags, trust the TagManager and don't split further.
                 if notion_prop_name == FIELDS["tags"]:
                     for item in values_to_process:
                         if item:
                             options.append(str(item))
                 else:
+                    # For other multi-selects, use a smart splitting heuristic.
                     for item in values_to_process:
-                        if item:
-                            options.append(str(item))
+                        if not isinstance(item, str):
+                            if item:
+                                options.append(str(item))
+                            continue
+
+                        # Heuristic: Only split by '/' if it doesn't create very short segments.
+                        # This helps differentiate "Artist A / Artist B" from "Windows 7 / 8".
+                        use_slash_as_separator = True
+                        if '/' in item:
+                            # Threshold for a segment to be considered "too short"
+                            MIN_SEGMENT_LEN = 3 
+                            if any(len(part.strip()) < MIN_SEGMENT_LEN for part in item.split('/')):
+                                use_slash_as_separator = False
+
+                        # Standardize separators
+                        processed_item = item.replace('，', ',').replace('、', ',')
+                        if use_slash_as_separator:
+                            processed_item = processed_item.replace('/', ',')
+                        
+                        options.extend([opt.strip() for opt in processed_item.split(',') if opt.strip()])
 
                 if options:
                     unique_options = list(dict.fromkeys(options))

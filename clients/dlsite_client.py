@@ -125,10 +125,16 @@ class DlsiteClient(BaseClient):
                     key = th.get_text(strip=True)
 
                     def extract_list_from_td(table_cell):
+                        # Replace <br> tags with a common separator
                         for br in table_cell.find_all("br"):
-                            br.replace_with("/")
-                        all_text = table_cell.get_text(separator="/", strip=True)
-                        return [name.strip() for name in all_text.split("/") if name.strip()]
+                            br.replace_with(",")
+                        
+                        # Get all text, using the common separator
+                        all_text = table_cell.get_text(separator=",")
+                        
+                        # Standardize all separators to the common one and then split
+                        processed_text = all_text.replace('、', ',').replace('/', ',').replace('，', ',')
+                        return [name.strip() for name in processed_text.split(',') if name.strip()]
 
                     if key in self.STAFF_MAPPING:
                         details[self.STAFF_MAPPING[key]] = extract_list_from_td(td)

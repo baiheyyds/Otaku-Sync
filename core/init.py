@@ -15,7 +15,7 @@ async def init_context():
 
 async def close_context(context: dict):
     # Shutdown browser drivers first
-    driver_factory.shutdown()
+    await driver_factory.shutdown_async()
 
     # Close loop-specific resources
     if context.get("async_client"):

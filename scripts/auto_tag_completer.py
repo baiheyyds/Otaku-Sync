@@ -57,7 +57,7 @@ async def complete_missing_tags(
 
     games = results.get("results", [])
     total = len(games)
-    logger.info(f"找到 {total} 个需要补全标签的游戏。 সন")
+    logger.info(f"找到 {total} 个需要补全标签的游戏。")
 
     for idx, page in enumerate(games, start=1):
         props = page["properties"]
@@ -93,7 +93,7 @@ async def complete_missing_tags(
         }
         update_url = f"https://api.notion.com/v1/pages/{page['id']}"
         await notion_client._request("PATCH", update_url, update_payload)
-        logger.success(f"✅ 成功为 '{title}' 更新了 {len(final_tags)} 个标签。 সন")
+        logger.success(f"✅ 成功为 '{title}' 更新了 {len(final_tags)} 个标签。")
         await asyncio.sleep(0.5)
 
 
@@ -113,7 +113,7 @@ async def main():
             if driver:
                 ggbases_client.set_driver(driver)
             else:
-                logger.error("未能创建 GGBases 的 Selenium Driver，部分功能将受限。 সন")
+                logger.error("未能创建 GGBases 的 Selenium Driver，部分功能将受限。")
 
             # Build context dictionary
             context = {

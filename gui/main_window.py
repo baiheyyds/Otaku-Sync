@@ -1,6 +1,7 @@
 
 import sys
 import asyncio
+import threading
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QPushButton, QLabel, QMessageBox, QLineEdit, QPlainTextEdit, QDialog, QCheckBox
@@ -13,6 +14,7 @@ from core.gui_worker import GameSyncWorker, ScriptWorker
 from utils import logger as project_logger
 from core.context_factory import create_shared_context
 from core.init import close_context
+from core.cache_warmer import warm_up_brand_cache_standalone
 
 # Import dialogs and widgets from the new GUI package
 from .dialogs import (
@@ -89,6 +91,7 @@ class MainWindow(QMainWindow):
         self.mapping_editor_widget.log_message.connect(self.log_console.appendPlainText)
         
         self.init_shared_context()
+        self.run_background_tasks()
 
         project_logger.success("✅ 初始化完成，可以开始使用.\n")
 
@@ -101,6 +104,20 @@ class MainWindow(QMainWindow):
         project_logger.system("🔧 正在初始化应用程序级共享上下文...")
         self.shared_context = create_shared_context()
         project_logger.system("✅ 应用程序级共享上下文已准备就绪.\n")
+
+    def run_background_tasks(self):
+        # Wrapper to run asyncio code in a separate thread
+        def run_async_task(task):
+            try:
+                asyncio.run(task)
+            except Exception as e:
+                # Log errors to the main log file, but don't interact with GUI
+                project_logger.error(f"后台任务执行失败: {e}", exc_info=True)
+
+        # Start brand cache warming in a daemon thread
+        cache_thread = threading.Thread(target=run_async_task, args=(warm_up_brand_cache_standalone(),))
+        cache_thread.daemon = True
+        cache_thread.start()
 
     def changeEvent(self, event):
         super().changeEvent(event)

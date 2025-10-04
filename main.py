@@ -4,6 +4,7 @@ import sys
 import traceback
 
 from core.brand_handler import check_brand_status, finalize_brand_update
+from core.cache_warmer import warm_up_brand_cache_standalone
 from core.game_processor import process_and_sync_game
 from core.init import close_context, init_context
 from core.selector import select_game
@@ -39,7 +40,7 @@ async def prompt_and_select_game(context: dict) -> tuple | None:
     )
 
     if not game or source == "cancel":
-        logger.info("操作已取消。 সন")
+        logger.info("操作已取消。")
         return "retry"
 
     logger.step(f"已选择来源: {source.upper()}, 游戏: {game['title']}")
@@ -94,9 +95,9 @@ async def _select_ggbases_game_interactively(candidates: list) -> dict | None:
         selected_idx = int(choice or 0)
         if 0 <= selected_idx < len(sorted_candidates):
             return sorted_candidates[selected_idx]
-        logger.error("序号超出范围，请重试。 সন")
+        logger.error("序号超出范围，请重试。")
     except (ValueError, IndexError):
-        logger.error("无效输入，请输入数字或'c'。 সন")
+        logger.error("无效输入，请输入数字或'c'。")
     return None
 
 
@@ -211,7 +212,7 @@ async def run_single_game_flow(context: dict) -> bool:
         if created_page_id and bangumi_id:
             await context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)
 
-        logger.success(f"游戏 '{game['title']}' 处理流程完成！\n সন")
+        logger.success(f"游戏 '{game['title']}' 处理流程完成！\n")
 
     except Exception as e:
         logger.error(f"处理流程出现严重错误: {e}")
@@ -228,6 +229,9 @@ async def run_single_game_flow(context: dict) -> bool:
 async def main():
     """程序主入口。"""
     context = await init_context()
+    logger.system("[诊断] 准备创建品牌缓存预热后台任务...")
+    asyncio.create_task(warm_up_brand_cache_standalone()) # 在后台预热品牌缓存
+    logger.system("[诊断] 品牌缓存预热后台任务已创建。")
     try:
         while True:
             if not await run_single_game_flow(context):
@@ -237,11 +241,11 @@ async def main():
     finally:
         logger.system("正在清理资源...")
         await close_context(context)
-        logger.system("程序已安全退出。 সন")
+        logger.system("程序已安全退出。")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("程序被强制退出。 সন")
+        logger.info("程序被强制退出。")

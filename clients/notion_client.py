@@ -89,19 +89,43 @@ class NotionClient:
         except Exception:
             return False
 
-    async def get_all_brands(self):
+    async def get_all_brands(self, silent: bool = False) -> list[dict]:
+        """
+        获取所有品牌及其核心信息（名称、ID、是否有图标），用于缓存预热。
+        该方法会直接从数据库查询结果中解析，避免对每个页面进行独立请求。
+        """
         if self._all_brands_cache is not None:
             return self._all_brands_cache
 
+        if not silent:
+            logger.info("正在从 Notion 获取所有品牌信息用于预热缓存...")
+            
         all_pages = await self.get_all_pages_from_db(self.brand_db_id)
         brands = []
         for page in all_pages:
-            props = page.get("properties", {})
-            title_data = props.get(FIELDS["brand_name"], {}).get("title", [])
-            title = "".join([t.get("plain_text", "") for t in title_data]).strip()
-            if title:
-                brands.append({"title": title, "id": page["id"]})
+            properties = page.get("properties", {})
+            
+            # 提取品牌名称
+            title_prop = properties.get(FIELDS["brand_name"], {})
+            title_list = title_prop.get("title", [])
+            name = "".join([part.get("plain_text", "") for part in title_list]).strip()
+            
+            if not name:
+                continue
+
+            # 检查是否有图标
+            icon_prop = properties.get(FIELDS["brand_icon"], {})
+            has_icon = bool(icon_prop.get("files"))
+
+            brands.append({
+                "name": name,
+                "page_id": page["id"],
+                "has_icon": has_icon,
+            })
+        
         self._all_brands_cache = brands
+        if not silent:
+            logger.success(f"品牌缓存预热：成功获取到 {len(brands)} 个品牌的信息。")
         return brands
 
     async def get_brand_details_by_name(self, name: str) -> dict | None:
@@ -109,18 +133,26 @@ class NotionClient:
         if not name:
             return None
         
-        all_brands = await self.get_all_brands()
-        normalized_name = normalize_brand_name(name)
+        normalized_name_to_find = normalize_brand_name(name)
+        
+        # 尝试从内存缓存获取（如果已填充）
+        if self._all_brands_cache:
+            for brand in self._all_brands_cache:
+                if normalize_brand_name(brand.get("name", "")) == normalized_name_to_find:
+                    return {"page_id": brand["page_id"], "has_icon": brand["has_icon"]}
 
-        for brand in all_brands:
-            if normalize_brand_name(brand["title"]) == normalized_name:
-                page = await self.get_page(brand["id"])
-                if not page:
-                    continue
-                properties = page.get("properties", {})
-                icon_prop = properties.get(FIELDS["brand_icon"], {})
-                has_icon = bool(icon_prop.get("files"))
-                return {"page_id": brand["id"], "has_icon": has_icon}
+        # 如果缓存未命中，执行单次精确查询
+        url = f"https://api.notion.com/v1/databases/{self.brand_db_id}/query"
+        payload = {"filter": {"property": FIELDS["brand_name"], "title": {"equals": name}}}
+        resp = await self._request("POST", url, payload)
+
+        if resp and resp.get("results"):
+            page = resp["results"][0]
+            properties = page.get("properties", {})
+            icon_prop = properties.get(FIELDS["brand_icon"], {})
+            has_icon = bool(icon_prop.get("files"))
+            return {"page_id": page["id"], "has_icon": has_icon}
+            
         return None
 
     async def get_all_game_titles(self):

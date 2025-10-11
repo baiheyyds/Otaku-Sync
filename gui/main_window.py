@@ -103,6 +103,13 @@ class MainWindow(QMainWindow):
     def init_shared_context(self):
         project_logger.system("🔧 正在初始化应用程序级共享上下文...")
         self.shared_context = create_shared_context()
+
+        # 程序启动时，在后台预创建所需的浏览器驱动
+        if self.shared_context.get("driver_factory"):
+            project_logger.system("🚀 在后台预启动浏览器驱动...")
+            driver_factory = self.shared_context["driver_factory"]
+            driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
+
         project_logger.system("✅ 应用程序级共享上下文已准备就绪.\n")
 
     def run_background_tasks(self):

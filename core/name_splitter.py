@@ -51,6 +51,34 @@ class NameSplitter:
         self._exceptions.add(name)
         logger.info(f"已在内存中将 '{name}' 标记为本次运行的例外。")
 
+    def _post_process_parts(self, parts: List[str]) -> List[str]:
+        """
+        对分割后的部分进行后处理，自动合并 "J・さいろー" 或 "神・无月" 这样的模式。
+        """
+        if len(parts) < 2:
+            return parts
+
+        new_parts = []
+        i = 0
+        while i < len(parts):
+            current_part = parts[i]
+            # --- 核心改进：检查是否为任意类型的单个字符 ---
+            if len(current_part) == 1:
+                # 如果后面还有部分，则合并
+                if i + 1 < len(parts):
+                    next_part = parts[i+1]
+                    merged_part = f"{current_part}・{next_part}"
+                    new_parts.append(merged_part)
+                    i += 2  # 跳过下一个部分，因为它已经被合并
+                else:
+                    # 这是最后一部分，无法合并，照常添加
+                    new_parts.append(current_part)
+                    i += 1
+            else:
+                new_parts.append(current_part)
+                i += 1
+        return new_parts
+
     async def smart_split(self, text: str, interaction_provider: InteractionProvider) -> List[str]:
         """
         智能分割名称字符串。
@@ -59,8 +87,6 @@ class NameSplitter:
         if not text:
             return []
 
-        # --- [核心升级 3] 名称标准化 ---
-        # 将所有内部空白（包括全角空格）统一替换为单个标准空格
         def normalize(name: str) -> str:
             return re.sub(r'\s+', ' ', name).strip()
 
@@ -70,36 +96,42 @@ class NameSplitter:
         parts = SPLIT_REGEX.split(text)
         cleaned_parts = [normalize(p) for p in parts if p.strip()]
 
-        if len(cleaned_parts) <= 1:
-            return cleaned_parts
+        # --- [核心升级 2] 启发式识别：处理 '名字A・名字B' 模式 ---
+        # 如果分割结果为三部分，且中间部分为单个字符，则极有可能是完整的姓名
+        if len(cleaned_parts) == 3 and len(cleaned_parts[1]) == 1 and (len(cleaned_parts[0]) > 1 or len(cleaned_parts[2]) > 1):
+            logger.info(f"检测到 '名字・首字母・名字' 模式，自动合并: {text}")
+            return [normalize(text)]
 
-        # --- [核心升级 2] 增强风险识别 ---
-        # 规则1: 分割后出现过短的部分 (例如: 'S')
-        is_dangerous = any(len(p) <= 1 for p in cleaned_parts)
+        # 在风险识别前，先进行智能后处理
+        processed_parts = self._post_process_parts(cleaned_parts)
+
+        if len(processed_parts) <= 1:
+            return processed_parts
+
+        # 增强风险识别 (现在基于后处理的结果)
+        is_dangerous = any(len(p) <= 1 for p in processed_parts)
         
-        # 规则2: 由'・'分割的全英文名称 (例如: 'Ryo・Lion')
         is_alpha_dot_split = False
-        if not is_dangerous and '・' in text and len(cleaned_parts) > 1:
-            if all(re.fullmatch(r'[a-zA-Z]+', p) for p in cleaned_parts):
+        if not is_dangerous and '・' in text and len(processed_parts) > 1:
+            if all(re.fullmatch(r'[a-zA-Z]+', p) for p in processed_parts):
                 is_alpha_dot_split = True
         
         if not is_dangerous and not is_alpha_dot_split:
-            return cleaned_parts
+            return processed_parts
 
         # --- Interactive part ---
-        choice = "keep"  # Default action
+        choice = "keep"
         save_exception = False
 
         if interaction_provider:
-            # TODO: 将增强的风险原因传递给GUI
-            decision = await interaction_provider.get_name_split_decision(text, cleaned_parts)
+            decision = await interaction_provider.get_name_split_decision(text, processed_parts)
             choice = decision.get("action", "keep")
             save_exception = decision.get("save_exception", False)
         else:
             # CLI Fallback
             def _get_input():
                 logger.warn(f"检测到【高风险】的名称分割: '{text}'")
-                print(f"  初步分割为: {cleaned_parts}")
+                print(f"  初步分割为: {processed_parts}")
                 if is_alpha_dot_split:
                     print("  原因: 检测到由'・'分割的纯英文名称，这可能是一个完整的名字。")
                 else:
@@ -128,7 +160,7 @@ class NameSplitter:
 
         # --- Process decision ---
         if choice == "split":
-            return cleaned_parts
+            return processed_parts
         else:  # "keep"
             logger.info(f"用户选择不分割 '{text}'。")
             if save_exception:

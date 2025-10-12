@@ -19,7 +19,7 @@ class GameSyncWorker(QThread):
     bangumi_mapping_required = Signal(dict)
     property_type_required = Signal(dict)
     context_created = Signal(dict)
-    bangumi_selection_required = Signal(list)
+    bangumi_selection_required = Signal(str, list)
     tag_translation_required = Signal(str, str)
     concept_merge_required = Signal(str, str)
     name_split_decision_required = Signal(str, list)
@@ -109,8 +109,8 @@ class GameSyncWorker(QThread):
     def _on_property_type_requested(self, request_data):
         self.property_type_required.emit(request_data)
 
-    def _on_bangumi_selection_requested(self, candidates):
-        self.bangumi_selection_required.emit(candidates)
+    def _on_bangumi_selection_requested(self, game_name, candidates):
+        self.bangumi_selection_required.emit(game_name, candidates)
 
     def _on_tag_translation_requested(self, tag, source_name):
         self.tag_translation_required.emit(tag, source_name)

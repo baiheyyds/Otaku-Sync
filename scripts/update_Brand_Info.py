@@ -18,26 +18,63 @@ from core.schema_manager import NotionSchemaManager
 from utils import logger
 
 
+from asyncio import Semaphore
+from tqdm.asyncio import tqdm_asyncio
+
+async def process_brand_page(
+    brand_page: dict,
+    notion_client: NotionClient,
+    bangumi_client: BangumiClient,
+    bgm_semaphore: Semaphore,
+):
+    """处理单个品牌页面的更新逻辑"""
+    brand_name = notion_client.get_page_title(brand_page)
+    page_id = brand_page.get("id")
+    if not brand_name:
+        logger.warn(f"跳过一个没有名称的品牌页面 (Page ID: {page_id})")
+        return
+
+    # 使用信号量来限制对 Bangumi API 的并发访问
+    async with bgm_semaphore:
+        # 每次请求前都短暂 sleep，模拟更真实的用户行为，进一步降低被拒绝的风险
+        await asyncio.sleep(1.2)
+        bangumi_info = await bangumi_client.fetch_brand_info_from_bangumi(brand_name)
+
+    if not bangumi_info:
+        logger.warn(f"在 Bangumi 上未能找到 '{brand_name}' 的匹配信息，跳过更新。")
+        return
+
+    success = await notion_client.create_or_update_brand(
+        brand_name=brand_name, page_id=page_id, **bangumi_info
+    )
+
+    if success:
+        logger.success(f"品牌 '{brand_name}' 的信息已成功更新。")
+    else:
+        logger.error(f"品牌 '{brand_name}' 的信息更新失败。")
+
+
 async def main():
     """主执行函数"""
     logger.system("启动品牌信息批量更新脚本...")
 
-    # 1. 初始化所有核心组件，与 main.py 保持一致
+    # 1. 初始化所有核心组件
     async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
-
     interaction_provider = ConsoleInteractionProvider()
     bgm_mapper = BangumiMappingManager(interaction_provider)
     notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
     schema_manager = NotionSchemaManager(notion_client)
-
-    # 在开始前，先加载好数据库的 Schema
-    await schema_manager.initialize_schema(BRAND_DB_ID, "厂商数据库")
-    await schema_manager.initialize_schema(CHARACTER_DB_ID, "角色数据库")
-
     bangumi_client = BangumiClient(notion_client, bgm_mapper, schema_manager, async_client)
 
+    # Bangumi API 速率限制信号量，允许1个并发
+    bgm_semaphore = Semaphore(1)
+
     try:
-        # 2. 从 Notion 获取所有品牌页面
+        # 2. 预加载 Schema
+        await schema_manager.initialize_schema(BRAND_DB_ID, "厂商数据库")
+        await schema_manager.initialize_schema(CHARACTER_DB_ID, "角色数据库")
+
+        # 3. 从 Notion 获取所有品牌页面
         logger.info("正在从 Notion 获取所有品牌页面...")
         all_brand_pages = await notion_client.get_all_pages_from_db(BRAND_DB_ID)
         if not all_brand_pages:
@@ -45,48 +82,37 @@ async def main():
             return
 
         total_brands = len(all_brand_pages)
-        logger.success(f"成功获取到 {total_brands} 个品牌，开始逐一更新。")
+        logger.success(f"成功获取到 {total_brands} 个品牌，开始并发更新...")
 
-        # 3. 遍历每个品牌并更新
-        for i, brand_page in enumerate(all_brand_pages, 1):
-            # 从页面属性中提取品牌名
-            brand_name = notion_client.get_page_title(brand_page)
-            if not brand_name:
-                logger.warn(
-                    f"[{i}/{total_brands}] 跳过一个没有名称的品牌页面 (Page ID: {brand_page.get('id')})"
-                )
-                continue
-
-            logger.step(f"[{i}/{total_brands}] 正在处理品牌: {brand_name}")
-
-            # 4. 复用 BangumiClient 的核心方法来获取信息
-            # 这一步包含了搜索、相似度匹配、infobox 动态解析等所有复杂逻辑
-            bangumi_info = await bangumi_client.fetch_brand_info_from_bangumi(brand_name)
-
-            if not bangumi_info:
-                logger.warn(f"在 Bangumi 上未能找到 '{brand_name}' 的匹配信息，跳过更新。")
-                await asyncio.sleep(1.2)  # 即使失败也稍作等待，避免对 API 造成冲击
-                continue
-
-            # 5. 复用 NotionClient 的核心方法来更新页面
-            # 这一步包含了构建 payload 和发送请求的所有逻辑
-            # 注意：我们将 page_id 传入，使其强制执行“更新”操作
-            success = await notion_client.create_or_update_brand(
-                brand_name=brand_name, page_id=brand_page.get("id"), **bangumi_info
+        # 4. 创建所有并发任务
+        tasks = [
+            process_brand_page(
+                page, notion_client, bangumi_client, bgm_semaphore
             )
+            for page in all_brand_pages
+        ]
 
-            if success:
-                logger.success(f"品牌 '{brand_name}' 的信息已成功更新。")
+        # 5. 使用 tqdm_asyncio.gather 执行任务并显示进度条
+        results = await tqdm_asyncio.gather(
+            *tasks, desc="更新品牌信息", return_exceptions=True
+        )
+
+        # 6. 处理执行结果
+        success_count = 0
+        error_count = 0
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"任务执行中发生异常: {result}", exc_info=False)
+                error_count += 1
             else:
-                logger.error(f"品牌 '{brand_name}' 的信息更新失败。")
-
-            # 尊重 Bangumi API 的速率限制
-            await asyncio.sleep(1.2)
+                success_count += 1
+        
+        logger.system(f"全部任务完成: {success_count} 个成功, {error_count} 个失败。")
 
     except Exception as e:
         logger.error(f"脚本执行过程中发生未处理的异常: {e}", exc_info=True)
     finally:
-        # 6. 优雅地关闭资源
+        # 7. 优雅地关闭资源
         await async_client.aclose()
         logger.system("HTTP 客户端已关闭，脚本执行完毕。")
 

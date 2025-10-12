@@ -236,14 +236,17 @@ class MainWindow(QMainWindow):
         else:
             worker.set_interaction_response(None) # Cancel
 
-    def handle_bangumi_selection_required(self, candidates):
+    def handle_bangumi_selection_required(self, game_name, candidates):
         project_logger.system("[GUI] Received bangumi_selection_required, creating dialog.")
-        dialog = BangumiSelectionDialog(candidates, self)
+        dialog = BangumiSelectionDialog(game_name, candidates, self)
         worker = self.sender()
-        if dialog.exec() == QDialog.Accepted:
+        
+        result = dialog.exec()
+
+        if result == QDialog.Accepted:
             worker.set_interaction_response(dialog.selected_id)
         else:
-            worker.set_interaction_response(None) # User cancelled
+            worker.set_interaction_response(None)
 
     def handle_bangumi_mapping(self, request_data):
         project_logger.info("需要进行 Bangumi 属性映射，等待用户操作...\n")

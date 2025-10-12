@@ -83,31 +83,57 @@ def _process_game_data(games: list) -> tuple:
 
 
 async def _update_brand_pages(notion_client: NotionClient, brand_map: dict, cache: dict) -> dict:
-    """根据最新的通关游戏数据更新品牌页面。"""
-    to_update = {brand_id: info for brand_id, info in brand_map.items() if cache.get(brand_id) != info["title"]}
+    """根据最新的通关游戏数据并发更新品牌页面。"""
+    to_update = {
+        brand_id: info
+        for brand_id, info in brand_map.items()
+        if cache.get(brand_id) != info["title"]
+    }
 
     if not to_update:
         logger.info("⚡ 所有厂商通关记录均为最新，无需更新。")
         return cache
 
-    logger.info(f"🚀 正在更新 {len(to_update)} 个品牌...")
-    updated_count = 0
-    for brand_id, info in to_update.items():
-        try:
-            payload = {
-                "properties": {
-                    FIELDS["brand_latest_cleared_game"]: {"rich_text": [{"type": "text", "text": {"content": info["title"]}}]}
+    logger.info(f"🚀 检测到 {len(to_update)} 个品牌需要更新，开始并发处理...")
+
+    # Notion API 速率限制信号量，允许3个并发请求
+    notion_semaphore = asyncio.Semaphore(3)
+    updated_cache = cache.copy()
+
+    async def update_single_brand(brand_id, info):
+        async with notion_semaphore:
+            try:
+                payload = {
+                    "properties": {
+                        FIELDS["brand_latest_cleared_game"]: {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": info["title"]}}
+                            ]
+                        }
+                    }
                 }
-            }
-            await notion_client._request("PATCH", f"https://api.notion.com/v1/pages/{brand_id}", payload)
-            logger.success(f"  ✅ 更新品牌 {brand_id} -> {info['title']}")
-            cache[brand_id] = info["title"]
+                await notion_client._request(
+                    "PATCH", f"https://api.notion.com/v1/pages/{brand_id}", payload
+                )
+                updated_cache[brand_id] = info["title"]
+                return brand_id, info["title"], None  # Success
+            except Exception as e:
+                return brand_id, info["title"], e  # Failure
+
+    tasks = [update_single_brand(brand_id, info) for brand_id, info in to_update.items()]
+
+    results = await tqdm_asyncio.gather(*tasks, desc="更新品牌页面")
+
+    updated_count = 0
+    for brand_id, title, error in results:
+        if error:
+            logger.error(f"  ❌ 更新品牌 {brand_id} ({title}) 失败: {error}")
+        else:
             updated_count += 1
-        except Exception as e:
-            logger.error(f"  ❌ 更新品牌 {brand_id} 失败: {e}")
+            # 成功日志可以省略，因为进度条已经提供了反馈
 
     logger.info(f"✨ 本次共更新了 {updated_count} 个品牌记录。")
-    return cache
+    return updated_cache
 
 
 async def _update_statistics_page(notion_client: NotionClient, clear: dict, release: dict, duration_map: dict):

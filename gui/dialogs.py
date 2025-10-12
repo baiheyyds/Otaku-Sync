@@ -86,9 +86,9 @@ class TagTranslationDialog(QDialog):
         self.accept()
 
 class BangumiSelectionDialog(QDialog):
-    def __init__(self, candidates, parent=None):
+    def __init__(self, game_name, candidates, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("手动选择Bangumi条目")
+        self.setWindowTitle(f"为【{game_name}】选择Bangumi条目")
         self.setMinimumWidth(700)
         self.selected_id = None
 

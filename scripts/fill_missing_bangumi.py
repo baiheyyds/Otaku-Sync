@@ -7,6 +7,7 @@ import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from asyncio import Semaphore
 from clients.bangumi_client import BangumiClient
 from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
@@ -15,6 +16,7 @@ from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
 from utils import logger
+from tqdm.asyncio import tqdm_asyncio
 
 
 async def get_games_missing_bangumi(notion_client: NotionClient) -> list:
@@ -40,45 +42,69 @@ async def get_games_missing_bangumi(notion_client: NotionClient) -> list:
     return all_games
 
 
-async def fill_missing_bangumi_links(
-    notion_client: NotionClient, bangumi_client: BangumiClient
-):
+async def process_single_game(
+    game_page: dict, notion_client: NotionClient, bangumi_client: BangumiClient
+) -> tuple[str, bool]:
+    """处理单个游戏的核心逻辑，作为一个独立的原子操作。"""
+    page_id = game_page["id"]
+    title = notion_client.get_page_title(game_page)
+    logger.info(f"\n正在处理游戏: {title}")
+
+    try:
+        subject_id = await bangumi_client.search_and_select_bangumi_id(title)
+
+        if not subject_id:
+            logger.warn(f"❌ 未能为 '{title}' 找到匹配的 Bangumi 条目，已跳过。")
+            return title, False
+
+        logger.success(f"匹配成功！Bangumi Subject ID: {subject_id}")
+        logger.info("开始获取角色信息并更新 Notion 页面...")
+
+        await bangumi_client.create_or_link_characters(page_id, subject_id)
+
+        logger.success(f"✅ 游戏 '{title}' 的 Bangumi 信息和角色关联已全部处理完毕。")
+        return title, True
+
+    except Exception as e:
+        logger.error(f"处理游戏 '{title}' 时发生未知异常: {e}", exc_info=True)
+        return title, False
+    finally:
+        # 仍然保留一个小的延时，作为最后的保险，使整体请求更平滑
+        await asyncio.sleep(1.5)
+
+
+async def fill_missing_bangumi_links(context: dict):
     """为缺少 Bangumi 链接的游戏查找、匹配并填充信息。"""
+    notion_client = context["notion"]
+    bangumi_client = context["bangumi"]
+
     games_to_process = await get_games_missing_bangumi(notion_client)
     if not games_to_process:
         logger.info("✅ 所有游戏都已包含 Bangumi 链接，无需处理。")
         return
 
     total = len(games_to_process)
-    logger.info(f"找到 {total} 个缺少 Bangumi 链接的游戏，开始处理。")
+    logger.info(f"找到 {total} 个缺少 Bangumi 链接的游戏，开始并发处理。")
+
+    # 在脚本内部创建信号量，限制并发处理的游戏数量
+    semaphore = Semaphore(3)
+
+    async def process_with_semaphore(game_page):
+        async with semaphore:
+            return await process_single_game(game_page, notion_client, bangumi_client)
+
+    tasks = [process_with_semaphore(gp) for gp in games_to_process]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
     unmatched_titles = []
-
-    for idx, game_page in enumerate(games_to_process, 1):
-        page_id = game_page["id"]
-        title = notion_client.get_page_title(game_page)
-        logger.info(f"\n[{idx}/{total}] 正在处理游戏: {title}")
-
-        try:
-            subject_id = await bangumi_client.search_and_select_bangumi_id(title)
-
-            if not subject_id:
-                logger.warn(f"❌ 未能为 '{title}' 找到匹配的 Bangumi 条目，已跳过。")
-                unmatched_titles.append(title)
-                continue
-
-            logger.success(f"匹配成功！Bangumi Subject ID: {subject_id}")
-            logger.info("开始获取角色信息并更新 Notion 页面...")
-
-            await bangumi_client.create_or_link_characters(page_id, subject_id)
-
-            logger.success(f"✅ 游戏 '{title}' 的 Bangumi 信息和角色关联已全部处理完毕。")
-
-        except Exception as e:
-            logger.error(f"处理游戏 '{title}' 时发生未知异常: {e}", exc_info=True)
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error(f"任务执行中发生严重异常: {result}")
+            continue
+        title, success = result
+        if not success:
             unmatched_titles.append(title)
-        
-        finally:
-            await asyncio.sleep(1.5) # 尊重 API 速率限制
 
     if unmatched_titles:
         logger.warn("\n--- 未匹配的游戏 ---")
@@ -92,9 +118,9 @@ async def fill_missing_bangumi_links(
 async def main():
     """脚本独立运行时的入口函数。"""
     context = {}
+    bgm_mapper = None
     try:
         async with httpx.AsyncClient(timeout=30, follow_redirects=True, http2=True) as async_client:
-            # 1. 初始化所有必要的组件
             interaction_provider = ConsoleInteractionProvider()
             notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
             schema_manager = NotionSchemaManager(notion_client)
@@ -110,20 +136,15 @@ async def main():
                 client=async_client,
                 interaction_provider=interaction_provider,
             )
-            
-            context = {
-                "notion": notion_client,
-                "bangumi": bangumi_client,
-                # ... other clients if needed by other functions
-            }
 
-            # 2. 执行核心逻辑
+            context = {"notion": notion_client, "bangumi": bangumi_client}
             await fill_missing_bangumi_links(context)
 
-            # 3. 保存可能发生的映射变更
-            bgm_mapper.save_mappings()
     except Exception as e:
         logger.error(f"脚本主函数运行出错: {e}", exc_info=True)
+    finally:
+        if bgm_mapper:
+            bgm_mapper.save_mappings()
 
 
 if __name__ == "__main__":

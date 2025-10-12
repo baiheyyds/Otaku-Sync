@@ -145,7 +145,7 @@ class BangumiClient:
             gui_candidates.append({'id': str(item['id']), 'display': display_text})
 
         # Use the interaction provider to get the user's choice
-        selected_id = await self.interaction_provider.get_bangumi_game_choice(gui_candidates)
+        selected_id = await self.interaction_provider.get_bangumi_game_choice(keyword, gui_candidates)
         
         return selected_id
 

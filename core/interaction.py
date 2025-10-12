@@ -40,7 +40,7 @@ class InteractionProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> str | None:
+    async def get_bangumi_game_choice(self, search_term: str, candidates: List[Dict]) -> str | None:
         """Ask user to select a game from Bangumi search results."""
         pass
 
@@ -138,11 +138,11 @@ class ConsoleInteractionProvider(InteractionProvider):
         logger.error("输入无效，将忽略此属性。")
         return {"action": "ignore_session"}
 
-    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> str | None:
+    async def get_bangumi_game_choice(self, search_term: str, candidates: List[Dict]) -> str | None:
         if not candidates:
             return None
 
-        print("")  # Add a newline for better formatting
+        logger.info(f'请为 "{search_term}" 选择最匹配的 Bangumi 条目:')
         for candidate in candidates:
             print(f"  {candidate['display']}")
         print("")  # Add a newline for better formatting

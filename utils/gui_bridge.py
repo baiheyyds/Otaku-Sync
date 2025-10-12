@@ -64,7 +64,7 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
     """GUI implementation for user interaction using Qt signals."""
     handle_new_bangumi_key_requested = Signal(dict)
     ask_for_new_property_type_requested = Signal(dict)
-    select_bangumi_game_requested = Signal(list)
+    select_bangumi_game_requested = Signal(str, list)
     tag_translation_required = Signal(str, str)
     concept_merge_required = Signal(str, str)
     name_split_decision_required = Signal(str, list)
@@ -128,10 +128,10 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
         response = await self._wait_for_response()
         return response
 
-    async def get_bangumi_game_choice(self, candidates: List[Dict]) -> str | None:
+    async def get_bangumi_game_choice(self, search_term: str, candidates: List[Dict]) -> str | None:
         """Asks the user to select a game from a list of candidates via the GUI."""
         project_logger.system("[Bridge] Emitting select_bangumi_game_requested signal.")
-        self.select_bangumi_game_requested.emit(candidates)
+        self.select_bangumi_game_requested.emit(search_term, candidates)
         response = await self._wait_for_response()
         return response
 

@@ -46,7 +46,7 @@ class GameSyncWorker(QThread):
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
-            self.interaction_provider = GuiInteractionProvider()
+            self.interaction_provider = GuiInteractionProvider(loop)
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
             )
@@ -401,7 +401,7 @@ class ScriptWorker(QThread):
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
-            self.interaction_provider = GuiInteractionProvider()
+            self.interaction_provider = GuiInteractionProvider(loop)
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
             )

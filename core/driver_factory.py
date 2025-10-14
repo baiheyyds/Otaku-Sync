@@ -17,13 +17,15 @@ class DriverFactory:
         self._creation_futures: Dict[str, Future] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
-        self._lock = threading.Lock()
+        self._lock = threading.Lock() # 用于保护 self._drivers 和 self._creation_futures 的线程锁
         self._loop_started = threading.Event()
+        self._creation_lock: Optional[asyncio.Lock] = None # 用于序列化驱动创建的异步锁
 
     def _run_loop(self):
         """在后台线程中运行asyncio事件循环。"""
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
+        self._creation_lock = asyncio.Lock() # 在事件循环内初始化异步锁
         self._loop_started.set() # 发出信号，表示事件循环已创建
         self._loop.run_forever()
 
@@ -38,17 +40,25 @@ class DriverFactory:
                 logger.system("驱动工厂后台线程已准备就绪。")
 
     async def create_driver_async(self, driver_key: str) -> WebDriver:
-        """异步创建、缓存并返回一个 WebDriver 实例。"""
-        logger.system(f"后台开始创建 {driver_key}...")
-        try:
-            # create_driver 是一个阻塞IO操作，应该在线程池中运行
-            driver = await asyncio.to_thread(create_driver)
-            self._drivers[driver_key] = driver
-            logger.success(f"{driver_key} 已在后台成功创建。")
-            return driver
-        except Exception as e:
-            logger.error(f"创建 {driver_key} 失败: {e}")
-            raise
+        """异步创建、缓存并返回一个 WebDriver 实例。使用锁来防止并发创建。"""
+        # 使用 asyncio.Lock 序列化驱动创建过程，防止 webdriver-manager 的并发问题
+        async with self._creation_lock:
+            # 再次检查，以防在等待锁期间驱动已被其他协程创建
+            with self._lock:
+                if driver_key in self._drivers:
+                    return self._drivers[driver_key]
+
+            logger.system(f"后台开始创建 {driver_key}...")
+            try:
+                # create_driver 是一个阻塞IO操作，应该在线程池中运行
+                driver = await asyncio.to_thread(create_driver)
+                with self._lock:
+                    self._drivers[driver_key] = driver
+                logger.success(f"{driver_key} 已在后台成功创建。")
+                return driver
+            except Exception as e:
+                logger.error(f"创建 {driver_key} 失败: {e}")
+                raise
 
     def start_background_creation(self, driver_keys: list[str]):
         """为指定的驱动程序启动后台创建任务。"""
@@ -67,10 +77,12 @@ class DriverFactory:
         如果实例已创建，则直接返回。
         如果正在创建中，则等待创建完成。
         """
-        if driver_key in self._drivers:
-            return self._drivers[driver_key]
+        with self._lock:
+            if driver_key in self._drivers:
+                return self._drivers[driver_key]
+            
+            future = self._creation_futures.get(driver_key)
 
-        future = self._creation_futures.get(driver_key)
         if future:
             logger.system(f"等待 {driver_key} 创建完成...")
             try:
@@ -94,7 +106,13 @@ class DriverFactory:
         if not self._loop:
             return
         logger.system("正在关闭驱动工厂...")
-        if self._drivers or self._creation_futures:
+        
+        has_work = False
+        with self._lock:
+            if self._drivers or self._creation_futures:
+                has_work = True
+        
+        if has_work:
             future = asyncio.run_coroutine_threadsafe(self.close_all_drivers(), self._loop)
             try:
                 # 在同步上下文中，我们阻塞等待，直到驱动程序关闭
@@ -114,7 +132,13 @@ class DriverFactory:
         if not self._loop:
             return
         logger.system("正在关闭驱动工厂...")
-        if self._drivers or self._creation_futures:
+        
+        has_work = False
+        with self._lock:
+            if self._drivers or self._creation_futures:
+                has_work = True
+
+        if has_work:
             await self.close_all_drivers()
 
         if self._loop.is_running():
@@ -123,7 +147,6 @@ class DriverFactory:
         if self._thread:
             # 在异步函数中，为了不阻塞事件循环，我们不能直接join
             # 但由于这是程序退出的最后一步，短暂的阻塞是可以接受的
-            # 更好的方法是使用 to_thread，但对于退出逻辑，join是清晰的
             await asyncio.to_thread(self._thread.join)
         logger.system("驱动工厂已关闭。")
 
@@ -135,23 +158,27 @@ class DriverFactory:
             for future in futures_to_cancel:
                 if not future.done():
                     future.cancel()
-            # 等待任务取消完成
-            if futures_to_cancel:
-                wrapped_futures = [asyncio.wrap_future(f) for f in futures_to_cancel]
-                await asyncio.gather(*wrapped_futures, return_exceptions=True)
             self._creation_futures.clear()
+        
+        if futures_to_cancel:
+            wrapped_futures = [asyncio.wrap_future(f) for f in futures_to_cancel]
+            await asyncio.gather(*wrapped_futures, return_exceptions=True)
 
         # 关闭所有已创建的驱动
-        if not self._drivers:
-            return
+        drivers_to_close = []
+        with self._lock:
+            if not self._drivers:
+                return
+            logger.system("正在关闭所有 Selenium WebDriver 实例...")
+            drivers_to_close = list(self._drivers.values())
+            self._drivers.clear()
 
-        logger.system("正在关闭所有 Selenium WebDriver 实例...")
         close_tasks = [
-            asyncio.to_thread(driver.quit) for driver in self._drivers.values()
+            asyncio.to_thread(driver.quit) for driver in drivers_to_close
         ]
         if close_tasks:
             await asyncio.gather(*close_tasks, return_exceptions=True)
-        self._drivers.clear()
+        
         logger.system("所有 Selenium 驱动已关闭。")
 
 # 全局唯一的 DriverFactory 实例

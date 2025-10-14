@@ -1,6 +1,7 @@
 # utils/gui_bridge.py
+import asyncio
 from abc import ABCMeta
-from PySide6.QtCore import QObject, Signal, QMutex, QWaitCondition
+from PySide6.QtCore import QObject, Signal
 from utils import logger as project_logger
 from core.interaction import InteractionProvider
 from typing import Any, Dict, List
@@ -61,7 +62,7 @@ class QObjectABCMeta(type(QObject), ABCMeta):
     pass
 
 class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCMeta):
-    """GUI implementation for user interaction using Qt signals."""
+    """GUI implementation for user interaction using Qt signals and asyncio.Future."""
     handle_new_bangumi_key_requested = Signal(dict)
     ask_for_new_property_type_requested = Signal(dict)
     select_bangumi_game_requested = Signal(str, list)
@@ -69,33 +70,36 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
     concept_merge_required = Signal(str, str)
     name_split_decision_required = Signal(str, list)
 
-    def __init__(self):
+    def __init__(self, loop: asyncio.AbstractEventLoop):
         super().__init__()
-        self.mutex = QMutex()
-        self.wait_condition = QWaitCondition()
-        self._response = None
+        if not loop:
+            raise ValueError("An asyncio event loop is required.")
+        self._loop = loop
+        self._future: asyncio.Future = None
 
     def set_response(self, response: Any):
         """Called by the GUI thread to provide the user's choice."""
-        self.mutex.lock()
-        self._response = response
-        self.mutex.unlock()
-        self.wait_condition.wakeAll()
+        if self._future and not self._future.done():
+            # Use call_soon_threadsafe to safely set the result from another thread
+            self._loop.call_soon_threadsafe(self._future.set_result, response)
 
-    async def _wait_for_response(self):
-        """Helper to wait for the response from the GUI thread."""
-        self.mutex.lock()
+    async def _wait_for_response(self, timeout=300):
+        """Helper to wait for the response from the GUI thread using asyncio.Future."""
+        if self._future and not self._future.done():
+            project_logger.warn("交互请求冲突：上一个请求尚未完成。")
+            self._future.cancel()
+
+        self._future = self._loop.create_future()
         try:
-            # Set a timeout of 5 minutes for safety
-            timed_out = not self.wait_condition.wait(self.mutex, 300000)
-            if timed_out:
-                project_logger.error("等待GUI响应超时（5分钟），操作被强制取消。")
-                return None
-            response = self._response
+            return await asyncio.wait_for(self._future, timeout=timeout)
+        except asyncio.TimeoutError:
+            project_logger.error(f"等待GUI响应超时（{timeout}秒），操作被强制取消。")
+            return None
+        except asyncio.CancelledError:
+            project_logger.warn("交互操作被取消。")
+            return None
         finally:
-            self._response = None  # Reset for next use
-            self.mutex.unlock()
-        return response
+            self._future = None
 
     async def handle_new_bangumi_key(
         self,
@@ -114,41 +118,32 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
             "mappable_props": mappable_props,
             "recommended_props": recommended_props or [],
         }
-        # Emit signal before locking
         self.handle_new_bangumi_key_requested.emit(request_data)
-        # Wait for the response
         response = await self._wait_for_response()
-        # Default to ignore_session if GUI fails or times out
         return response or {"action": "ignore_session"}
 
     async def ask_for_new_property_type(self, prop_name: str) -> str | None:
-        # Emit signal before locking
         self.ask_for_new_property_type_requested.emit({"prop_name": prop_name})
-        # Wait for the response
         response = await self._wait_for_response()
         return response
 
     async def get_bangumi_game_choice(self, search_term: str, candidates: List[Dict]) -> str | None:
-        """Asks the user to select a game from a list of candidates via the GUI."""
         project_logger.system("[Bridge] Emitting select_bangumi_game_requested signal.")
         self.select_bangumi_game_requested.emit(search_term, candidates)
         response = await self._wait_for_response()
         return response
 
     async def get_tag_translation(self, tag: str, source_name: str) -> str | None:
-        """Asks for a translation for a new tag."""
         self.tag_translation_required.emit(tag, source_name)
         response = await self._wait_for_response()
         return response
 
     async def get_concept_merge_choice(self, concept: str, candidate: str) -> str | None:
-        """Asks the user whether to merge a new tag concept."""
         self.concept_merge_required.emit(concept, candidate)
         response = await self._wait_for_response()
         return response
 
     async def get_name_split_decision(self, text: str, parts: list) -> dict:
-        """Asks the user to decide on a risky name split."""
         self.name_split_decision_required.emit(text, parts)
         response = await self._wait_for_response()
-        return response or {"action": "keep", "save_exception": False} # Default to keeping original
+        return response or {"action": "keep", "save_exception": False}

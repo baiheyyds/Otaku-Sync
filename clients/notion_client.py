@@ -26,29 +26,41 @@ class NotionClient:
         self._all_brands_cache = None
 
     async def _request(self, method, url, json_data=None):
-        try:
-            if method.upper() == "POST":
-                r = await self.client.post(url, headers=self.headers, json=json_data)
-            elif method.upper() == "PATCH":
-                r = await self.client.patch(url, headers=self.headers, json=json_data)
-            elif method.upper() == "GET":
-                r = await self.client.get(url, headers=self.headers)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
-            r.raise_for_status()
-            return r.json()
-        except httpx.HTTPStatusError as e:
-            # 对于HTTP错误，记录更详细的响应信息
-            logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
-            return None
-        except httpx.RequestError as e:
-            # 对于网络层面的错误, 重新抛出让上层处理
-            logger.error(f"Notion API 网络请求失败: {e.__class__.__name__} - {e}. 请求: {e.request.method} {e.request.url}")
-            raise
-        except Exception as e:
-            # 其他未知异常
-            logger.error(f"Notion API 未知错误: {e}")
-            return None
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if method.upper() == "POST":
+                    r = await self.client.post(url, headers=self.headers, json=json_data)
+                elif method.upper() == "PATCH":
+                    r = await self.client.patch(url, headers=self.headers, json=json_data)
+                elif method.upper() == "GET":
+                    r = await self.client.get(url, headers=self.headers)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                r.raise_for_status()
+                return r.json()
+            except httpx.HTTPStatusError as e:
+                # 对于HTTP错误，记录更详细的响应信息, 这种错误通常不应该重试
+                logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
+                return None
+            except (httpx.ReadError, httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError) as e:
+                # 对于这些可恢复的网络错误，进行重试
+                logger.warn(f"Notion API 网络错误 (尝试 {attempt + 1}/{max_retries}): {e.__class__.__name__}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2 * (attempt + 1))  # 逐渐增加等待时间
+                    continue
+                else:
+                    logger.error(f"Notion API 请求在 {max_retries} 次尝试后最终失败。")
+                    raise  # 在最后一次尝试失败后，重新引发异常
+            except httpx.RequestError as e:
+                # 对于其他网络层面的错误, 记录并重新抛出
+                logger.error(f"Notion API 网络请求失败: {e.__class__.__name__} - {e}. 请求: {e.request.method} {e.request.url}")
+                raise
+            except Exception as e:
+                # 其他未知异常
+                logger.error(f"Notion API 未知错误: {e}")
+                return None
+        return None
 
     def get_page_title(self, page: dict) -> str:
         """

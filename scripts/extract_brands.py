@@ -12,13 +12,14 @@ from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
 from utils import logger
 
 
-async def export_brand_names(notion_client: NotionClient) -> list[str]:
+async def export_brand_names(context: dict) -> list[str]:
     """
     从 Notion 数据库中导出所有品牌名称。
 
-    :param notion_client: 初始化好的 NotionClient 实例。
+    :param context: 应用上下文，包含 NotionClient 实例。
     :return: 一个包含所有品牌名称的排序列表。
     """
+    notion_client: NotionClient = context["notion"]
     logger.info("🔍 正在从 Notion 读取所有品牌...")
     all_brand_pages = await notion_client.get_all_pages_from_db(BRAND_DB_ID)
 

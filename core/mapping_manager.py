@@ -58,6 +58,38 @@ class BrandMappingManager:
         normalized_name = normalize_brand_name(name)
         return self._reverse_mapping.get(normalized_name, name)
 
+    def add_alias(self, canonical_name: str, alias: str):
+        """为指定的规范名称添加一个新的别名。"""
+        if not canonical_name or not alias:
+            return
+
+        # 首先，确保 canonical_name 是我们映射中的一个键
+        if canonical_name not in self._mapping:
+            # 如果 canonical_name 本身就是一个别名，找到它的根
+            true_canonical = self.get_canonical_name(canonical_name)
+            if true_canonical != canonical_name: # 找到了根
+                canonical_name = true_canonical
+            else:
+                # 如果它是一个全新的、独立的品牌，则创建一个新条目
+                self._mapping[canonical_name] = []
+
+        # 添加新别名（如果它还不存在）
+        if alias not in self._mapping[canonical_name] and alias != canonical_name:
+            self._mapping[canonical_name].append(alias)
+            logger.info(f"品牌映射学习: ‘{alias}’ -> ‘{canonical_name}’")
+        
+        # 重建反向映射以立即生效
+        self._build_reverse_mapping()
+
+    def save_mapping(self):
+        """将当前的品牌映射保存到文件。"""
+        try:
+            with open(self.file_path, "w", encoding="utf-8") as f:
+                json.dump(self._mapping, f, ensure_ascii=False, indent=2, sort_keys=True)
+            logger.cache(f"品牌映射文件已成功保存到 {self.file_path}")
+        except IOError as e:
+            logger.error(f"保存品牌映射文件失败: {e}")
+
 class BangumiMappingManager:
     def __init__(self, interaction_provider: InteractionProvider, file_path: str = BGM_PROP_MAPPING_PATH):
         self.file_path = file_path

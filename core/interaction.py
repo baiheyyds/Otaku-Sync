@@ -44,9 +44,10 @@ class InteractionProvider(ABC):
         """Ask user to select a game from Bangumi search results."""
         pass
 
+
     @abstractmethod
-    async def ask_for_new_property_type(self, prop_name: str) -> str | None:
-        """Ask user to select a type for a new Notion property."""
+    async def confirm_brand_merge(self, new_brand_name: str, suggested_brand: str) -> str:
+        """当发现一个新品牌与一个现有品牌高度相似时，询问用户如何操作。"""
         pass
 
 
@@ -185,6 +186,55 @@ class ConsoleInteractionProvider(InteractionProvider):
                 return notion_type
             else:
                 logger.error("无效的类型选项，请重新输入。")
+
+    async def confirm_brand_merge(self, new_brand_name: str, suggested_brand: str) -> str:
+        """当发现一个新品牌与一个现有品牌高度相似时，询问用户如何操作。"""
+        def _get_input():
+            logger.warn(f"品牌查重：检测到新品牌 ‘{new_brand_name}’ 与现有品牌 ‘{suggested_brand}’ 高度相似。")
+            print("  请选择操作：")
+            print(f"  [m] 合并为 ‘{suggested_brand}’ (默认)")
+            print(f"  [c] 强制创建为新品牌 ‘{new_brand_name}’")
+            print("  [a] 取消本次操作")
+            return input("请输入您的选择 (m/c/a): ").strip().lower()
+
+        while True:
+            choice = await asyncio.to_thread(_get_input)
+            if choice in {"", "m"}:
+                return "merge"
+            elif choice == "c":
+                return "create"
+            elif choice == "a":
+                return "cancel"
+            else:
+                logger.error("输入无效，请重新输入。")
+
+    async def get_tag_translation(self, tag: str, source_name: str) -> str:
+        return (await asyncio.to_thread(input, f"- 新标签({source_name}): 请输入 ‘{tag}’ 的中文翻译 (s跳过): ")).strip()
+
+    async def get_concept_merge_decision(self, concept: str, candidate: str) -> str | None:
+        def _get_input():
+            logger.warn(f"标签概念 ‘{concept}’ 与现有标签 ‘{candidate}’ 高度相似。是否合并？")
+            return input("  [y] 合并 (默认) / [n] 创建为新标签 / [c] 取消: ").strip().lower()
+        
+        choice = await asyncio.to_thread(_get_input)
+        if choice in {"", "y"}:
+            return "merge"
+        elif choice == "n":
+            return "create"
+        else:
+            return None
+
+    async def get_name_split_decision(self, text: str, parts: list) -> dict:
+        def _get_input():
+            logger.warn(f"名称 ‘{text}’ 被分割为: {parts}")
+            print("  [k] 保持原样 (默认)")
+            print("  [s] 保存为特例，以后不再分割")
+            return input("请选择或按回车确认: ").strip().lower()
+        
+        choice = await asyncio.to_thread(_get_input)
+        if choice == "s":
+            return {"action": "keep", "save_exception": True}
+        return {"action": "keep", "save_exception": False}
 
 # This will be implemented in a separate file to avoid circular dependencies with GUI components
 # class GuiInteractionProvider(InteractionProvider):

@@ -23,6 +23,7 @@ class GameSyncWorker(QThread):
     tag_translation_required = Signal(str, str)
     concept_merge_required = Signal(str, str)
     name_split_decision_required = Signal(str, list)
+    confirm_brand_merge_requested = Signal(str, str)
 
     def __init__(self, keyword, manual_mode=False, parent=None, shared_context=None):
         super().__init__(parent)
@@ -63,6 +64,7 @@ class GameSyncWorker(QThread):
             self.interaction_provider.tag_translation_required.connect(self._on_tag_translation_requested)
             self.interaction_provider.concept_merge_required.connect(self._on_concept_merge_requested)
             self.interaction_provider.name_split_decision_required.connect(self._on_name_split_decision_requested)
+            self.interaction_provider.confirm_brand_merge_requested.connect(self._on_brand_merge_requested)
 
             # Now run the main game flow
             loop.run_until_complete(self.game_flow())
@@ -80,6 +82,7 @@ class GameSyncWorker(QThread):
                     self.interaction_provider.tag_translation_required.disconnect(self._on_tag_translation_requested)
                     self.interaction_provider.concept_merge_required.disconnect(self._on_concept_merge_requested)
                     self.interaction_provider.name_split_decision_required.disconnect(self._on_name_split_decision_requested)
+                    self.interaction_provider.confirm_brand_merge_requested.disconnect(self._on_brand_merge_requested)
                 except RuntimeError:
                     pass
 
@@ -120,6 +123,9 @@ class GameSyncWorker(QThread):
 
     def _on_name_split_decision_requested(self, text, parts):
         self.name_split_decision_required.emit(text, parts)
+
+    def _on_brand_merge_requested(self, new_brand_name, suggested_brand):
+        self.confirm_brand_merge_requested.emit(new_brand_name, suggested_brand)
 
     def set_interaction_response(self, response):
         if self.interaction_provider:
@@ -380,7 +386,7 @@ class GameSyncWorker(QThread):
             return False
 
 class ScriptWorker(QThread):
-    script_completed = Signal(str, bool)
+    script_completed = Signal(str, bool, object)
     context_created = Signal(dict)
 
     def __init__(self, script_function, script_name, parent=None, shared_context=None):
@@ -394,6 +400,7 @@ class ScriptWorker(QThread):
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        result = None
 
         async def setup_context():
             if not self.shared_context:
@@ -430,14 +437,14 @@ class ScriptWorker(QThread):
             logger.system(f"后台线程开始执行脚本: {self.script_name}")
             # Pass the entire context, which now includes the interaction_provider
             awaitable_func = self.script_function(self.context)
-            loop.run_until_complete(awaitable_func)
+            result = loop.run_until_complete(awaitable_func)
             logger.success(f"脚本 {self.script_name} 执行完毕。")
-            self.script_completed.emit(self.script_name, True)
+            self.script_completed.emit(self.script_name, True, result)
 
         except Exception as e:
             logger.error(f"脚本 {self.script_name} 执行时出现致命错误: {e}")
             logger.error(traceback.format_exc())
-            self.script_completed.emit(self.script_name, False)
+            self.script_completed.emit(self.script_name, False, None)
         finally:
             # Disconnect signals
             if self.interaction_provider:

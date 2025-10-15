@@ -69,81 +69,55 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
     tag_translation_required = Signal(str, str)
     concept_merge_required = Signal(str, str)
     name_split_decision_required = Signal(str, list)
+    confirm_brand_merge_requested = Signal(str, str)
 
-    def __init__(self, loop: asyncio.AbstractEventLoop):
-        super().__init__()
-        if not loop:
-            raise ValueError("An asyncio event loop is required.")
-        self._loop = loop
-        self._future: asyncio.Future = None
+    def __init__(self, loop, parent=None):
+        super().__init__(parent)
+        self.loop = loop
+        self.future = None
 
-    def set_response(self, response: Any):
-        """Called by the GUI thread to provide the user's choice."""
-        if self._future and not self._future.done():
-            # Use call_soon_threadsafe to safely set the result from another thread
-            self._loop.call_soon_threadsafe(self._future.set_result, response)
+    async def get_bangumi_game_choice(self, game_name: str, candidates: list) -> str | None:
+        self.future = self.loop.create_future()
+        self.select_bangumi_game_requested.emit(game_name, candidates)
+        return await self.future
 
-    async def _wait_for_response(self, timeout=300):
-        """Helper to wait for the response from the GUI thread using asyncio.Future."""
-        if self._future and not self._future.done():
-            project_logger.warn("交互请求冲突：上一个请求尚未完成。")
-            self._future.cancel()
-
-        self._future = self._loop.create_future()
-        try:
-            return await asyncio.wait_for(self._future, timeout=timeout)
-        except asyncio.TimeoutError:
-            project_logger.error(f"等待GUI响应超时（{timeout}秒），操作被强制取消。")
-            return None
-        except asyncio.CancelledError:
-            project_logger.warn("交互操作被取消。")
-            return None
-        finally:
-            self._future = None
-
-    async def handle_new_bangumi_key(
-        self,
-        bangumi_key: str,
-        bangumi_value: Any,
-        bangumi_url: str,
-        db_name: str,
-        mappable_props: List[str],
-        recommended_props: List[str] = None,
-    ) -> Dict[str, Any]:
-        request_data = {
-            "bangumi_key": bangumi_key,
-            "bangumi_value": bangumi_value,
-            "bangumi_url": bangumi_url,
-            "db_name": db_name,
-            "mappable_props": mappable_props,
-            "recommended_props": recommended_props or [],
-        }
-        self.handle_new_bangumi_key_requested.emit(request_data)
-        response = await self._wait_for_response()
-        return response or {"action": "ignore_session"}
-
-    async def ask_for_new_property_type(self, prop_name: str) -> str | None:
-        self.ask_for_new_property_type_requested.emit({"prop_name": prop_name})
-        response = await self._wait_for_response()
-        return response
-
-    async def get_bangumi_game_choice(self, search_term: str, candidates: List[Dict]) -> str | None:
-        project_logger.system("[Bridge] Emitting select_bangumi_game_requested signal.")
-        self.select_bangumi_game_requested.emit(search_term, candidates)
-        response = await self._wait_for_response()
-        return response
-
-    async def get_tag_translation(self, tag: str, source_name: str) -> str | None:
+    async def get_tag_translation(self, tag: str, source_name: str) -> str:
+        self.future = self.loop.create_future()
         self.tag_translation_required.emit(tag, source_name)
-        response = await self._wait_for_response()
-        return response
+        return await self.future
 
-    async def get_concept_merge_choice(self, concept: str, candidate: str) -> str | None:
+    async def get_concept_merge_decision(self, concept: str, candidate: str) -> str | None:
+        self.future = self.loop.create_future()
         self.concept_merge_required.emit(concept, candidate)
-        response = await self._wait_for_response()
-        return response
+        return await self.future
 
     async def get_name_split_decision(self, text: str, parts: list) -> dict:
+        self.future = self.loop.create_future()
         self.name_split_decision_required.emit(text, parts)
-        response = await self._wait_for_response()
-        return response or {"action": "keep", "save_exception": False}
+        return await self.future
+
+    async def confirm_brand_merge(self, new_brand_name: str, suggested_brand: str) -> str:
+        """当发现一个新品牌与一个现有品牌高度相似时，询问用户如何操作。"""
+        self.future = self.loop.create_future()
+        self.confirm_brand_merge_requested.emit(new_brand_name, suggested_brand)
+        return await self.future
+
+    async def ask_for_new_property_type(self, prop_name: str) -> str | None:
+        self.future = self.loop.create_create()
+        self.ask_for_new_property_type_requested.emit({"prop_name": prop_name})
+        return await self.future
+
+    async def handle_new_bangumi_key(self, db_type: str, prop_name: str, prop_value: str, page_id: str) -> dict:
+        request_data = {
+            "db_type": db_type,
+            "prop_name": prop_name,
+            "prop_value": prop_value,
+            "page_id": page_id,
+        }
+        self.future = self.loop.create_future()
+        self.handle_new_bangumi_key_requested.emit(request_data)
+        return await self.future
+
+    def set_response(self, response):
+        if self.future and not self.future.done():
+            self.future.set_result(response)

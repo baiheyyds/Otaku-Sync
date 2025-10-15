@@ -184,12 +184,26 @@ class MainWindow(QMainWindow):
         worker.tag_translation_required.connect(self.handle_tag_translation_required)
         worker.concept_merge_required.connect(self.handle_concept_merge_required)
         worker.name_split_decision_required.connect(self.handle_name_split_decision_required)
+        worker.confirm_brand_merge_requested.connect(self.handle_brand_merge_requested)
         worker.process_completed.connect(self.process_finished)
         worker.finished.connect(self.cleanup_worker)
 
-    def on_script_completed(self, script_name, success):
+    def on_script_completed(self, script_name, success, result):
         project_logger.info(f'脚本 "{script_name}" 执行结束，结果: {"成功" if success else "失败"}\n')
         self.set_all_buttons_enabled(True)
+
+        if success and script_name == "导出所有品牌名" and isinstance(result, list):
+            output_filename = "brand_names.txt"
+            try:
+                with open(output_filename, "w", encoding="utf-8") as f:
+                    for name in result:
+                        f.write(name + "\n")
+                QMessageBox.information(self, "导出成功", 
+                                        f"已成功导出 {len(result)} 个品牌名到项目根目录下的\n"
+                                        f"{output_filename} 文件中。")
+            except IOError as e:
+                project_logger.error(f"写入文件 {output_filename} 时出错: {e}")
+                QMessageBox.critical(self, "文件写入失败", f"无法写入品牌列表到 {output_filename}。")
 
     def set_all_buttons_enabled(self, enabled):
         self.search_button.setEnabled(enabled)
@@ -197,6 +211,26 @@ class MainWindow(QMainWindow):
         self.batch_tools_widget.set_buttons_enabled(enabled)
 
     # --- All handler methods for dialogs --- #
+
+    def handle_brand_merge_requested(self, new_brand_name, suggested_brand):
+        project_logger.info(f"检测到相似品牌: ‘{new_brand_name}’ ≈ ‘{suggested_brand}’")
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("品牌查重")
+        msg_box.setText(f"新品牌 '<b>{new_brand_name}</b>' 与已存在的品牌 '<b>{suggested_brand}</b>' 高度相似。")
+        msg_box.setInformativeText("您希望如何处理？")
+        merge_button = msg_box.addButton("合并为 ‘" + suggested_brand + "’ (推荐)", QMessageBox.AcceptRole)
+        create_button = msg_box.addButton("创建新品牌 ‘" + new_brand_name + "’", QMessageBox.ActionRole)
+        msg_box.addButton("取消操作", QMessageBox.RejectRole)
+        
+        msg_box.exec()
+        worker = self.sender()
+
+        if msg_box.clickedButton() == merge_button:
+            worker.set_interaction_response("merge")
+        elif msg_box.clickedButton() == create_button:
+            worker.set_interaction_response("create")
+        else:
+            worker.set_interaction_response("cancel")
 
     def handle_name_split_decision_required(self, text, parts):
         project_logger.info(f"需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")

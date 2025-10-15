@@ -24,15 +24,7 @@ class InteractionProvider(ABC):
     """Abstract base class for providing user interaction."""
 
     @abstractmethod
-    async def handle_new_bangumi_key(
-        self,
-        bangumi_key: str,
-        bangumi_value: Any,
-        bangumi_url: str,
-        db_name: str,
-        mappable_props: List[str],
-        recommended_props: List[str] = None,
-    ) -> Dict[str, Any]:
+    async def handle_new_bangumi_key(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Handle a new, unmapped key from Bangumi.
         Returns a dictionary with 'action' and 'data'.
@@ -54,15 +46,13 @@ class InteractionProvider(ABC):
 class ConsoleInteractionProvider(InteractionProvider):
     """Console implementation for user interaction using input()."""
 
-    async def handle_new_bangumi_key(
-        self,
-        bangumi_key: str,
-        bangumi_value: Any,
-        bangumi_url: str,
-        db_name: str,
-        mappable_props: List[str],
-        recommended_props: List[str] = None,
-    ) -> Dict[str, Any]:
+    async def handle_new_bangumi_key(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        bangumi_key = request_data["bangumi_key"]
+        bangumi_value = request_data["bangumi_value"]
+        bangumi_url = request_data["bangumi_url"]
+        db_name = request_data["db_name"]
+        mappable_props = request_data["mappable_props"]
+        recommended_props = request_data.get("recommended_props", [])
         
         def _get_action_input():
             prompt_header = (

@@ -107,13 +107,7 @@ class GuiInteractionProvider(QObject, InteractionProvider, metaclass=QObjectABCM
         self.ask_for_new_property_type_requested.emit({"prop_name": prop_name})
         return await self.future
 
-    async def handle_new_bangumi_key(self, db_type: str, prop_name: str, prop_value: str, page_id: str) -> dict:
-        request_data = {
-            "db_type": db_type,
-            "prop_name": prop_name,
-            "prop_value": prop_value,
-            "page_id": page_id,
-        }
+    async def handle_new_bangumi_key(self, request_data: dict) -> dict:
         self.future = self.loop.create_future()
         self.handle_new_bangumi_key_requested.emit(request_data)
         return await self.future

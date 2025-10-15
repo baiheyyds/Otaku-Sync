@@ -238,14 +238,15 @@ class BangumiMappingManager:
                 bangumi_key, mappable_props, limit=3, threshold=0.6
             )
 
-            result = await self.interaction_provider.handle_new_bangumi_key(
-                bangumi_key=bangumi_key,
-                bangumi_value=bangumi_value,
-                bangumi_url=bangumi_url,
-                db_name=db_name,
-                mappable_props=mappable_props,
-                recommended_props=recommended_props,
-            )
+            request_data = {
+                "bangumi_key": bangumi_key,
+                "bangumi_value": bangumi_value,
+                "bangumi_url": bangumi_url,
+                "db_name": db_name,
+                "mappable_props": mappable_props,
+                "recommended_props": recommended_props,
+            }
+            result = await self.interaction_provider.handle_new_bangumi_key(request_data)
             
             action = result.get("action")
             data = result.get("data")

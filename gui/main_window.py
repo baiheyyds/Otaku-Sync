@@ -163,9 +163,8 @@ class MainWindow(QMainWindow):
         self.set_all_buttons_enabled(False)
 
         self.script_worker = ScriptWorker(script_func, script_name, shared_context=self.shared_context, parent=self)
-        self.script_worker.context_created.connect(self.set_shared_context)
+        self.connect_worker_signals(self.script_worker) # <--- 修复：添加此行以连接所有交互信号
         self.script_worker.script_completed.connect(self.on_script_completed)
-        self.script_worker.finished.connect(self.cleanup_worker)
         self.script_worker.start()
 
     def is_worker_running(self):

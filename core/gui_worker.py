@@ -35,10 +35,11 @@ class GameSyncWorker(QThread):
         self.wait_condition = QWaitCondition()
         self.user_choice = None
         self.interaction_provider = None
+        self.loop = None
 
     def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
 
         async def setup_context():
             """Create shared context if it doesn't exist, then create loop-specific context."""
@@ -47,7 +48,7 @@ class GameSyncWorker(QThread):
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
-            self.interaction_provider = GuiInteractionProvider(loop)
+            self.interaction_provider = GuiInteractionProvider(self.loop)
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
             )
@@ -55,7 +56,7 @@ class GameSyncWorker(QThread):
 
         try:
             # Run setup first to create the provider
-            loop.run_until_complete(setup_context())
+            self.loop.run_until_complete(setup_context())
 
             # Then connect signals
             self.interaction_provider.handle_new_bangumi_key_requested.connect(self._on_bangumi_mapping_requested)
@@ -67,7 +68,7 @@ class GameSyncWorker(QThread):
             self.interaction_provider.confirm_brand_merge_requested.connect(self._on_brand_merge_requested)
 
             # Now run the main game flow
-            loop.run_until_complete(self.game_flow())
+            self.loop.run_until_complete(self.game_flow())
 
         except Exception as e:
             logger.error(f"线程运行时出现致命错误: {e}")
@@ -101,10 +102,10 @@ class GameSyncWorker(QThread):
                     await self.context["async_client"].aclose()
                     logger.system("线程内HTTP客户端已关闭。")
 
-            if loop.is_running():
-                loop.run_until_complete(cleanup_tasks())
+            if self.loop.is_running():
+                self.loop.run_until_complete(cleanup_tasks())
             
-            loop.close()
+            self.loop.close()
 
     def _on_bangumi_mapping_requested(self, request_data):
         self.bangumi_mapping_required.emit(request_data)
@@ -128,8 +129,8 @@ class GameSyncWorker(QThread):
         self.confirm_brand_merge_requested.emit(new_brand_name, suggested_brand)
 
     def set_interaction_response(self, response):
-        if self.interaction_provider:
-            self.interaction_provider.set_response(response)
+        if self.loop and self.interaction_provider:
+            self.loop.call_soon_threadsafe(self.interaction_provider.set_response, response)
 
     def set_choice(self, choice):
         self.mutex.lock()
@@ -389,6 +390,15 @@ class ScriptWorker(QThread):
     script_completed = Signal(str, bool, object)
     context_created = Signal(dict)
 
+    # Define signals to be proxied to the main window
+    bangumi_mapping_required = Signal(dict)
+    property_type_required = Signal(dict)
+    bangumi_selection_required = Signal(str, list)
+    tag_translation_required = Signal(str, str)
+    concept_merge_required = Signal(str, str)
+    name_split_decision_required = Signal(str, list)
+    confirm_brand_merge_requested = Signal(str, str)
+
     def __init__(self, script_function, script_name, parent=None, shared_context=None):
         super().__init__(parent)
         self.script_function = script_function
@@ -396,10 +406,11 @@ class ScriptWorker(QThread):
         self.shared_context = shared_context
         self.context = {}
         self.interaction_provider = None
+        self.loop = None
 
     def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
         result = None
 
         async def setup_context():
@@ -408,26 +419,26 @@ class ScriptWorker(QThread):
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
-            self.interaction_provider = GuiInteractionProvider(loop)
+            self.interaction_provider = GuiInteractionProvider(self.loop)
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
             )
             self.context = {**self.shared_context, **loop_specific_context}
 
         try:
-            loop.run_until_complete(setup_context())
-            # Connect signals for interactive scripts
-            self.interaction_provider.tag_translation_required.connect(self.parent().handle_tag_translation_required)
-            self.interaction_provider.concept_merge_required.connect(self.parent().handle_concept_merge_required)
-            self.interaction_provider.handle_new_bangumi_key_requested.connect(self.parent().handle_bangumi_mapping)
-            self.interaction_provider.ask_for_new_property_type_requested.connect(self.parent().handle_property_type)
-            self.interaction_provider.select_bangumi_game_requested.connect(self.parent().handle_bangumi_selection_required)
-            self.interaction_provider.name_split_decision_required.connect(self.parent().handle_name_split_decision_required)
+            self.loop.run_until_complete(setup_context())
+            # Connect signals for interactive scripts to internal, thread-safe slots
+            self.interaction_provider.tag_translation_required.connect(self._on_tag_translation_requested)
+            self.interaction_provider.concept_merge_required.connect(self._on_concept_merge_requested)
+            self.interaction_provider.handle_new_bangumi_key_requested.connect(self._on_bangumi_mapping_requested)
+            self.interaction_provider.ask_for_new_property_type_requested.connect(self._on_property_type_requested)
+            self.interaction_provider.select_bangumi_game_requested.connect(self._on_bangumi_selection_requested)
+            self.interaction_provider.name_split_decision_required.connect(self._on_name_split_decision_requested)
 
             # Set drivers for clients that need them
             driver_keys = ["dlsite_driver", "ggbases_driver"]
             for key in driver_keys:
-                driver = loop.run_until_complete(self.context["driver_factory"].get_driver(key))
+                driver = self.loop.run_until_complete(self.context["driver_factory"].get_driver(key))
                 if driver:
                     if key == "dlsite_driver":
                         self.context["dlsite"].set_driver(driver)
@@ -437,7 +448,7 @@ class ScriptWorker(QThread):
             logger.system(f"后台线程开始执行脚本: {self.script_name}")
             # Pass the entire context, which now includes the interaction_provider
             awaitable_func = self.script_function(self.context)
-            result = loop.run_until_complete(awaitable_func)
+            result = self.loop.run_until_complete(awaitable_func)
             logger.success(f"脚本 {self.script_name} 执行完毕。")
             self.script_completed.emit(self.script_name, True, result)
 
@@ -449,12 +460,12 @@ class ScriptWorker(QThread):
             # Disconnect signals
             if self.interaction_provider:
                 try:
-                    self.interaction_provider.tag_translation_required.disconnect(self.parent().handle_tag_translation_required)
-                    self.interaction_provider.concept_merge_required.disconnect(self.parent().handle_concept_merge_required)
-                    self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self.parent().handle_bangumi_mapping)
-                    self.interaction_provider.ask_for_new_property_type_requested.disconnect(self.parent().handle_property_type)
-                    self.interaction_provider.select_bangumi_game_requested.disconnect(self.parent().handle_bangumi_selection_required)
-                    self.interaction_provider.name_split_decision_required.disconnect(self.parent().handle_name_split_decision_required)
+                    self.interaction_provider.tag_translation_required.disconnect(self._on_tag_translation_requested)
+                    self.interaction_provider.concept_merge_required.disconnect(self._on_concept_merge_requested)
+                    self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self._on_bangumi_mapping_requested)
+                    self.interaction_provider.ask_for_new_property_type_requested.disconnect(self._on_property_type_requested)
+                    self.interaction_provider.select_bangumi_game_requested.disconnect(self._on_bangumi_selection_requested)
+                    self.interaction_provider.name_split_decision_required.disconnect(self._on_name_split_decision_requested)
                 except (RuntimeError, TypeError):
                     pass # Ignore errors on disconnect
 
@@ -473,7 +484,31 @@ class ScriptWorker(QThread):
                     await self.context["async_client"].aclose()
                     logger.system("脚本线程内的HTTP客户端已关闭。")
 
-            if loop.is_running():
-                loop.run_until_complete(cleanup_tasks())
+            if self.loop.is_running():
+                self.loop.run_until_complete(cleanup_tasks())
             
-            loop.close()
+            self.loop.close()
+
+    # --- Internal slots to proxy signals safely across threads ---
+    def _on_bangumi_mapping_requested(self, request_data):
+        self.bangumi_mapping_required.emit(request_data)
+
+    def _on_property_type_requested(self, request_data):
+        self.property_type_required.emit(request_data)
+
+    def _on_bangumi_selection_requested(self, game_name, candidates):
+        self.bangumi_selection_required.emit(game_name, candidates)
+
+    def _on_tag_translation_requested(self, tag, source_name):
+        self.tag_translation_required.emit(tag, source_name)
+
+    def _on_concept_merge_requested(self, concept, candidate):
+        self.concept_merge_required.emit(concept, candidate)
+
+    def _on_name_split_decision_requested(self, text, parts):
+        self.name_split_decision_required.emit(text, parts)
+
+    def set_interaction_response(self, response):
+        """Public method for the main window to send back the user's response."""
+        if self.loop and self.interaction_provider:
+            self.loop.call_soon_threadsafe(self.interaction_provider.set_response, response)

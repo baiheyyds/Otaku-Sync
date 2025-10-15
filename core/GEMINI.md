@@ -10,8 +10,13 @@
 
 ## 2. 关键组件概览
 
+- **`init.py`**: 初始化 `core` 模块，使其成为一个 Python 包。
 - **`context_factory.py`**: 应用的“组装车间”，负责实例化所有必要的对象（如 `NotionClient`, `TagManager`）并注入到 `context` 中。
-
+- **`driver_factory.py`**: 管理 Selenium WebDriver 的创建和配置。
+- **`selector.py`**: 提供用于从搜索结果中选择正确游戏的功能。
+- **`name_splitter.py`**: 负责将游戏名称拆分为品牌和游戏标题。
+- **`schema_manager.py`**: 管理 Notion 数据库的结构。
+- **`cache_warmer.py`**: 在程序启动时预热缓存。
 - **`interaction.py` (`InteractionProvider`)**: 定义了核心业务逻辑与用户界面之间“契约”的抽象基类。所有需要用户输入的场景都必须通过此接口的实现来完成。
 
 - **`game_processor.py`**: 负责将从各个来源收集到的零散数据进行合并、处理，并最终组装成符合 Notion 数据库结构的格式。

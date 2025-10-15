@@ -14,6 +14,8 @@
 
 - **`notion_client.py`**: 负责与 Notion API 的所有交互。这是最核心的客户端之一。
 
+- **`brand_cache.py`**: 维护一个品牌信息的本地缓存。
+
 - **`dlsite_client.py` & `fanza_client.py`**: 负责从 DLsite 和 Fanza 网站搜索和抓取游戏信息。
 
 - **`ggbases_client.py`**: 负责与 GGBases 网站交互，主要用于获取游戏资源信息。

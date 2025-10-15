@@ -14,6 +14,7 @@ from utils.gui_bridge import GuiInteractionProvider
 
 class GameSyncWorker(QThread):
     process_completed = Signal(bool)
+    # --- Signals to MainWindow to request showing a dialog ---
     selection_required = Signal(list, str, str)
     duplicate_check_required = Signal(list)
     bangumi_mapping_required = Signal(dict)
@@ -31,9 +32,6 @@ class GameSyncWorker(QThread):
         self.manual_mode = manual_mode
         self.shared_context = shared_context
         self.context = {}
-        self.mutex = QMutex()
-        self.wait_condition = QWaitCondition()
-        self.user_choice = None
         self.interaction_provider = None
         self.loop = None
 
@@ -55,10 +53,9 @@ class GameSyncWorker(QThread):
             self.context = {**self.shared_context, **loop_specific_context}
 
         try:
-            # Run setup first to create the provider
             self.loop.run_until_complete(setup_context())
 
-            # Then connect signals
+            # Connect all interaction signals from the provider to the worker's proxy slots
             self.interaction_provider.handle_new_bangumi_key_requested.connect(self._on_bangumi_mapping_requested)
             self.interaction_provider.ask_for_new_property_type_requested.connect(self._on_property_type_requested)
             self.interaction_provider.select_bangumi_game_requested.connect(self._on_bangumi_selection_requested)
@@ -66,8 +63,10 @@ class GameSyncWorker(QThread):
             self.interaction_provider.concept_merge_required.connect(self._on_concept_merge_requested)
             self.interaction_provider.name_split_decision_required.connect(self._on_name_split_decision_requested)
             self.interaction_provider.confirm_brand_merge_requested.connect(self._on_brand_merge_requested)
+            # --- Newly refactored signal connections ---
+            self.interaction_provider.select_game_requested.connect(self._on_select_game_requested)
+            self.interaction_provider.duplicate_check_requested.connect(self._on_duplicate_check_requested)
 
-            # Now run the main game flow
             self.loop.run_until_complete(self.game_flow())
 
         except Exception as e:
@@ -77,18 +76,14 @@ class GameSyncWorker(QThread):
         finally:
             if self.interaction_provider:
                 try:
-                    self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self._on_bangumi_mapping_requested)
-                    self.interaction_provider.ask_for_new_property_type_requested.disconnect(self._on_property_type_requested)
-                    self.interaction_provider.select_bangumi_game_requested.disconnect(self._on_bangumi_selection_requested)
-                    self.interaction_provider.tag_translation_required.disconnect(self._on_tag_translation_requested)
-                    self.interaction_provider.concept_merge_required.disconnect(self._on_concept_merge_requested)
-                    self.interaction_provider.name_split_decision_required.disconnect(self._on_name_split_decision_requested)
-                    self.interaction_provider.confirm_brand_merge_requested.disconnect(self._on_brand_merge_requested)
-                except RuntimeError:
+                    # Disconnect all signals
+                    for signal_name in dir(self.interaction_provider):
+                        if isinstance(getattr(self.interaction_provider, signal_name), Signal):
+                            getattr(self.interaction_provider, signal_name).disconnect()
+                except (RuntimeError, TypeError):
                     pass
 
             async def cleanup_tasks():
-                # Cancel background tasks first
                 background_tasks = self.context.get("background_tasks", [])
                 if background_tasks:
                     logger.system(f"正在取消 {len(background_tasks)} 个后台任务...")
@@ -97,7 +92,6 @@ class GameSyncWorker(QThread):
                     await asyncio.gather(*background_tasks, return_exceptions=True)
                     logger.system("所有后台任务已处理。")
 
-                # Close HTTP client
                 if self.context.get("async_client"):
                     await self.context["async_client"].aclose()
                     logger.system("线程内HTTP客户端已关闭。")
@@ -107,6 +101,7 @@ class GameSyncWorker(QThread):
             
             self.loop.close()
 
+    # --- Proxy slots to forward signals from InteractionProvider to MainWindow ---
     def _on_bangumi_mapping_requested(self, request_data):
         self.bangumi_mapping_required.emit(request_data)
 
@@ -128,40 +123,18 @@ class GameSyncWorker(QThread):
     def _on_brand_merge_requested(self, new_brand_name, suggested_brand):
         self.confirm_brand_merge_requested.emit(new_brand_name, suggested_brand)
 
+    def _on_select_game_requested(self, choices, title, source):
+        self.selection_required.emit(choices, title, source)
+
+    def _on_duplicate_check_requested(self, candidates):
+        self.duplicate_check_required.emit(candidates)
+
+    # --- Method for MainWindow to send response back ---
     def set_interaction_response(self, response):
         if self.loop and self.interaction_provider:
             self.loop.call_soon_threadsafe(self.interaction_provider.set_response, response)
 
-    def set_choice(self, choice):
-        self.mutex.lock()
-        self.user_choice = choice
-        self.mutex.unlock()
-        self.wait_condition.wakeAll()
-
-    async def wait_for_choice(self, choices: list, title: str, source: str = ""):
-        # 1. 先发射信号，此时不持有任何锁，避免死锁
-        if source:
-            self.selection_required.emit(choices, title, source)
-        else:
-            self.duplicate_check_required.emit(choices)
-
-        # 2. 现在获取锁，并等待主线程的响应
-        self.mutex.lock()
-        try:
-            # 为等待用户输入设置60秒超时
-            timed_out = not self.wait_condition.wait(self.mutex, 60000)
-            if timed_out and self.user_choice is None:
-                logger.warn("等待用户选择超时（60秒），将自动执行‘跳过’操作。")
-                choice = "skip"
-            else:
-                choice = self.user_choice
-        finally:
-            # 3. 重置选择并解锁，为下一次交互做准备
-            self.user_choice = None
-            self.mutex.unlock()
-        
-        return choice
-
+    # --- Core async logic ---
     async def _select_game_from_results(self, results, source):
         game = None
         while True:
@@ -178,7 +151,9 @@ class GameSyncWorker(QThread):
                     logger.info(f"智能模式匹配度 ({best_score:.2f}) 过低，转为手动选择。")
             
             if game is None:
-                choice = await self.wait_for_choice(results, f"请从 {source.upper()} 结果中选择", source)
+                # REFACTORED: Call the provider instead of wait_for_choice
+                choice = await self.interaction_provider.select_game(results, f"请从 {source.upper()} 结果中选择", source)
+                
                 if choice == "search_fanza":
                     logger.info("切换到 Fanza 搜索...")
                     results, source = await search_all_sites(self.context["dlsite"], self.context["fanza"], self.keyword, site="fanza")
@@ -198,7 +173,9 @@ class GameSyncWorker(QThread):
         if not candidates:
             return None
         
-        choice = await self.wait_for_choice(candidates, "发现重复游戏")
+        # REFACTORED: Call the provider instead of wait_for_choice
+        choice = await self.interaction_provider.confirm_duplicate(candidates)
+
         if choice == "skip":
             logger.info("已选择跳过。")
             return "skip"
@@ -209,7 +186,7 @@ class GameSyncWorker(QThread):
         elif choice == "create":
             logger.info("已选择强制创建新游戏。")
             return None
-        return None
+        return None # Default to cancel
 
     async def _fetch_ggbases_data(self, keyword, manual_mode):
         logger.info("[GGBases] 开始获取 GGBases 数据...")
@@ -222,7 +199,8 @@ class GameSyncWorker(QThread):
             selected_game = None
             if manual_mode:
                 logger.info("[GGBases] 手动模式，需要用户选择。")
-                choice = await self.wait_for_choice(candidates, "请从GGBases结果中选择", "ggbases")
+                # REFACTORED: Call the provider instead of wait_for_choice
+                choice = await self.interaction_provider.select_game(candidates, "请从GGBases结果中选择", "ggbases")
                 if isinstance(choice, int) and choice != -1:
                     selected_game = candidates[choice]
             else:

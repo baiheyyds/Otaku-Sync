@@ -304,8 +304,9 @@ class MainWindow(QMainWindow):
 
         if not choices:
             project_logger.warn("未找到任何结果.\n")
-            worker.set_choice(None)
+            worker.set_interaction_response(None)
             return
+
         project_logger.info(f"接收到 {len(choices)} 个选项，请在弹出对话框中选择...\n")
         display_items = []
         if source == 'ggbases':
@@ -319,18 +320,20 @@ class MainWindow(QMainWindow):
                 price_display = f"{price}円" if str(price).isdigit() else price
                 item_type = item.get("类型", "未知")
                 display_items.append(f"[{source.upper()}] {item.get('title', 'No Title')} | 💴 {price_display} | 🏷️ {item_type}")
+        
         dialog = SelectionDialog(display_items, title=title, source=source, parent=self)
-        result = dialog.exec() 
+        result = dialog.exec()
+
         if result == QDialog.Accepted:
             choice_index = dialog.selected_index()
             project_logger.info(f"用户选择了第 {choice_index + 1} 项。\n")
-            worker.set_choice(choice_index)
-        elif result == 2:
+            worker.set_interaction_response(choice_index)
+        elif result == 2: # Custom result code for 'Search Fanza'
             project_logger.info("用户选择切换到 Fanza 搜索...\n")
-            worker.set_choice("search_fanza")
+            worker.set_interaction_response("search_fanza")
         else:
             project_logger.info("用户取消了选择。\n")
-            worker.set_choice(-1)
+            worker.set_interaction_response(-1)
 
     def handle_duplicate_check(self, candidates):
         worker = self.sender()
@@ -342,7 +345,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
         choice = dialog.result
         project_logger.info(f"用户对重复游戏的操作是: {choice}\n")
-        worker.set_choice(choice)
+        worker.set_interaction_response(choice)
 
     def process_finished(self, success):
         project_logger.info(f"任务完成，结果: {"成功" if success else "失败"}\n")

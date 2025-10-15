@@ -30,10 +30,8 @@
         3.  **充当信号代理 (Signal Proxy)**: 这是理解其工作模式的**关键**。`GameSyncWorker` 和 `ScriptWorker` 都会监听其内部 `GuiInteractionProvider` 实例发出的“内部”信号，然后**转发**一个由 Worker 自身定义的、名称相同的“外部”信号给 `MainWindow`。这确保了交互请求可以被线程安全地传递到主GUI线程进行处理。
         4.  **提供响应入口**: 为了接收 `MainWindow` 的响应，两个 Worker 都提供了公共方法。这些方法通过 `loop.call_soon_threadsafe` 来保证响应被安全地传递回后台的 `asyncio` 事件循环。
 
-    - **架构说明 (待重构)**:
-        目前项目**并存两套交互机制**，这是一个历史遗留问题和技术债：
-        - **现代机制 (`set_interaction_response`)**: 基于 `asyncio.Future`，用于绝大多数交互，是首选方式。
-        - **传统机制 (`set_choice`)**: 基于 `QMutex` 和 `QWaitCondition`，仅用于初次游戏选择和重复项确认。这部分逻辑未来应被重构，统一到 `asyncio.Future` 机制，以简化架构。
+    - **架构说明**:
+        交互完全基于 `asyncio.Future` 和 `InteractionProvider` 接口实现，确保了后台与前台之间通信模式的统一和线程安全。
 
 ## 3. 核心工作流（GUI模式）
 
@@ -47,6 +45,6 @@ GUI 模式下的工作流与CLI模式在核心逻辑上相似，但在交互处�
 6.  Worker 监听到此内部信号，并立即发出一个**同名的外部信号**。
 7.  `MainWindow` 的对应槽函数被触发。
 8.  `MainWindow` 显示对话框，等待用户操作。
-9.  用户操作完毕后，`MainWindow` 调用 `worker.set_interaction_response(...)` 或 `worker.set_choice(...)` 将结果返回给 Worker。
+9.  用户操作完毕后，`MainWindow` 调用 `worker.set_interaction_response(...)` 将结果返回给 Worker。
 10. Worker 通过线程安全的方式将结果传递给 `GuiInteractionProvider`，解除 `await` 阻塞。
 11. 核心业务逻辑继续执行。

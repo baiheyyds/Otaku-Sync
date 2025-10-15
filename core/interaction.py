@@ -42,6 +42,23 @@ class InteractionProvider(ABC):
         """当发现一个新品牌与一个现有品牌高度相似时，询问用户如何操作。"""
         pass
 
+    @abstractmethod
+    async def select_game(self, choices: list, title: str, source: str) -> int | str | None:
+        """
+        要求用户从搜索结果列表中选择一个游戏。
+        也处理特定于源的选项，如“切换到Fanza搜索”。
+        返回选择的索引、特殊操作字符串或None。
+        """
+        pass
+
+    @abstractmethod
+    async def confirm_duplicate(self, candidates: list) -> str | None:
+        """
+        显示潜在的重复游戏，并询问用户是跳过、更新还是强制创建。
+        返回 'skip', 'update', 'create' 或 None。
+        """
+        pass
+
 
 class ConsoleInteractionProvider(InteractionProvider):
     """Console implementation for user interaction using input()."""
@@ -225,6 +242,69 @@ class ConsoleInteractionProvider(InteractionProvider):
         if choice == "s":
             return {"action": "keep", "save_exception": True}
         return {"action": "keep", "save_exception": False}
+
+    async def select_game(self, choices: list, title: str, source: str) -> int | str | None:
+        """要求用户从搜索结果列表中选择一个游戏。"""
+        def _get_input():
+            logger.info(title)
+            if source == 'ggbases':
+                for i, item in enumerate(choices):
+                    size_info = item.get('容量', '未知')
+                    popularity = item.get('popularity', 0)
+                    print(f"  [{i+1}] {item.get('title', 'No Title')} (热度: {popularity}) (大小: {size_info})")
+            else:
+                for i, item in enumerate(choices):
+                    price = item.get("价格") or item.get("price", "未知")
+                    price_display = f"{price}円" if str(price).isdigit() else price
+                    item_type = item.get("类型", "未知")
+                    print(f"  [{i+1}] [{source.upper()}] {item.get('title', 'No Title')} | 💴 {price_display} | 🏷️ {item_type}")
+            
+            prompt = "\n请输入序号进行选择 (0 放弃"
+            if source == 'dlsite':
+                prompt += ", f 切换到Fanza搜索"
+            prompt += "): "
+            return input(prompt).strip().lower()
+
+        while True:
+            choice = await asyncio.to_thread(_get_input)
+            if choice == 'f' and source == 'dlsite':
+                logger.info("切换到 Fanza 搜索...")
+                return "search_fanza"
+            if choice == '0':
+                logger.info("用户取消了选择。")
+                return -1
+            try:
+                choice_idx = int(choice) - 1
+                if 0 <= choice_idx < len(choices):
+                    return choice_idx
+                else:
+                    logger.error("无效的序号，请重新输入。")
+            except ValueError:
+                logger.error("无效输入，请输入数字或指定字母。")
+
+    async def confirm_duplicate(self, candidates: list) -> str | None:
+        """显示潜在的重复游戏，并询问用户如何处理。"""
+        def _get_input():
+            logger.warn("发现可能重复的游戏，请选择操作：")
+            for i, (game, similarity) in enumerate(candidates):
+                title = game.get("title", "未知标题")
+                print(f"  - 相似条目: {title} (相似度: {similarity:.2f})")
+            
+            print("\n  [s] 跳过，不处理此游戏 (默认)")
+            print("  [u] 更新最相似的已有条目")
+            print("  [c] 强制创建为新条目")
+            return input("请输入您的选择 (s/u/c): ").strip().lower()
+
+        while True:
+            choice = await asyncio.to_thread(_get_input)
+            if choice in {'s', ''}:
+                return "skip"
+            elif choice == 'u':
+                return "update"
+            elif choice == 'c':
+                return "create"
+            else:
+                logger.error("无效输入，请重新选择。")
 
 # This will be implemented in a separate file to avoid circular dependencies with GUI components
 # class GuiInteractionProvider(InteractionProvider):

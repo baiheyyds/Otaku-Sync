@@ -76,11 +76,18 @@ class GameSyncWorker(QThread):
         finally:
             if self.interaction_provider:
                 try:
-                    # Disconnect all signals
-                    for signal_name in dir(self.interaction_provider):
-                        if isinstance(getattr(self.interaction_provider, signal_name), Signal):
-                            getattr(self.interaction_provider, signal_name).disconnect()
+                    # Disconnect only the signals that were explicitly connected
+                    self.interaction_provider.handle_new_bangumi_key_requested.disconnect(self._on_bangumi_mapping_requested)
+                    self.interaction_provider.ask_for_new_property_type_requested.disconnect(self._on_property_type_requested)
+                    self.interaction_provider.select_bangumi_game_requested.disconnect(self._on_bangumi_selection_requested)
+                    self.interaction_provider.tag_translation_required.disconnect(self._on_tag_translation_requested)
+                    self.interaction_provider.concept_merge_required.disconnect(self._on_concept_merge_requested)
+                    self.interaction_provider.name_split_decision_required.disconnect(self._on_name_split_decision_requested)
+                    self.interaction_provider.confirm_brand_merge_requested.disconnect(self._on_brand_merge_requested)
+                    self.interaction_provider.select_game_requested.disconnect(self._on_select_game_requested)
+                    self.interaction_provider.duplicate_check_requested.disconnect(self._on_duplicate_check_requested)
                 except (RuntimeError, TypeError):
+                    # This can happen if the connection was already broken, which is fine.
                     pass
 
             async def cleanup_tasks():

@@ -128,7 +128,7 @@ class TagManager:
 
         if candidate and candidate != concept:
             if interaction_provider:
-                choice = await interaction_provider.get_concept_merge_choice(concept, candidate)
+                choice = await interaction_provider.get_concept_merge_decision(concept, candidate)
             else:
                 def get_choice():
                     logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")

@@ -4,7 +4,7 @@ import asyncio
 import threading
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QPushButton, QLabel, QMessageBox, QLineEdit, QPlainTextEdit, QDialog, QCheckBox
+    QPushButton, QLabel, QMessageBox, QLineEdit, QPlainTextEdit, QDialog, QCheckBox, QTabWidget
 )
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QScreen
@@ -59,16 +59,14 @@ class MainWindow(QMainWindow):
         # Main splitter for controls and log
         main_splitter = QSplitter(Qt.Vertical)
 
-        # Top widget with all controls - now composed of smaller widgets
-        controls_widget = QWidget()
-        controls_layout = QVBoxLayout(controls_widget)
-        controls_layout.setContentsMargins(0, 0, 0, 0)
-        
+        # --- New Tab-based layout for controls ---
+        self.tab_widget = QTabWidget()
         self.batch_tools_widget = BatchToolsWidget()
         self.mapping_editor_widget = MappingEditorWidget()
-
-        controls_layout.addWidget(self.batch_tools_widget)
-        controls_layout.addWidget(self.mapping_editor_widget)
+        
+        self.tab_widget.addTab(self.batch_tools_widget, "批处理工具")
+        self.tab_widget.addTab(self.mapping_editor_widget, "映射文件编辑器")
+        # --- End of new Tab layout ---
         
         # Bottom widget for the log console
         log_widget = QWidget()
@@ -78,10 +76,11 @@ class MainWindow(QMainWindow):
         self.log_console.setReadOnly(True)
         log_layout.addWidget(self.log_console)
 
-        main_splitter.addWidget(controls_widget)
+        main_splitter.addWidget(self.tab_widget) # Add tab widget instead of the old controls widget
         main_splitter.addWidget(log_widget)
 
-        main_splitter.setSizes([int(self.height() * 0.7), int(self.height() * 0.3)])
+        # Adjust splitter ratio to give more space to the log initially (60% top, 40% bottom)
+        main_splitter.setSizes([int(self.height() * 0.6), int(self.height() * 0.4)])
         main_layout.addWidget(main_splitter)
         
         # Setup logging
@@ -151,7 +150,7 @@ class MainWindow(QMainWindow):
         manual_mode = self.manual_mode_checkbox.isChecked()
         
         self.game_sync_worker = GameSyncWorker(keyword=keyword, manual_mode=manual_mode, shared_context=self.shared_context, parent=self)
-        self.connect_worker_signals(self.game_sync_worker)
+        self.connect_game_sync_signals(self.game_sync_worker)
         self.game_sync_worker.start()
 
     def start_script_execution(self, script_func, script_name):
@@ -163,20 +162,24 @@ class MainWindow(QMainWindow):
         self.set_all_buttons_enabled(False)
 
         self.script_worker = ScriptWorker(script_func, script_name, shared_context=self.shared_context, parent=self)
-        self.connect_worker_signals(self.script_worker) # <--- 修复：添加此行以连接所有交互信号
-        self.script_worker.script_completed.connect(self.on_script_completed)
+        self.connect_script_signals(self.script_worker)
         self.script_worker.start()
 
-    def is_worker_running(self):
+    def start_stats_generation(self):
+        if self.is_worker_running():
+            return
+        self.start_script_execution(generate_statistics, "生成统计数据")
+
+    def is_worker_running(self, silent=False):
         if self.game_sync_worker and self.game_sync_worker.isRunning() or self.script_worker and self.script_worker.isRunning():
-            QMessageBox.warning(self, "任务正在进行", "请等待当前任务完成.\n")
+            if not silent:
+                QMessageBox.warning(self, "任务正在进行", "请等待当前任务完成.\n")
             return True
         return False
 
-    def connect_worker_signals(self, worker):
+    def _connect_common_signals(self, worker):
+        """Connects signals that are common to both worker types."""
         worker.context_created.connect(self.set_shared_context)
-        worker.selection_required.connect(self.handle_selection_required)
-        worker.duplicate_check_required.connect(self.handle_duplicate_check)
         worker.bangumi_mapping_required.connect(self.handle_bangumi_mapping)
         worker.property_type_required.connect(self.handle_property_type)
         worker.bangumi_selection_required.connect(self.handle_bangumi_selection_required)
@@ -184,14 +187,32 @@ class MainWindow(QMainWindow):
         worker.concept_merge_required.connect(self.handle_concept_merge_required)
         worker.name_split_decision_required.connect(self.handle_name_split_decision_required)
         worker.confirm_brand_merge_requested.connect(self.handle_brand_merge_requested)
-        worker.process_completed.connect(self.process_finished)
         worker.finished.connect(self.cleanup_worker)
+
+    def connect_script_signals(self, worker):
+        """Connects signals for a generic ScriptWorker."""
+        self._connect_common_signals(worker)
+        worker.script_completed.connect(self.on_script_completed)
+
+    def connect_game_sync_signals(self, worker):
+        """Connects all signals for the specialized GameSyncWorker."""
+        self._connect_common_signals(worker)
+        # Connect signals specific to GameSyncWorker
+        worker.selection_required.connect(self.handle_selection_required)
+        worker.duplicate_check_required.connect(self.handle_duplicate_check)
+        worker.process_completed.connect(self.process_finished)
 
     def on_script_completed(self, script_name, success, result):
         project_logger.info(f'脚本 "{script_name}" 执行结束，结果: {"成功" if success else "失败"}\n')
-        self.set_all_buttons_enabled(True)
+        # Only re-enable all buttons if it was a user-initiated script
+        # The initial stats load runs in the background and shouldn't affect button state.
+        if self.sender() and self.sender().parent() == self: # Check if it's a main worker
+            self.set_all_buttons_enabled(True)
 
-        if success and script_name == "导出所有品牌名" and isinstance(result, list):
+        if not success:
+            return
+
+        elif script_name == "导出所有品牌名" and isinstance(result, list):
             output_filename = "brand_names.txt"
             try:
                 with open(output_filename, "w", encoding="utf-8") as f:
@@ -208,6 +229,7 @@ class MainWindow(QMainWindow):
         self.search_button.setEnabled(enabled)
         self.search_button.setText("🔍 开始搜索" if enabled else "正在运行...")
         self.batch_tools_widget.set_buttons_enabled(enabled)
+        # self.statistics_widget.refresh_button.setEnabled(enabled)
 
     # --- All handler methods for dialogs --- #
 

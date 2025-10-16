@@ -254,6 +254,10 @@ class NotionClient:
             return False
 
     async def create_or_update_game(self, properties_schema: dict, page_id=None, **info):
+        if not properties_schema:
+            logger.error("游戏库的结构信息无效，无法创建或更新游戏。")
+            return None
+
         title = info.get("title")
         if not title:
             logger.error("游戏标题为空,无法创建或更新.")

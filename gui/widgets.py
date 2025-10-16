@@ -9,6 +9,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
+# Import the new FlowLayout
+from .flow_layout import FlowLayout
+
 # Import script functions directly
 from scripts.fill_missing_bangumi import fill_missing_bangumi_links
 from scripts.fill_missing_character_fields import fill_missing_character_fields
@@ -26,7 +29,8 @@ class BatchToolsWidget(QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__("批处理工具", parent)
-        layout = QHBoxLayout(self)
+        # Use the new FlowLayout
+        layout = FlowLayout(self)
 
         buttons_to_create = [
             ("补全Bangumi链接", fill_missing_bangumi_links),
@@ -45,8 +49,6 @@ class BatchToolsWidget(QGroupBox):
             button.clicked.connect(partial(self.trigger_script, func, name))
             layout.addWidget(button)
             self.buttons.append(button)
-        
-        layout.addStretch()
 
     def trigger_script(self, func, name):
         """Emits the signal to the main window to run the script."""
@@ -109,7 +111,8 @@ class MappingEditorWidget(QGroupBox):
         
         editor_splitter.addWidget(master_widget)
         editor_splitter.addWidget(detail_widget)
-        editor_splitter.setSizes([300, 600])
+        # Set a proportional initial size instead of a large fixed one.
+        editor_splitter.setSizes([250, 500])
         main_layout.addWidget(editor_splitter)
 
         # Connect signals to slots

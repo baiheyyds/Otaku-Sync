@@ -1,0 +1,60 @@
+/* Otaku-Sync Custom Stylesheet */
+
+/* --- General --- */
+QWidget {
+    /* A cleaner, modern font stack for cross-platform compatibility. Segoe UI is preferred on Windows. */
+    font-family: "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
+    font-size: 14px;
+}
+
+/* --- Widgets --- */
+QPushButton, QLineEdit, QComboBox {
+    padding: 8px;
+    border-radius: 5px; /* Slightly rounded corners for a modern feel */
+}
+
+QPushButton {
+    font-weight: bold;
+}
+
+QTextEdit {
+    border: 1px solid #444; /* A subtle border to define the log area */
+    border-radius: 5px;
+    padding: 5px;
+}
+
+/* --- Layout Sections (QGroupBox) --- */
+QGroupBox {
+    /* Adds breathing room around the entire section */
+    margin-top: 12px; 
+    border: 1px solid #555; /* A subtle border to frame the section */
+    border-radius: 8px;
+    padding-top: 25px; /* Pushes content down to make space for the title */
+}
+
+QGroupBox::title {
+    /* Positions the title inside the top border */
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    
+    /* Style for the title itself */
+    padding: 4px 10px;
+    margin-left: 10px;
+    background-color: #666; /* A distinct but harmonious background for the title */
+    color: #eee;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+/* --- Progress Bar --- */
+QProgressBar {
+    padding: 3px;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+}
+
+QProgressBar::chunk {
+    background-color: #0078d4; /* A pleasant blue for progress */
+    border-radius: 3px;
+}

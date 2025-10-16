@@ -63,7 +63,7 @@ class NotionSchemaManager:
         schema_data = await self._notion_client.get_database_schema(db_id)
         if not schema_data:
             logger.error(f"无法获取 {db_name} 的数据库结构，动态属性功能将受限。")
-            self._schemas[db_id] = {}
+            self._schemas[db_id] = None  # Store None to indicate failure
             return
         prop_map = {
             prop_name: prop_data
@@ -83,6 +83,7 @@ class NotionSchemaManager:
         # 更新对新公共方法的调用
         self.save_schemas_to_cache()
         # --- [修改结束] ---
+
 
     def get_property_type(self, db_id: str, prop_name: str) -> str | None:
         schema = self._schemas.get(db_id, {})

@@ -5,7 +5,9 @@
 ## 1. 设计理念
 
 - **组件化**: 界面被拆分为多个独立的组件（Widgets），每个组件负责一块特定的功能区域。
-- **主从结构**: `main_window.py` 是主窗口，它负责整合所有子组件，并管理应用的整体布局和生命周期。
+- **主从结构**: `main_window.py` 是主窗口，它负责整合所有子组件，并管理应用的整体布局和生命周期。其核心布局现在基于 `QTabWidget`，将不同的功能区（如“批处理工具”和“映射编辑器”）分隔到独立的标签页中，使界面更加清晰。
+- **现代化主题**: 界面通过 `qdarkstyle` 库实现了现代化的暗色主题，并在此基础上通过 `gui/style.qss` 文件进行了微调和定制，以优化视觉效果和用户体验。
+- **响应式布局**: 在需要排列多个按钮或元素的场景（如 `BatchToolsWidget`），采用了自定义的 `FlowLayout`，使得元素可以根据窗口大小自动换行，提高了界面的适应性。
 - **对话框驱动**: 所有需要用户输入的交互都通过弹出的对话框（`dialogs.py`）来完成。
 - **线程安全**: 核心业务逻辑运行在独立的 `QThread` (统称为 Worker) 中，通过 Qt 的信号与槽机制与主线程的 `MainWindow` 安全通信。
 
@@ -44,13 +46,19 @@
 
 - **`main_window.py` (`MainWindow`)**: 
     - **作用**: GUI 应用的入口和主容器。
-    - **核心职责**: 初始化并管理 Worker 线程；包含所有 `handle_*` 槽函数，作为后台请求的UI响应中心。
+    - **核心职责**: 初始化并管理 Worker 线程；包含所有 `handle_*` 槽函数，作为后台请求的UI响应中心；使用 `QTabWidget` 构建主界面布局。
 
 - **`dialogs.py`**: 
     - **作用**: 包含了应用中所有自定义的 `QDialog` 对话框。
 
 - **`widgets.py`**: 
     - **作用**: 存放构成主窗口的、功能独立的子组件，如 `BatchToolsWidget` 和 `MappingEditorWidget`。
+
+- **`flow_layout.py` (`FlowLayout`)**:
+    - **作用**: 一个自定义的布局管理器，允许内部的子组件（如按钮）在空间不足时自动换行，而不是被压缩或截断。这在 `BatchToolsWidget` 中被用来创建响应式的按钮区域。
+
+- **`style.qss`**:
+    - **作用**: Qt 样式表（QSS）文件，用于覆盖和补充 `qdarkstyle` 的默认样式，实现更精细的视觉定制。
 
 - **`utils/gui_bridge.py`**: 
     - **`GuiInteractionProvider`**: `InteractionProvider` 接口的GUI实现。**注意：`MainWindow` 不应直接与此类交互**，而是通过 Worker 的代理方法和信号进行间接通信。

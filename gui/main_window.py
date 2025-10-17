@@ -49,7 +49,6 @@ class MainWindow(QMainWindow):
         self.keyword_input.setPlaceholderText("输入游戏名/关键词...")
         self.manual_mode_checkbox = QCheckBox("手动模式")
         self.search_button = QPushButton("🔍 开始搜索")
-        self.search_button.setStyleSheet("background-color: #007BFF; color: white; padding: 5px;")
         top_layout.addWidget(QLabel("游戏名:"))
         top_layout.addWidget(self.keyword_input, 1)
         top_layout.addWidget(self.manual_mode_checkbox)
@@ -57,7 +56,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(top_layout)
 
         # Main splitter for controls and log
-        main_splitter = QSplitter(Qt.Vertical)
+        main_splitter = QSplitter(Qt.Horizontal)
 
         # --- New Tab-based layout for controls ---
         self.tab_widget = QTabWidget()
@@ -79,8 +78,8 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(self.tab_widget) # Add tab widget instead of the old controls widget
         main_splitter.addWidget(log_widget)
 
-        # Adjust splitter ratio to give more space to the log initially (60% top, 40% bottom)
-        main_splitter.setSizes([int(self.height() * 0.6), int(self.height() * 0.4)])
+        # Adjust splitter ratio for an initial 50/50 split
+        main_splitter.setSizes([int(self.width() * 0.5), int(self.width() * 0.5)])
         main_layout.addWidget(main_splitter)
         
         # Setup logging
@@ -239,6 +238,8 @@ class MainWindow(QMainWindow):
         msg_box.setWindowTitle("品牌查重")
         msg_box.setText(f"新品牌 '<b>{new_brand_name}</b>' 与已存在的品牌 '<b>{suggested_brand}</b>' 高度相似。")
         msg_box.setInformativeText("您希望如何处理？")
+        # Set a minimum width to prevent text truncation
+        msg_box.setStyleSheet("QMessageBox { min-width: 600px; }")
         merge_button = msg_box.addButton("合并为 ‘" + suggested_brand + "’ (推荐)", QMessageBox.AcceptRole)
         create_button = msg_box.addButton("创建新品牌 ‘" + new_brand_name + "’", QMessageBox.ActionRole)
         msg_box.addButton("取消操作", QMessageBox.RejectRole)

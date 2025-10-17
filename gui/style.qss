@@ -1,47 +1,81 @@
-/* Otaku-Sync Custom Stylesheet */
+/* Otaku-Sync Custom Stylesheet v2 */
 
 /* --- General --- */
 QWidget {
-    /* A cleaner, modern font stack for cross-platform compatibility. Segoe UI is preferred on Windows. */
     font-family: "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
-    font-size: 14px;
+    font-size: 15px;
+    /* A slightly lighter base text color for better overall contrast */
+    color: #E0E0E0; 
 }
 
-/* --- Widgets --- */
-QPushButton, QLineEdit, QComboBox {
-    padding: 8px;
-    border-radius: 5px; /* Slightly rounded corners for a modern feel */
+/* --- Key Widgets --- */
+QPushButton, QLineEdit, QComboBox, QPlainTextEdit, QTextEdit {
+    /* Unified padding and border-radius */
+    padding: 9px;
+    border-radius: 5px;
+    /* A slightly lighter background to distinguish from the window */
+    background-color: #333; 
+    border: 1px solid #444;
+}
+
+/* Provide visual feedback on focus */
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus {
+    border: 1px solid #0078d4; /* Use accent color for focus */
 }
 
 QPushButton {
     font-weight: bold;
+    color: #fff;
+    background-color: #0078d4; /* Main accent color for primary actions */
 }
 
-QTextEdit {
-    border: 1px solid #444; /* A subtle border to define the log area */
-    border-radius: 5px;
-    padding: 5px;
+QPushButton:hover {
+    background-color: #008dfa; /* Lighter blue on hover */
 }
 
-/* --- Layout Sections (QGroupBox) --- */
+/* --- Tab Widget --- */
+QTabWidget::pane {
+    /* The area where tab content is shown */
+    border-top: 2px solid #444;
+    margin-top: -2px; /* Align with the tab bar bottom border */
+}
+
+QTabBar::tab {
+    /* Style for individual tabs */
+    padding: 10px 20px;
+    background-color: transparent;
+    color: #aaa; /* Dim unselected tabs */
+    border: none; /* Remove default borders */
+    font-weight: bold;
+}
+
+QTabBar::tab:hover {
+    color: #fff; /* Highlight on hover */
+}
+
+QTabBar::tab:selected {
+    /* Style for the active tab */
+    color: #fff;
+    background-color: #444; /* Lighter background for the tab itself */
+    border-bottom: 2px solid #0078d4; /* Accent color line */
+}
+
+
+/* --- GroupBox --- */
 QGroupBox {
-    /* Adds breathing room around the entire section */
     margin-top: 12px; 
-    border: 1px solid #555; /* A subtle border to frame the section */
+    border: 1px solid #444; /* Match other borders */
     border-radius: 8px;
-    padding-top: 25px; /* Pushes content down to make space for the title */
+    padding-top: 25px;
 }
 
 QGroupBox::title {
-    /* Positions the title inside the top border */
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    
-    /* Style for the title itself */
-    padding: 4px 10px;
+    padding: 4px 12px;
     margin-left: 10px;
-    background-color: #666; /* A distinct but harmonious background for the title */
-    color: #eee;
+    background-color: #0078d4; /* Use accent color for titles */
+    color: #fff;
     border-radius: 5px;
     font-weight: bold;
 }
@@ -52,9 +86,11 @@ QProgressBar {
     border-radius: 5px;
     text-align: center;
     font-weight: bold;
+    background-color: #333;
+    border: 1px solid #444;
 }
 
 QProgressBar::chunk {
-    background-color: #0078d4; /* A pleasant blue for progress */
+    background-color: #0078d4;
     border-radius: 3px;
 }

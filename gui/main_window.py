@@ -20,7 +20,7 @@ from core.cache_warmer import warm_up_brand_cache_standalone
 from .dialogs import (
     NameSplitterDialog, TagTranslationDialog, BangumiSelectionDialog, 
     BangumiMappingDialog, PropertyTypeDialog, SelectionDialog, 
-    DuplicateConfirmationDialog
+    DuplicateConfirmationDialog, BrandMergeDialog, ConceptMergeDialog
 )
 from .widgets import BatchToolsWidget, MappingEditorWidget
 
@@ -164,10 +164,6 @@ class MainWindow(QMainWindow):
         self.connect_script_signals(self.script_worker)
         self.script_worker.start()
 
-    def start_stats_generation(self):
-        if self.is_worker_running():
-            return
-        self.start_script_execution(generate_statistics, "生成统计数据")
 
     def is_worker_running(self, silent=False):
         if self.game_sync_worker and self.game_sync_worker.isRunning() or self.script_worker and self.script_worker.isRunning():
@@ -234,25 +230,15 @@ class MainWindow(QMainWindow):
 
     def handle_brand_merge_requested(self, new_brand_name, suggested_brand):
         project_logger.info(f"检测到相似品牌: ‘{new_brand_name}’ ≈ ‘{suggested_brand}’")
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("品牌查重")
-        msg_box.setText(f"新品牌 '<b>{new_brand_name}</b>' 与已存在的品牌 '<b>{suggested_brand}</b>' 高度相似。")
-        msg_box.setInformativeText("您希望如何处理？")
-        # Set a minimum width to prevent text truncation
-        msg_box.setStyleSheet("QMessageBox { min-width: 600px; }")
-        merge_button = msg_box.addButton("合并为 ‘" + suggested_brand + "’ (推荐)", QMessageBox.AcceptRole)
-        create_button = msg_box.addButton("创建新品牌 ‘" + new_brand_name + "’", QMessageBox.ActionRole)
-        msg_box.addButton("取消操作", QMessageBox.RejectRole)
-        
-        msg_box.exec()
         worker = self.sender()
+        if not worker:
+            return
 
-        if msg_box.clickedButton() == merge_button:
-            worker.set_interaction_response("merge")
-        elif msg_box.clickedButton() == create_button:
-            worker.set_interaction_response("create")
-        else:
-            worker.set_interaction_response("cancel")
+        dialog = BrandMergeDialog(new_brand_name, suggested_brand, self)
+        dialog.exec()
+        
+        # The dialog's result property holds the user's choice
+        worker.set_interaction_response(dialog.result)
 
     def handle_name_split_decision_required(self, text, parts):
         project_logger.info(f"需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")
@@ -274,23 +260,13 @@ class MainWindow(QMainWindow):
 
     def handle_concept_merge_required(self, concept, candidate):
         project_logger.info(f"需要为新概念 '{concept}' 选择合并策略...")
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("概念合并")
-        msg_box.setText(f"新标签概念 '<b>{concept}</b>' 与现有标签 '<b>{candidate}</b>' 高度相似。")
-        msg_box.setInformativeText("是否要将新概念合并到现有标签中？")
-        merge_button = msg_box.addButton("合并 (推荐)", QMessageBox.AcceptRole)
-        create_button = msg_box.addButton("创建为新标签", QMessageBox.ActionRole)
-        msg_box.addButton("取消", QMessageBox.RejectRole)
-        
-        msg_box.exec()
         worker = self.sender()
+        if not worker:
+            return
 
-        if msg_box.clickedButton() == merge_button:
-            worker.set_interaction_response("merge")
-        elif msg_box.clickedButton() == create_button:
-            worker.set_interaction_response("create")
-        else:
-            worker.set_interaction_response(None) # Cancel
+        dialog = ConceptMergeDialog(concept, candidate, self)
+        dialog.exec()
+        worker.set_interaction_response(dialog.result)
 
     def handle_bangumi_selection_required(self, game_name, candidates):
         project_logger.system("[GUI] Received bangumi_selection_required, creating dialog.")

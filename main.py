@@ -9,7 +9,7 @@ from core.game_processor import process_and_sync_game
 from core.init import close_context, init_context
 from core.selector import select_game
 from utils import logger
-from utils.similarity_check import check_existing_similar_games
+from utils.similarity_check import check_existing_similar_games, load_or_update_titles
 from config.config_token import GAME_DB_ID
 
 
@@ -59,7 +59,7 @@ async def check_and_prepare_sync(context: dict, game_title: str) -> tuple[bool, 
 
 
 async def _fetch_ggbases_data_cli(context: dict, keyword: str, manual_mode: bool) -> dict:
-    """(CLI)获取GGBases数据，包含独立的错误处理和交互逻辑。"""
+    """ (CLI)获取GGBases数据，包含独立的错误处理和交互逻辑。"""
     logger.info("[GGBases] 开始获取 GGBases 数据...")
     try:
         candidates = await context["ggbases"].choose_or_parse_popular_url_with_requests(keyword)
@@ -108,7 +108,7 @@ async def _fetch_ggbases_data_cli(context: dict, keyword: str, manual_mode: bool
 
 
 async def _fetch_bangumi_data_cli(context: dict, keyword: str) -> dict:
-    """(CLI)获取Bangumi数据，包含独立的错误处理。"""
+    """ (CLI)获取Bangumi数据，包含独立的错误处理。"""
     logger.info("[Bangumi] 开始获取 Bangumi 数据...")
     try:
         bangumi_id = await context["bangumi"].search_and_select_bangumi_id(keyword)
@@ -126,7 +126,7 @@ async def _fetch_bangumi_data_cli(context: dict, keyword: str) -> dict:
 
 
 async def _fetch_and_process_brand_data_cli(context: dict, detail: dict, source: str) -> dict:
-    """(CLI)处理品牌信息，包含独立的错误处理和数据抓取。"""
+    """ (CLI)处理品牌信息，包含独立的错误处理和数据抓取。"""
     logger.info("[品牌] 开始处理品牌信息...")
     try:
         raw_brand_name = detail.get("品牌")
@@ -227,9 +227,14 @@ async def run_single_game_flow(context: dict) -> bool:
 
         # 阶段五：收尾工作
         if created_page_id and not selected_similar_page_id:
-            new_game_entry = {"id": created_page_id, "title": game["title"]}
-            context["cached_titles"].append(new_game_entry)
-            logger.cache(f"实时查重缓存已更新: {game['title']}")
+            # In-memory cache update with CLEAN title to ensure immediate de-duplication
+            newly_created_page = await context["notion"].get_page(created_page_id)
+            if newly_created_page:
+                clean_title = context["notion"].get_page_title(newly_created_page)
+                if clean_title:
+                    new_game_entry = {"id": created_page_id, "title": clean_title}
+                    context["cached_titles"].append(new_game_entry)
+                    logger.cache(f"实时查重缓存已更新: {clean_title}")
 
         if created_page_id and bangumi_id:
             await context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)

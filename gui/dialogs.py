@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QGridLayout
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from core.interaction import TYPE_SELECTION_MAP
 
 class NameSplitterDialog(QDialog):
@@ -19,9 +20,19 @@ class NameSplitterDialog(QDialog):
         layout = QVBoxLayout(self)
         info_group = QGroupBox("检测到可能不正确的名称分割")
         info_layout = QVBoxLayout(info_group)
-        info_layout.addWidget(QLabel(f"<b>原始名称:</b> {text}"))
-        info_layout.addWidget(QLabel(f"<b>初步分割为:</b> {parts}"))
-        info_layout.addWidget(QLabel("原因: 分割后存在过短的部分，可能是误分割。\n请选择如何处理："))
+        
+        l1 = QLabel(f"<b>原始名称:</b> {text}")
+        l1.setWordWrap(True)
+        info_layout.addWidget(l1)
+
+        l2 = QLabel(f"<b>初步分割为:</b> {parts}")
+        l2.setWordWrap(True)
+        info_layout.addWidget(l2)
+
+        l3 = QLabel("原因: 分割后存在过短的部分，可能是误分割。\n请选择如何处理：")
+        l3.setWordWrap(True)
+        info_layout.addWidget(l3)
+
         layout.addWidget(info_group)
 
         self.save_exception_checkbox = QCheckBox("将原始名称加入例外列表，今后不再提示")
@@ -54,7 +65,11 @@ class TagTranslationDialog(QDialog):
         self.result = "s"  # Default to skip
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"发现新的<b>【{source_name}】</b>标签: <b>{tag}</b>"))
+        
+        label = QLabel(f"发现新的<b>【{source_name}】</b>标签: <b>{tag}</b>")
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        
         layout.addWidget(QLabel("请输入它的中文翻译:"))
 
         self.translation_input = QLineEdit()
@@ -240,7 +255,11 @@ class PropertyTypeDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("选择新属性类型")
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"请为新属性 '{prop_name}' 选择一个 Notion 类型："))
+        
+        label = QLabel(f"请为新属性 '{prop_name}' 选择一个 Notion 类型：")
+        label.setWordWrap(True)
+        layout.addWidget(label)
+
         self.combo = QComboBox()
         # Using the imported TYPE_SELECTION_MAP
         for key, (api_type, display_name) in TYPE_SELECTION_MAP.items():
@@ -264,6 +283,11 @@ class SelectionDialog(QDialog):
         self.setMinimumWidth(700)
         layout = QVBoxLayout(self)
         self.list_widget = QListWidget()
+
+        # Set a font that supports a wide range of CJK characters
+        font = QFont("Microsoft YaHei")
+        self.list_widget.setFont(font)
+
         for item_text in items:
             self.list_widget.addItem(item_text)
         self.list_widget.setCurrentRow(0)
@@ -307,3 +331,78 @@ class DuplicateConfirmationDialog(QDialog):
     def set_result_and_accept(self, result):
         self.result = result
         self.accept()
+
+class BrandMergeDialog(QDialog):
+    def __init__(self, new_brand_name, suggested_brand, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("品牌查重确认")
+        self.result = "cancel"  # Default to cancel
+
+        layout = QVBoxLayout(self)
+        
+        # Use a QLabel with word wrap enabled for adaptive text
+        text_label = QLabel(f"新品牌 '<b>{new_brand_name}</b>' 与已存在的品牌 '<b>{suggested_brand}</b>' 高度相似。\n\n您希望如何处理？")
+        text_label.setWordWrap(True)
+        layout.addWidget(text_label)
+
+        # Button box for actions
+        button_box = QDialogButtonBox()
+        merge_button = button_box.addButton("合并为 ‘" + suggested_brand + "’ (推荐)", QDialogButtonBox.AcceptRole)
+        create_button = button_box.addButton("创建新品牌 ‘" + new_brand_name + "’", QDialogButtonBox.ActionRole)
+        cancel_button = button_box.addButton("取消操作", QDialogButtonBox.RejectRole)
+
+        merge_button.clicked.connect(self.on_merge)
+        create_button.clicked.connect(self.on_create)
+        cancel_button.clicked.connect(self.on_cancel)
+
+        layout.addWidget(button_box)
+        
+        # Set a reasonable initial size; the layout will manage the rest
+        self.resize(500, 150)
+
+    def on_merge(self):
+        self.result = "merge"
+        self.accept()
+
+    def on_create(self):
+        self.result = "create"
+        self.accept()
+
+    def on_cancel(self):
+        self.result = "cancel"
+        self.reject()
+
+class ConceptMergeDialog(QDialog):
+    def __init__(self, concept, candidate, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("标签概念合并确认")
+        self.result = "cancel" # Default to cancel
+
+        layout = QVBoxLayout(self)
+        text_label = QLabel(f"新标签概念 '<b>{concept}</b>' 与现有标签 '<b>{candidate}</b>' 高度相似。\n\n是否要将新概念合并到现有标签中？")
+        text_label.setWordWrap(True)
+        layout.addWidget(text_label)
+
+        button_box = QDialogButtonBox()
+        merge_button = button_box.addButton("合并 (推荐)", QDialogButtonBox.AcceptRole)
+        create_button = button_box.addButton("创建为新标签", QDialogButtonBox.ActionRole)
+        cancel_button = button_box.addButton("取消", QDialogButtonBox.RejectRole)
+
+        merge_button.clicked.connect(self.on_merge)
+        create_button.clicked.connect(self.on_create)
+        cancel_button.clicked.connect(self.on_cancel)
+
+        layout.addWidget(button_box)
+        self.resize(500, 150)
+
+    def on_merge(self):
+        self.result = "merge"
+        self.accept()
+
+    def on_create(self):
+        self.result = "create"
+        self.accept()
+
+    def on_cancel(self):
+        self.result = "cancel"
+        self.reject()

@@ -65,6 +65,12 @@ class SimilarityChecker:
                 continue
             
             ratio = fuzz.ratio(norm_title, new_norm) / 100.0
+
+            # --- SUBSTRING BOOST ---
+            # Boost score significantly if one is a substring of the other,
+            # which is a strong signal for game titles with prefixes/suffixes.
+            if norm_title in new_norm or new_norm in norm_title:
+                ratio = max(ratio, 0.9)
             
             is_similar = ratio >= threshold
             # The aggressive normalization makes substring checks less reliable,

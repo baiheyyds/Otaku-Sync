@@ -107,7 +107,7 @@ class DlsiteClient(BaseClient):
         if not resp:
             return {}
         try:
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = BeautifulSoup(resp.text, "lxml")
             brand_tag = soup.select_one("#work_maker .maker_name a")
             brand = brand_tag.get_text(strip=True) if brand_tag else None
             brand_page_url = brand_tag["href"] if brand_tag and brand_tag.has_attr("href") else None

@@ -1,46 +1,13 @@
 # core/brand_handler.py
 import asyncio
-from utils import logger
-
-async def handle_brand_info(
-    bangumi_brand_info: dict, dlsite_extra_info: dict, getchu_brand_page_url: str = None
-) -> dict:
-    """合并来自不同来源的品牌信息。"""
-    def first_nonempty(*args):
-        for v in args:
-            if v:
-                return v
-        return None
-
-    combined_info = bangumi_brand_info.copy() if bangumi_brand_info else {}
-    combined_info["official_url"] = first_nonempty(
-        combined_info.get("homepage"), getchu_brand_page_url
-    )
-    combined_info["ci_en_url"] = first_nonempty(
-        combined_info.get("Ci-en"),
-        dlsite_extra_info.get("ci_en_url") if dlsite_extra_info else None,
-    )
-    combined_info["icon_url"] = first_nonempty(
-        combined_info.get("icon"),
-        dlsite_extra_info.get("icon_url") if dlsite_extra_info else None,
-    )
-    combined_info["twitter"] = combined_info.get("twitter")
-
-    # 清理旧键名
-    for key in ["homepage", "Ci-en", "icon", "Twitter"]:
-        combined_info.pop(key, None)
-
-    return combined_info
-
-import asyncio
 from rapidfuzz import fuzz, process
 
 from utils import logger
-from utils.similarity_check import normalize
+from utils.utils import normalize_brand_name as normalize
 
 
 async def handle_brand_info(
-    bangumi_brand_info: dict, dlsite_extra_info: dict, getchu_brand_page_url: str = None
+    bangumi_brand_info: dict, dlsite_extra_info: dict
 ) -> dict:
     """合并来自不同来源的品牌信息。"""
 
@@ -52,7 +19,7 @@ async def handle_brand_info(
 
     combined_info = bangumi_brand_info.copy() if bangumi_brand_info else {}
     combined_info["official_url"] = first_nonempty(
-        combined_info.get("homepage"), getchu_brand_page_url
+        combined_info.get("homepage")
     )
     combined_info["ci_en_url"] = first_nonempty(
         combined_info.get("Ci-en"),
@@ -69,6 +36,7 @@ async def handle_brand_info(
         combined_info.pop(key, None)
 
     return combined_info
+
 
 
 async def check_brand_status(context: dict, brand_name: str) -> tuple[str | None, bool]:

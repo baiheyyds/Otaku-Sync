@@ -1,7 +1,8 @@
 # clients/bangumi_client.py
 # 该模块用于与 Bangumi API 交互，获取游戏和角色信息
 import asyncio
-import difflib
+from rapidfuzz import fuzz
+
 import json
 import os
 import re
@@ -107,12 +108,10 @@ class BangumiClient:
             name, name_cn = item.get("name", ""), item.get("name_cn", "")
             norm_name, norm_cn = normalize_title(name), normalize_title(name_cn)
             ratios = [
-                difflib.SequenceMatcher(None, norm_kw, norm_name).ratio(),
-                difflib.SequenceMatcher(None, clean_kw, normalize_title(clean_title(name))).ratio(),
-                difflib.SequenceMatcher(
-                    None, simp_kw, normalize_title(simplify_title(name))
-                ).ratio(),
-                difflib.SequenceMatcher(None, norm_kw, norm_cn).ratio(),
+                fuzz.ratio(norm_kw, norm_name) / 100.0,
+                fuzz.ratio(clean_kw, normalize_title(clean_title(name))) / 100.0,
+                fuzz.ratio(simp_kw, normalize_title(simplify_title(name))) / 100.0,
+                fuzz.ratio(norm_kw, norm_cn) / 100.0,
             ]
             candidates.append((max(ratios), item))
         candidates.sort(key=lambda x: x[0], reverse=True)
@@ -450,7 +449,7 @@ class BangumiClient:
             if not valid_names:
                 continue
             score = max(
-                difflib.SequenceMatcher(None, brand_name.lower(), n.lower()).ratio()
+                fuzz.ratio(brand_name.lower(), n.lower()) / 100.0
                 for n in valid_names
             )
             candidates.append((score, r))

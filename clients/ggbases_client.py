@@ -47,7 +47,7 @@ class GGBasesClient(BaseClient):
             if not resp:
                 return []
 
-            soup = BeautifulSoup(resp.text, "lxml")
+            soup = BeautifulSoup(resp.content, "lxml")
             rows = soup.find_all("tr", class_="dtr")
             candidates = []
 

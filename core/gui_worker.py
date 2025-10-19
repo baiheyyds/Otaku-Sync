@@ -6,7 +6,7 @@ from utils import logger
 from core.brand_handler import check_brand_status, finalize_brand_update
 from core.game_processor import process_and_sync_game
 from core.selector import search_all_sites, _find_best_match, SIMILARITY_THRESHOLD
-from utils.similarity_check import find_similar_games_non_interactive
+from utils.similarity_check import find_similar_games_non_interactive, load_or_update_titles
 from config.config_token import GAME_DB_ID
 from core.context_factory import create_loop_specific_context, create_shared_context
 from utils.gui_bridge import GuiInteractionProvider
@@ -354,9 +354,14 @@ class GameSyncWorker(QThread):
 
             # 阶段五：收尾工作
             if created_page_id and not selected_similar_page_id:
-                new_game_entry = {"id": created_page_id, "title": game["title"]}
-                self.context["cached_titles"].append(new_game_entry)
-                logger.cache(f"实时查重缓存已更新: {game['title']}")
+                # In-memory cache update with CLEAN title to ensure immediate de-duplication
+                newly_created_page = await self.context["notion"].get_page(created_page_id)
+                if newly_created_page:
+                    clean_title = self.context["notion"].get_page_title(newly_created_page)
+                    if clean_title:
+                        new_game_entry = {"id": created_page_id, "title": clean_title}
+                        self.context["cached_titles"].append(new_game_entry)
+                        logger.cache(f"实时查重缓存已更新: {clean_title}")
 
             if created_page_id and bangumi_id:
                 await self.context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)

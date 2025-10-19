@@ -18,7 +18,7 @@
 
 - **`dlsite_client.py` & `fanza_client.py`**: 负责从 DLsite 和 Fanza 网站搜索和抓取游戏信息。
 
-- **`ggbases_client.py`**: 负责与 GGBases 网站交互，主要用于获取游戏资源信息。
+- **`ggbases_client.py`**: 负责与 GGBases 网站交互，主要用于获取游戏资源信息。该客户端在解析 HTML 时，会利用 BeautifulSoup 的特性，根据页面 `meta` 标签智能判断编码（如 UTF-8, GBK 等），以保证标题等信息的正确显示。
 
 - **`bangumi_client.py`**: 负责与 Bangumi API (bgm.tv) 交互，是获取规范化数据（特别是角色和制作人员信息）的关键。
 

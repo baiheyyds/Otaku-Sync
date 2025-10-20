@@ -1,96 +1,127 @@
-/* Otaku-Sync Custom Stylesheet v2 */
+/*
+ * Otaku-Sync Soft & Fresh Theme v6
+ * A low-contrast, comfortable, mint-accented light theme.
+ */
 
 /* --- General --- */
 QWidget {
     font-family: "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
     font-size: 15px;
-    /* A slightly lighter base text color for better overall contrast */
-    color: #E0E0E0; 
+    color: #2c3e50; /* Softer dark gray text */
+    background-color: #F7F9FC; /* A very light, slightly blueish-gray */
 }
 
-/* --- Key Widgets --- */
-QPushButton, QLineEdit, QComboBox, QPlainTextEdit, QTextEdit {
-    /* Unified padding and border-radius */
-    padding: 9px;
-    border-radius: 5px;
-    /* A slightly lighter background to distinguish from the window */
-    background-color: #333; 
-    border: 1px solid #444;
+/* --- Key Interactive Widgets --- */
+QLineEdit, QComboBox, QPlainTextEdit, QTextEdit, QListWidget {
+    padding: 10px;
+    border-radius: 8px;
+    background-color: #FFFFFF;
+    border: 1px solid #EAEAEA;
+    selection-background-color: #1ABC9C; /* Mint Green */
+    selection-color: #ffffff;
 }
 
-/* Provide visual feedback on focus */
-QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus {
-    border: 1px solid #0078d4; /* Use accent color for focus */
+/* Focus State */
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus, QListWidget:focus {
+    border: 1px solid #1ABC9C;
 }
 
+/* --- Buttons System --- */
+
+/* Base Button Style (for Batch Tools) */
 QPushButton {
-    font-weight: bold;
-    color: #fff;
-    background-color: #0078d4; /* Main accent color for primary actions */
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    color: #4F4F4F;
+    background-color: #FFFFFF;
+    border: 1px solid #EAEAEA;
 }
 
 QPushButton:hover {
-    background-color: #008dfa; /* Lighter blue on hover */
+    color: #1ABC9C;
+    border-color: #1ABC9C;
+}
+
+QPushButton:pressed {
+    background-color: #F0F0F0;
+}
+
+QPushButton:disabled {
+    color: #BDBDBD;
+    background-color: #F5F5F5;
+    border-color: #EAEAEA;
+}
+
+/* Primary Action Button (Save) */
+QPushButton#PrimaryButton {
+    color: #ffffff;
+    font-weight: bold;
+    background-color: #1ABC9C; /* Mint Green */
+    border: none;
+}
+
+QPushButton#PrimaryButton:hover {
+    background-color: #1DCCAB; /* Lighter Mint */
+}
+
+/* Tool Buttons (Add/Delete) */
+QPushButton#AddToolButton, QPushButton#DangerToolButton {
+    border-radius: 14px; /* Circle */
+    border: 1px solid #EAEAEA;
+    background-color: #FFFFFF;
+}
+
+QPushButton#AddToolButton:hover, QPushButton#DangerToolButton:hover {
+    border-color: #1ABC9C;
 }
 
 /* --- Tab Widget --- */
 QTabWidget::pane {
-    /* The area where tab content is shown */
-    border-top: 2px solid #444;
-    margin-top: -2px; /* Align with the tab bar bottom border */
+    border: none;
 }
 
 QTabBar::tab {
-    /* Style for individual tabs */
     padding: 10px 20px;
     background-color: transparent;
-    color: #aaa; /* Dim unselected tabs */
-    border: none; /* Remove default borders */
-    font-weight: bold;
+    color: #7f8c8d; /* Lighter gray for inactive tabs */
+    border: none;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    margin-right: 4px;
 }
 
 QTabBar::tab:hover {
-    color: #fff; /* Highlight on hover */
+    color: #4F4F4F;
 }
 
 QTabBar::tab:selected {
-    /* Style for the active tab */
-    color: #fff;
-    background-color: #444; /* Lighter background for the tab itself */
-    border-bottom: 2px solid #0078d4; /* Accent color line */
+    color: #1ABC9C;
+    border-bottom: 2px solid #1ABC9C;
 }
 
 
 /* --- GroupBox --- */
 QGroupBox {
-    margin-top: 12px; 
-    border: 1px solid #444; /* Match other borders */
-    border-radius: 8px;
-    padding-top: 25px;
+    margin-top: 15px;
+    border: 1px solid #EAEAEA;
+    border-radius: 12px;
+    padding: 30px 15px 15px 15px;
+    background-color: transparent; /* Inherit window background */
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 4px 12px;
-    margin-left: 10px;
-    background-color: #0078d4; /* Use accent color for titles */
-    color: #fff;
-    border-radius: 5px;
-    font-weight: bold;
+    padding: 0px 10px;
+    margin-left: 15px;
+    color: #4F4F4F;
+    font-size: 16px;
+    font-weight: 600;
+    background-color: #F7F9FC; /* Match window background */
 }
 
-/* --- Progress Bar --- */
-QProgressBar {
-    padding: 3px;
-    border-radius: 5px;
-    text-align: center;
-    font-weight: bold;
-    background-color: #333;
-    border: 1px solid #444;
-}
-
-QProgressBar::chunk {
-    background-color: #0078d4;
-    border-radius: 3px;
+/* --- List Widget Alternating Rows --- */
+QListWidget[alternatingRowColors="true"]::item:alternate {
+    background-color: #F7F9FC;
 }

@@ -1,4 +1,3 @@
-
 import sys
 import asyncio
 import threading
@@ -49,7 +48,7 @@ class MainWindow(QMainWindow):
         self.keyword_input.setPlaceholderText("输入游戏名/关键词...")
         self.manual_mode_checkbox = QCheckBox("手动模式")
         self.search_button = QPushButton("🔍 开始搜索")
-        top_layout.addWidget(QLabel("游戏名:"))
+        top_layout.addWidget(QLabel("请输入游戏名:"))
         top_layout.addWidget(self.keyword_input, 1)
         top_layout.addWidget(self.manual_mode_checkbox)
         top_layout.addWidget(self.search_button)
@@ -87,7 +86,8 @@ class MainWindow(QMainWindow):
         log_bridge.log_received.connect(self.log_console.appendPlainText)
         # Connect the mapping editor's log signal
         self.mapping_editor_widget.log_message.connect(self.log_console.appendPlainText)
-        
+        self.mapping_editor_widget.dirty_status_changed.connect(self.update_window_title)
+
         self.init_shared_context()
         self.run_background_tasks()
 
@@ -97,6 +97,12 @@ class MainWindow(QMainWindow):
         self.search_button.clicked.connect(self.start_search_process)
         self.keyword_input.returnPressed.connect(self.start_search_process)
         self.batch_tools_widget.script_triggered.connect(self.start_script_execution)
+
+    def update_window_title(self, is_dirty):
+        title = "Otaku Sync - 图形工具"
+        if is_dirty:
+            title += " *"
+        self.setWindowTitle(title)
 
     def init_shared_context(self):
         project_logger.system("🔧 正在初始化应用程序级共享上下文...")
@@ -215,10 +221,10 @@ class MainWindow(QMainWindow):
                         f.write(name + "\n")
                 QMessageBox.information(self, "导出成功", 
                                         f"已成功导出 {len(result)} 个品牌名到项目根目录下的\n"
-                                        f"{output_filename} 文件中。")
+                                        f"{output_filename} 文件中。 সন")
             except IOError as e:
                 project_logger.error(f"写入文件 {output_filename} 时出错: {e}")
-                QMessageBox.critical(self, "文件写入失败", f"无法写入品牌列表到 {output_filename}。")
+                QMessageBox.critical(self, "文件写入失败", f"无法写入品牌列表到 {output_filename} সন")
 
     def set_all_buttons_enabled(self, enabled):
         self.search_button.setEnabled(enabled)
@@ -235,7 +241,7 @@ class MainWindow(QMainWindow):
             return
 
         dialog = BrandMergeDialog(new_brand_name, suggested_brand, self)
-        dialog.exec()
+        dialog.exec() 
         
         # The dialog's result property holds the user's choice
         worker.set_interaction_response(dialog.result)
@@ -361,6 +367,32 @@ class MainWindow(QMainWindow):
             self.script_worker = None
 
     def closeEvent(self, event):
+        # First, check for unsaved changes in the mapping editor
+        if self.mapping_editor_widget.is_dirty:
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle('未保存的更改')
+            msg_box.setText("映射文件有未保存的更改。您想在退出前保存吗？")
+            msg_box.setIcon(QMessageBox.Question)
+            
+            save_button = msg_box.addButton("保存", QMessageBox.AcceptRole)
+            discard_button = msg_box.addButton("不保存", QMessageBox.DestructiveRole)
+            cancel_button = msg_box.addButton("取消", QMessageBox.RejectRole)
+            
+            msg_box.setDefaultButton(cancel_button)
+            msg_box.exec()
+            
+            clicked_button = msg_box.clickedButton()
+
+            if clicked_button == save_button:
+                if not self.mapping_editor_widget.save_current_file():
+                    event.ignore() # Ignore exit if save failed
+                    return
+            elif clicked_button == cancel_button:
+                event.ignore()
+                return
+            # If discard_button is clicked, just proceed
+
+        # Then, check for running workers
         if (self.game_sync_worker and self.game_sync_worker.isRunning()) or \
            (self.script_worker and self.script_worker.isRunning()):
             reply = QMessageBox.question(self, '任务正在进行', 

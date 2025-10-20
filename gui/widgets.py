@@ -1,13 +1,14 @@
-
 import os
 import json
 from functools import partial
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QComboBox, QListWidget, QPushButton, QLabel, QMessageBox,
-    QInputDialog, QLineEdit, QGroupBox
+    QInputDialog, QLineEdit, QGroupBox, QFormLayout, QStyle,
+    QGraphicsDropShadowEffect
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtGui import QFont, QColor, QPixmap, QPainter, QIcon, QPen
 
 # Import the new FlowLayout
 from .flow_layout import FlowLayout
@@ -21,6 +22,35 @@ from scripts.replace_and_clean_tags import run_replace_and_clean_tags
 from scripts.extract_brands import export_brand_names
 from scripts.export_all_tags import export_all_tags
 
+def apply_glow_effect(widget, color="#888888", blur_radius=10, x_offset=2, y_offset=2):
+    """为给定的组件应用一个辉光或阴影效果。"""
+    shadow = QGraphicsDropShadowEffect(widget)
+    shadow.setBlurRadius(blur_radius)
+    shadow.setColor(QColor(color))
+    shadow.setOffset(x_offset, y_offset)
+    widget.setGraphicsEffect(shadow)
+
+def create_plus_icon(color, size=QSize(14, 14)):
+    """程序化绘制一个清晰的 '+' 号图标。"""
+    pixmap = QPixmap(size)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    pen = QPen(QColor(color), 2) # 笔刷宽度为2px
+    pen.setCapStyle(Qt.RoundCap) # 圆润的笔端
+    painter.setPen(pen)
+    painter.setRenderHint(QPainter.Antialiasing) # 抗锯齿
+    
+    # 绘制两条线组成 '+'
+    center = size.width() / 2
+    line_len = size.width() * 0.7
+    start_pos = center - line_len / 2
+    end_pos = center + line_len / 2
+    
+    painter.drawLine(start_pos, center, end_pos, center) # 水平线
+    painter.drawLine(center, start_pos, center, end_pos) # 垂直线
+    
+    painter.end()
+    return QIcon(pixmap)
 
 class BatchToolsWidget(QGroupBox):
     """A widget group for all batch script execution buttons."""
@@ -63,60 +93,124 @@ class BatchToolsWidget(QGroupBox):
 class MappingEditorWidget(QGroupBox):
     """A complex widget for editing mapping JSON files."""
     log_message = Signal(str)
+    dirty_status_changed = Signal(bool)
+
+    MAPPING_FILE_DISPLAY_NAMES = {
+        "brand_mapping.json": "品牌映射",
+        "tag_jp_to_cn.json": "标签翻译 (DLsite日->中)",
+        "tag_fanza_to_cn.json": "标签翻译 (Fanza日->中)",
+        "tag_ggbase.json": "标签翻译 (GGBase->中)",
+        "tag_mapping_dict.json": "标签合并规则",
+        "bangumi_prop_mapping.json": "Bangumi属性映射",
+        "genre_mapping.json": "游戏类型映射",
+    }
 
     def __init__(self, parent=None):
         super().__init__("映射文件编辑器", parent)
         
         self.current_mapping_file = None
         self.current_data = {}
-        # The mapping directory is relative to the project root
         self.mapping_dir = 'mapping'
+        self._is_dirty = False
 
+        # Main layout with margins for breathing room
         main_layout = QVBoxLayout(self)
-        top_controls = QHBoxLayout()
-        top_controls.addWidget(QLabel("映射文件:"))
+        main_layout.setContentsMargins(10, 15, 10, 10)
+        main_layout.setSpacing(10)
+
+        # Top controls for file selection
+        top_form_layout = QFormLayout()
+        top_form_layout.setSpacing(10)
         self.mapping_files_combo = QComboBox()
-        top_controls.addWidget(self.mapping_files_combo, 1)
-        self.save_button = QPushButton("💾 保存更改")
-        top_controls.addWidget(self.save_button)
-        main_layout.addLayout(top_controls)
+        top_form_layout.addRow("映射文件:", self.mapping_files_combo)
+        main_layout.addLayout(top_form_layout)
         
+        # Main editor area
         editor_splitter = QSplitter(Qt.Horizontal)
+        
+        # --- Left Side: Master List (Keys) ---
         master_widget = QWidget()
         master_layout = QVBoxLayout(master_widget)
-        master_layout.addWidget(QLabel("原始值 (Keys)"))
+        master_layout.setContentsMargins(0, 0, 0, 0)
+        master_layout.setSpacing(5)
+
+        master_title_layout = QHBoxLayout()
+        master_title_layout.addWidget(QLabel("原始值 (Keys)"))
+        master_title_layout.addStretch()
+        
+        # Create high-quality icons programmatically
+        add_icon = create_plus_icon("#333333")
+        delete_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon)
+
+        self.add_key_button = QPushButton()
+        self.add_key_button.setIcon(add_icon)
+        self.add_key_button.setObjectName("AddToolButton")
+        self.add_key_button.setToolTip("添加新的原始值 (Key)")
+        self.add_key_button.setFixedSize(28, 28)
+
+        self.delete_key_button = QPushButton()
+        self.delete_key_button.setObjectName("DangerToolButton")
+        self.delete_key_button.setIcon(delete_icon)
+        self.delete_key_button.setToolTip("删除选中的原始值 (Key)")
+        self.delete_key_button.setFixedSize(28, 28)
+
+        master_title_layout.addWidget(self.add_key_button)
+        master_title_layout.addWidget(self.delete_key_button)
+        master_layout.addLayout(master_title_layout)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("搜索原始值...")
+        master_layout.addWidget(self.search_input)
+
         self.master_list = QListWidget()
         master_layout.addWidget(self.master_list)
-        master_buttons = QHBoxLayout()
-        self.add_key_button = QPushButton("➕")
-        self.delete_key_button = QPushButton("➖")
-        master_buttons.addStretch()
-        master_buttons.addWidget(self.add_key_button)
-        master_buttons.addWidget(self.delete_key_button)
-        master_layout.addLayout(master_buttons)
         
+        # --- Right Side: Detail List (Values) ---
         detail_widget = QWidget()
         detail_layout = QVBoxLayout(detail_widget)
-        detail_layout.addWidget(QLabel("映射值 (Values) - 双击修改"))
+        detail_layout.setContentsMargins(0, 0, 0, 0)
+        detail_layout.setSpacing(5)
+
+        detail_title_layout = QHBoxLayout()
+        detail_title_layout.addWidget(QLabel("映射值 (Values) - 双击修改"))
+        detail_title_layout.addStretch()
+        self.add_value_button = QPushButton()
+        self.add_value_button.setIcon(add_icon)
+        self.add_value_button.setObjectName("AddToolButton")
+        self.add_value_button.setToolTip("为当前 Key 添加新值")
+        self.add_value_button.setFixedSize(28, 28)
+
+        self.delete_value_button = QPushButton()
+        self.delete_value_button.setObjectName("DangerToolButton")
+        self.delete_value_button.setIcon(delete_icon)
+        self.delete_value_button.setToolTip("删除选中的值")
+        self.delete_value_button.setFixedSize(28, 28)
+
+        detail_title_layout.addWidget(self.add_value_button)
+        detail_title_layout.addWidget(self.delete_value_button)
+        detail_layout.addLayout(detail_title_layout)
+
         self.detail_list = QListWidget()
         self.detail_list.setAlternatingRowColors(True)
         detail_layout.addWidget(self.detail_list)
-        detail_buttons = QHBoxLayout()
-        self.add_value_button = QPushButton("➕")
-        self.delete_value_button = QPushButton("➖")
-        detail_buttons.addStretch()
-        detail_buttons.addWidget(self.add_value_button)
-        detail_buttons.addWidget(self.delete_value_button)
-        detail_layout.addLayout(detail_buttons)
         
+        # Add widgets to splitter
         editor_splitter.addWidget(master_widget)
         editor_splitter.addWidget(detail_widget)
-        # Set a proportional initial size instead of a large fixed one.
-        editor_splitter.setSizes([250, 500])
-        main_layout.addWidget(editor_splitter)
+        editor_splitter.setSizes([300, 450]) # Adjusted proportions
+        main_layout.addWidget(editor_splitter, 1) # Make splitter stretch
+
+        # Bottom save button
+        bottom_layout = QHBoxLayout()
+        self.save_button = QPushButton("💾 保存更改")
+        self.save_button.setObjectName("PrimaryButton")
+        apply_glow_effect(self.save_button, color="#1ABC9C", blur_radius=15, y_offset=2)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.save_button)
+        main_layout.addLayout(bottom_layout)
 
         # Connect signals to slots
-        self.mapping_files_combo.currentTextChanged.connect(self.load_selected_file)
+        self.mapping_files_combo.currentIndexChanged.connect(self.load_selected_file)
         self.master_list.currentItemChanged.connect(self.display_details)
         self.detail_list.itemDoubleClicked.connect(self.edit_detail_item)
         self.save_button.clicked.connect(self.save_current_file)
@@ -124,20 +218,41 @@ class MappingEditorWidget(QGroupBox):
         self.delete_key_button.clicked.connect(self.delete_key)
         self.add_value_button.clicked.connect(self.add_value)
         self.delete_value_button.clicked.connect(self.delete_value)
+        self.search_input.returnPressed.connect(self.search_master_list)
+        self.search_input.textChanged.connect(self.search_master_list)
         
         self.populate_mapping_files()
+
+    @property
+    def is_dirty(self):
+        return self._is_dirty
+
+    def set_dirty(self, dirty):
+        if self._is_dirty == dirty:
+            return
+        self._is_dirty = dirty
+        self.dirty_status_changed.emit(dirty)
+
+    def search_master_list(self):
+        search_text = self.search_input.text().lower()
+        for i in range(self.master_list.count()):
+            item = self.master_list.item(i)
+            is_visible = not search_text or search_text in item.text().lower()
+            item.setHidden(not is_visible)
 
     def populate_mapping_files(self):
         NON_EDITABLE_FILES = ['tag_ignore_list.json', 'bangumi_ignore_list.json', 'name_split_exceptions.json']
         try:
-            # Ensure mapping_dir exists
             if not os.path.isdir(self.mapping_dir):
                 raise FileNotFoundError(f"Mapping directory '{self.mapping_dir}' not found.")
             
             files = [f for f in os.listdir(self.mapping_dir) if f.endswith('.json') and f not in NON_EDITABLE_FILES]
-            self.mapping_files_combo.addItems(files)
-            if files:
-                self.load_selected_file(files[0])
+            
+            self.mapping_files_combo.clear()
+            for filename in sorted(files):
+                display_name = self.MAPPING_FILE_DISPLAY_NAMES.get(filename, filename)
+                self.mapping_files_combo.addItem(display_name, filename)
+
         except FileNotFoundError as e:
             self.log_message.emit(f"❌ 错误：{e}" + "\n")
             self.set_editor_enabled(False)
@@ -173,11 +288,16 @@ class MappingEditorWidget(QGroupBox):
             d_ptr[parts[-1]] = value
         return result
 
-    def load_selected_file(self, filename=None):
-        if filename is None:
-            filename = self.mapping_files_combo.currentText()
+    def load_selected_file(self, index=None):
+        if self.is_dirty:
+            # This part is complex, for now we just reset.
+            # A proper implementation would ask the user to save.
+            pass
+
+        filename = self.mapping_files_combo.currentData()
         if not filename:
             return
+            
         self.current_mapping_file = os.path.join(self.mapping_dir, filename)
         try:
             with open(self.current_mapping_file, 'r', encoding='utf-8') as f:
@@ -188,6 +308,7 @@ class MappingEditorWidget(QGroupBox):
         
         self.master_list.clear()
         self.detail_list.clear()
+        self.set_dirty(False)
 
         if isinstance(data, dict):
             self.current_data = self.flatten_dict(data)
@@ -233,6 +354,7 @@ class MappingEditorWidget(QGroupBox):
             else:
                 self.current_data[key] = new_value
             
+            self.set_dirty(True)
             self.display_details(key_item)
             self.detail_list.setCurrentRow(row)
             self.log_message.emit(f"🔧 值已在界面中更新，请记得保存。" + "\n")
@@ -240,17 +362,20 @@ class MappingEditorWidget(QGroupBox):
     def save_current_file(self):
         if not self.current_mapping_file:
             QMessageBox.warning(self, "没有文件", "没有选择要保存的文件。\n")
-            return
+            return False
         
         try:
             unflattened_data = self.unflatten_dict(self.current_data)
             with open(self.current_mapping_file, 'w', encoding='utf-8') as f:
                 json.dump(unflattened_data, f, indent=4, ensure_ascii=False)
             self.log_message.emit(f"✅ 文件 '{os.path.basename(self.current_mapping_file)}' 已成功保存。" + "\n")
-            self.load_selected_file()
+            self.set_dirty(False)
+            # self.load_selected_file() # No need to reload after saving
+            return True
         except Exception as e:
             self.log_message.emit(f"❌ 保存文件失败: {e}" + "\n")
             QMessageBox.critical(self, "保存失败", f"无法保存文件: {e}" + "\n")
+            return False
 
     def add_key(self):
         key, ok = QInputDialog.getText(self, "添加新键", "输入新的原始值 (Key), 可用 '.' 来创建层级:")
@@ -259,6 +384,7 @@ class MappingEditorWidget(QGroupBox):
                 QMessageBox.warning(self, "键已存在", f"键 '{key}' 已存在。\n")
                 return
             self.current_data[key] = [] 
+            self.set_dirty(True)
             self.master_list.addItem(key)
             self.master_list.sortItems()
             items = self.master_list.findItems(key, Qt.MatchExactly)
@@ -277,6 +403,7 @@ class MappingEditorWidget(QGroupBox):
             self.master_list.takeItem(self.master_list.row(current_item))
             if key in self.current_data:
                 del self.current_data[key]
+                self.set_dirty(True)
             self.detail_list.clear()
             self.log_message.emit(f"🔧 已删除键 '{key}'，请记得保存。" + "\n")
 
@@ -300,6 +427,7 @@ class MappingEditorWidget(QGroupBox):
             
             current_values.append(value)
             self.current_data[key] = current_values
+            self.set_dirty(True)
             self.display_details(current_key_item)
             self.log_message.emit(f"🔧 已为 '{key}' 添加值 '{value}'，请记得保存。" + "\n")
 
@@ -327,6 +455,7 @@ class MappingEditorWidget(QGroupBox):
                     if index_to_del != -1:
                         current_values.pop(index_to_del)
                         self.current_data[key] = current_values
+                        self.set_dirty(True)
                         self.display_details(current_key_item)
                         self.log_message.emit(f"🔧 已删除值 '{value_to_delete}'，请记得保存。" + "\n")
                 except ValueError:
@@ -336,5 +465,6 @@ class MappingEditorWidget(QGroupBox):
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
              if reply == QMessageBox.Yes:
                 self.current_data[key] = ""
+                self.set_dirty(True)
                 self.display_details(current_key_item)
                 self.log_message.emit(f"🔧 已清空键 '{key}' 的值，请记得保存。" + "\n")

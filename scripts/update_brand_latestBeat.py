@@ -1,5 +1,8 @@
 # scripts/update_brand_latestBeat.py
 import asyncio
+from datetime import datetime, timezone
+from tqdm.asyncio import tqdm_asyncio
+
 import json
 import os
 import sys

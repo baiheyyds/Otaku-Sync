@@ -1,15 +1,18 @@
 import asyncio
 import logging
 import traceback
-from PySide6.QtCore import QThread, Signal, QMutex, QWaitCondition
 
-from core.brand_handler import check_brand_status, finalize_brand_update
-from core.game_processor import process_and_sync_game
-from core.selector import search_all_sites, _find_best_match, SIMILARITY_THRESHOLD
-from utils.similarity_check import find_similar_games_non_interactive, load_or_update_titles
+from PySide6.QtCore import QThread, Signal
+
 from config.config_token import GAME_DB_ID
+from core.brand_handler import check_brand_status, finalize_brand_update
 from core.context_factory import create_loop_specific_context, create_shared_context
+from core.game_processor import process_and_sync_game
+from core.selector import SIMILARITY_THRESHOLD, _find_best_match, search_all_sites
 from utils.gui_bridge import GuiInteractionProvider
+from utils.similarity_check import (
+    find_similar_games_non_interactive,
+)
 
 
 class GameSyncWorker(QThread):
@@ -45,7 +48,7 @@ class GameSyncWorker(QThread):
                 logging.info("🔧 正在创建新的共享应用上下文...")
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
-            
+
             self.interaction_provider = GuiInteractionProvider(self.loop)
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
@@ -105,7 +108,7 @@ class GameSyncWorker(QThread):
 
             if self.loop.is_running():
                 self.loop.run_until_complete(cleanup_tasks())
-            
+
             self.loop.close()
 
     # --- Proxy slots to forward signals from InteractionProvider to MainWindow ---
@@ -148,7 +151,7 @@ class GameSyncWorker(QThread):
             if not results:
                 logging.warning(f"⚠️ 在 {source or '所有网站'} 未找到结果。")
                 return None, source
-            
+
             if not self.manual_mode:
                 best_score, best_match = _find_best_match(self.keyword, results)
                 if best_score >= SIMILARITY_THRESHOLD:
@@ -156,11 +159,11 @@ class GameSyncWorker(QThread):
                     game = best_match
                 else:
                     logging.info(f"🔍 智能模式匹配度 ({best_score:.2f}) 过低，转为手动选择。")
-            
+
             if game is None:
                 # REFACTORED: Call the provider instead of wait_for_choice
                 choice = await self.interaction_provider.select_game(results, f"请从 {source.upper()} 结果中选择", source)
-                
+
                 if choice == "search_fanza":
                     logging.info("🔍 切换到 Fanza 搜索...")
                     results, source = await search_all_sites(self.context["dlsite"], self.context["fanza"], self.keyword, site="fanza")
@@ -179,7 +182,7 @@ class GameSyncWorker(QThread):
         self.context["cached_titles"] = updated_cache
         if not candidates:
             return None
-        
+
         # REFACTORED: Call the provider instead of wait_for_choice
         choice = await self.interaction_provider.confirm_duplicate(candidates)
 
@@ -212,7 +215,7 @@ class GameSyncWorker(QThread):
                     selected_game = candidates[choice]
             else:
                 selected_game = max(candidates, key=lambda x: x.get("popularity", 0))
-            
+
             if not selected_game:
                 logging.info("🔍 [GGBases] 用户未选择或无有效结果。")
                 return {}
@@ -225,7 +228,7 @@ class GameSyncWorker(QThread):
             driver = await self.context["driver_factory"].get_driver("ggbases_driver")
             if driver and not self.context["ggbases"].has_driver():
                 self.context["ggbases"].set_driver(driver)
-            
+
             info = await self.context["ggbases"].get_info_by_url_with_selenium(url)
             logging.info("✅ [GGBases] Selenium 抓取完成。")
             return {"info": info, "selected_game": selected_game}
@@ -240,7 +243,7 @@ class GameSyncWorker(QThread):
             if not bangumi_id:
                 logging.warning("⚠️ [Bangumi] 未找到或未选择 Bangumi 条目。")
                 return {}
-            
+
             logging.info(f"🔍 [Bangumi] 已确定 Bangumi ID: {bangumi_id}, 正在获取详细信息...")
             game_info = await self.context["bangumi"].fetch_game(bangumi_id)
             logging.info("✅ [Bangumi] 游戏详情获取完成。")
@@ -255,20 +258,20 @@ class GameSyncWorker(QThread):
             raw_brand_name = detail.get("品牌")
             brand_name = self.context["brand_mapping_manager"].get_canonical_name(raw_brand_name)
             brand_page_id, needs_fetching = await check_brand_status(self.context, brand_name)
-            
+
             fetched_data = {}
             if needs_fetching and brand_name:
                 logging.info(f"🚀 品牌 '{brand_name}' 需要抓取新信息...")
                 tasks = {}
                 tasks["bangumi_brand_info"] = self.context["bangumi"].fetch_brand_info_from_bangumi(brand_name)
-                
+
                 dlsite_brand_url = detail.get("品牌页链接") if source == 'dlsite' else None
                 if dlsite_brand_url and "/maniax/circle" in dlsite_brand_url:
                     driver = await self.context["driver_factory"].get_driver("dlsite_driver")
                     if driver and not self.context["dlsite"].has_driver():
                         self.context["dlsite"].set_driver(driver)
                     tasks["brand_extra_info"] = self.context["dlsite"].get_brand_extra_info_with_selenium(dlsite_brand_url)
-                
+
                 if tasks:
                     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
                     fetched_data = {key: res for key, res in zip(tasks.keys(), results) if not isinstance(res, Exception)}
@@ -408,7 +411,7 @@ class ScriptWorker(QThread):
                 logging.info("🔧 正在为脚本运行创建新的共享应用上下文...")
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
-            
+
             self.interaction_provider = GuiInteractionProvider(self.loop)
             loop_specific_context = await create_loop_specific_context(
                 self.shared_context, self.interaction_provider
@@ -476,7 +479,7 @@ class ScriptWorker(QThread):
 
             if self.loop.is_running():
                 self.loop.run_until_complete(cleanup_tasks())
-            
+
             self.loop.close()
 
     # --- Internal slots to proxy signals safely across threads ---

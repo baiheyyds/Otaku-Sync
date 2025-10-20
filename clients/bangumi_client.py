@@ -2,16 +2,12 @@
 # 该模块用于与 Bangumi API 交互，获取游戏和角色信息
 import asyncio
 import logging
-from rapidfuzz import fuzz
-
-import json
-import os
 import re
-import time
 import unicodedata
-from typing import Set
+from typing import Any, Dict, Set
 
 import httpx
+from rapidfuzz import fuzz
 
 from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
@@ -134,9 +130,9 @@ class BangumiClient:
                     f"🔍 [Bangumi] 模糊匹配成功（放宽判定）: {best['name']} (相似度 {candidates[0][0]:.2f})"
                 )
                 return str(best["id"])
-        
+
         logging.warning("⚠️ Bangumi自动匹配相似度不足，请手动选择:")
-        
+
         # Format candidates for display in GUI
         gui_candidates = []
         for idx, (ratio, item) in enumerate(candidates[:10]):
@@ -145,7 +141,7 @@ class BangumiClient:
 
         # Use the interaction provider to get the user's choice
         selected_id = await self.interaction_provider.get_bangumi_game_choice(keyword, gui_candidates)
-        
+
         return selected_id
 
     async def fetch_game(self, subject_id: str) -> dict:
@@ -170,9 +166,9 @@ class BangumiClient:
         game_data.update(infobox_data)
         return game_data
 
-    async def _process_infobox(self, infobox: list, target_db_id: str, bangumi_url: str) -> dict:
-        processed = {}
-        if not infobox:
+    async def _process_infobox(self, infobox: list, target_db_id: str | None, bangumi_url: str) -> dict:
+        processed: Dict[str, Any] = {}
+        if not infobox or not target_db_id:
             return processed
 
         async def _map_and_set_prop(key, value):
@@ -265,7 +261,7 @@ class BangumiClient:
 
         characters = []
         for char_summary, detail_resp in zip(char_list_with_actors, responses):
-            if isinstance(detail_resp, Exception) or detail_resp.status_code != 200:
+            if not isinstance(detail_resp, httpx.Response) or detail_resp.status_code != 200:
                 continue
 
             detail = detail_resp.json()
@@ -327,7 +323,7 @@ class BangumiClient:
             "BWH": FIELDS["character_bwh"],
             "身高": FIELDS["character_height"],
         }
-        props = {}
+        props: Dict[str, Any] = {}
         for internal_key, value in char.items():
             if not value:
                 continue
@@ -383,7 +379,7 @@ class BangumiClient:
                 "PATCH", f"https://api.notion.com/v1/pages/{game_page_id}", patch
             )
             return
-        warned_keys_for_this_game = set()
+        warned_keys_for_this_game: Set[str] = set()
         tasks = [
             self.create_or_update_character(ch, warned_keys_for_this_game) for ch in characters
         ]

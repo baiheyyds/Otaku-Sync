@@ -58,6 +58,26 @@ class InteractionProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def get_tag_translation(self, tag: str, source_name: str) -> str | None:
+        """Asks the user for a translation of a new tag."""
+        pass
+
+    @abstractmethod
+    async def get_concept_merge_decision(self, concept: str, candidate: str) -> str | None:
+        """Asks the user whether to merge a new concept into an existing one."""
+        pass
+
+    @abstractmethod
+    async def get_name_split_decision(self, text: str, parts: list) -> dict:
+        """Asks the user to confirm or correct a name split."""
+        pass
+
+    @abstractmethod
+    async def ask_for_new_property_type(self, prop_name: str) -> str | None:
+        """Asks the user to select a Notion property type for a new property."""
+        pass
+
 
 class ConsoleInteractionProvider(InteractionProvider):
     """Console implementation for user interaction using input()."""
@@ -69,7 +89,7 @@ class ConsoleInteractionProvider(InteractionProvider):
         db_name = request_data["db_name"]
         mappable_props = request_data["mappable_props"]
         recommended_props = request_data.get("recommended_props", [])
-        
+
         def _get_action_input():
             prompt_header = (
                 f"\n❓ [Bangumi] 在【{db_name}】中发现新属性:\n"
@@ -103,7 +123,7 @@ class ConsoleInteractionProvider(InteractionProvider):
                         padding = " " * max(0, COLUMN_WIDTH - get_visual_width(display_text))
                         line_parts.append(display_text + padding)
                 prop_lines.append("   " + "".join(line_parts))
-            
+
             prompt_body = "\n".join(recommend_lines + prop_lines)
             prompt_footer = (
                 f"\n\n   --- 或执行其他操作 ---"
@@ -120,7 +140,7 @@ class ConsoleInteractionProvider(InteractionProvider):
         if action.isdigit() and action in prop_map:
             selected_prop = prop_map[action]
             return {"action": "map", "data": selected_prop}
-        
+
         if action.isalpha() and action in recommend_map:
             selected_prop = recommend_map[action]
             return {"action": "map", "data": selected_prop}
@@ -141,7 +161,7 @@ class ConsoleInteractionProvider(InteractionProvider):
             else:
                 logging.warning("⚠️ 未输入名称，已取消操作。 সন")
                 return {"action": "ignore_session"}
-        
+
         logging.error("❌ 输入无效，将忽略此属性。 সন")
         return {"action": "ignore_session"}
 
@@ -161,7 +181,7 @@ class ConsoleInteractionProvider(InteractionProvider):
             if choice == 0:
                 logging.info("🔍 用户放弃选择。 সন")
                 return None
-            
+
             if 1 <= choice <= len(candidates):
                 # User enters 1-based index, convert to 0-based
                 selected_candidate = candidates[choice - 1]
@@ -221,7 +241,7 @@ class ConsoleInteractionProvider(InteractionProvider):
         def _get_input():
             logging.warning(f"⚠️ 标签概念 ‘{concept}’ 与现有标签 ‘{candidate}’ 高度相似。是否合并？ সন")
             return input("  [y] 合并 (默认) / [n] 创建为新标签 / [c] 取消: ").strip().lower()
-        
+
         choice = await asyncio.to_thread(_get_input)
         if choice in {"", "y"}:
             return "merge"
@@ -236,7 +256,7 @@ class ConsoleInteractionProvider(InteractionProvider):
             print("  [k] 保持原样 (默认)")
             print("  [s] 保存为特例，以后不再分割")
             return input("请选择或按回车确认: ").strip().lower()
-        
+
         choice = await asyncio.to_thread(_get_input)
         if choice == "s":
             return {"action": "keep", "save_exception": True}
@@ -257,7 +277,7 @@ class ConsoleInteractionProvider(InteractionProvider):
                     price_display = f"{price}円" if str(price).isdigit() else price
                     item_type = item.get("类型", "未知")
                     print(f"  [{i+1}] [{source.upper()}] {item.get('title', 'No Title')} | 💴 {price_display} | 🏷️ {item_type}")
-            
+
             prompt = "\n请输入序号进行选择 (0 放弃"
             if source == 'dlsite':
                 prompt += ", f 切换到Fanza搜索"
@@ -288,7 +308,7 @@ class ConsoleInteractionProvider(InteractionProvider):
             for i, (game, similarity) in enumerate(candidates):
                 title = game.get("title", "未知标题")
                 print(f"  - 相似条目: {title} (相似度: {similarity:.2f})")
-            
+
             print("\n  [s] 跳过，不处理此游戏 (默认)")
             print("  [u] 更新最相似的已有条目")
             print("  [c] 强制创建为新条目")

@@ -1,0 +1,17 @@
+[tool.ruff]
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+[tool.ruff.lint]
+# Enable Pyflakes, pycodestyle, and isort rules.
+select = ["E", "F", "W", "I"]
+
+[tool.mypy]
+ignore_missing_imports = true
+mypy_path = "."
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]

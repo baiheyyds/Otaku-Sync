@@ -1,10 +1,9 @@
 # core/game_processor.py
 import logging
-import re
 
-from utils.tag_manager import TagManager
-from core.name_splitter import NameSplitter
 from core.interaction import InteractionProvider
+from core.name_splitter import NameSplitter
+from utils.tag_manager import TagManager
 
 
 async def process_and_sync_game(
@@ -46,14 +45,14 @@ async def process_and_sync_game(
     fields_to_overwrite = ["发售日"]
     for field in list_fields_to_merge:
         combined_set = set()
-        
+
         raw_values = []
         bangumi_raw = merged.get(field, [])
         if isinstance(bangumi_raw, list):
             raw_values.extend(bangumi_raw)
         elif isinstance(bangumi_raw, str):
             raw_values.append(bangumi_raw)
-            
+
         detail_raw = detail.get(field, [])
         if isinstance(detail_raw, list):
             raw_values.extend(detail_raw)

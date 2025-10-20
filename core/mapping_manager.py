@@ -6,10 +6,9 @@ import os
 from typing import Dict, List
 
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID
-from utils.similarity_check import get_close_matches_with_ratio
 from core.interaction import InteractionProvider
+from utils.similarity_check import get_close_matches_with_ratio
 from utils.utils import normalize_brand_name
-
 
 MAPPING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mapping")
 BGM_PROP_MAPPING_PATH = os.path.join(MAPPING_DIR, "bangumi_prop_mapping.json")
@@ -77,7 +76,7 @@ class BrandMappingManager:
         if alias not in self._mapping[canonical_name] and alias != canonical_name:
             self._mapping[canonical_name].append(alias)
             logging.info(f"🔧 品牌映射学习: ‘{alias}’ -> ‘{canonical_name}’")
-        
+
         # 重建反向映射以立即生效
         self._build_reverse_mapping()
 
@@ -198,7 +197,7 @@ class BangumiMappingManager:
         schema_manager,
         target_db_id: str,
     ) -> str | None:
-        
+
         notion_type = await self.interaction_provider.ask_for_new_property_type(new_prop_name)
         if not notion_type:
             logging.warning(f"⚠️ 未选择属性类型，已取消为 '{new_prop_name}' 创建属性的操作。")
@@ -232,7 +231,7 @@ class BangumiMappingManager:
             db_name = "未知数据库"
             if namespace := DB_ID_TO_NAMESPACE.get(target_db_id):
                 db_name = f"{namespace.capitalize()}数据库"
-            
+
             mappable_props = schema_manager.get_mappable_properties(target_db_id)
             recommended_props = get_close_matches_with_ratio(
                 bangumi_key, mappable_props, limit=3, threshold=0.6
@@ -247,7 +246,7 @@ class BangumiMappingManager:
                 "recommended_props": recommended_props,
             }
             result = await self.interaction_provider.handle_new_bangumi_key(request_data)
-            
+
             action = result.get("action")
             data = result.get("data")
 
@@ -278,7 +277,7 @@ class BangumiMappingManager:
                     logging.warning("⚠️ 未提供自定义名称，操作已取消。")
                     self.ignore_key_session(bangumi_key)
                     return None
-            
+
             # Default case if action is unknown or None
             logging.error("❌ 无效操作，将忽略此属性。")
             self.ignore_key_session(bangumi_key)

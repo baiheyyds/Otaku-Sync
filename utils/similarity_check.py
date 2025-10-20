@@ -1,14 +1,15 @@
 # utils/similarity_check.py
 import asyncio
-import logging
-from rapidfuzz import fuzz
 import hashlib
 import json
+import logging
 import re
 import sys
 import unicodedata
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+
+from rapidfuzz import fuzz
 
 # --- Constants ---
 N_GRAM_SIZE = 2
@@ -62,7 +63,7 @@ class SimilarityChecker:
             norm_title = self.norm_titles[i]
             if not norm_title:
                 continue
-            
+
             ratio = fuzz.ratio(norm_title, new_norm) / 100.0
 
             # --- SUBSTRING BOOST ---
@@ -70,16 +71,16 @@ class SimilarityChecker:
             # which is a strong signal for game titles with prefixes/suffixes.
             if norm_title in new_norm or new_norm in norm_title:
                 ratio = max(ratio, 0.9)
-            
+
             is_similar = ratio >= threshold
             # The aggressive normalization makes substring checks less reliable,
             # but direct ratio is now much more accurate.
             # We can still check for containment as a strong signal if needed,
             # but let's rely on the improved normalized ratio first.
-            
+
             if is_similar:
                 candidates.append((self.cached_titles[i], ratio))
-        
+
         return candidates
 
 async def find_similar_games_non_interactive(
@@ -91,7 +92,7 @@ async def find_similar_games_non_interactive(
 
     checker = SimilarityChecker(cached_titles)
     candidates = checker.filter_similar_titles(new_title, threshold)
-    
+
     valid_candidates, updated_cache, changed = await remove_invalid_pages(
         candidates, cached_titles, notion_client
     )
@@ -107,7 +108,7 @@ async def find_similar_games_non_interactive(
             (p, s) for p, s in valid_candidates if p["id"] != existing_page_data["id"]
         ]
         valid_candidates.insert(0, (existing_page_data, 1.0))
-    
+
     return sorted(valid_candidates, key=lambda x: x[1], reverse=True), cached_titles
 
 def load_cache_quick():
@@ -193,7 +194,7 @@ async def check_existing_similar_games(
 
     checker = SimilarityChecker(cached_titles)
     candidates = checker.filter_similar_titles(new_title, threshold)
-    
+
     valid_candidates, updated_cache, changed = await remove_invalid_pages(
         candidates, cached_titles, notion_client
     )
@@ -266,12 +267,12 @@ def get_close_matches_with_ratio(query, candidates, limit=3, threshold=0.6):
 
     for cand in candidates:
         norm_cand = unicodedata.normalize("NFKC", cand).lower()
-        
+
         ratio = fuzz.ratio(norm_query, norm_cand) / 100.0
 
         # Boost score significantly if one is a substring of the other
         if norm_query.startswith(norm_cand) or norm_cand.startswith(norm_query):
-            ratio = max(ratio, 0.9) 
+            ratio = max(ratio, 0.9)
         elif norm_cand in norm_query:
             ratio = max(ratio, 0.8)
 

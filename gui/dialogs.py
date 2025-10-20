@@ -1,14 +1,25 @@
 
-import asyncio
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QComboBox, QListWidget, QListWidgetItem, QPushButton, QLabel, QMessageBox, 
-    QInputDialog, QLineEdit, QPlainTextEdit, QDialog, QDialogButtonBox, QCheckBox,
-    QGroupBox, QGridLayout
-)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QGroupBox,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QVBoxLayout,
+)
+
 from core.interaction import TYPE_SELECTION_MAP
+
 
 class NameSplitterDialog(QDialog):
     def __init__(self, text, parts, parent=None):
@@ -20,7 +31,7 @@ class NameSplitterDialog(QDialog):
         layout = QVBoxLayout(self)
         info_group = QGroupBox("检测到可能不正确的名称分割")
         info_layout = QVBoxLayout(info_group)
-        
+
         l1 = QLabel(f"<b>原始名称:</b> {text}")
         l1.setWordWrap(True)
         info_layout.addWidget(l1)
@@ -41,8 +52,8 @@ class NameSplitterDialog(QDialog):
 
         button_box = QDialogButtonBox()
         keep_button = button_box.addButton("保持原始名称不分割", QDialogButtonBox.AcceptRole)
-        split_button = button_box.addButton("确认当前分割", QDialogButtonBox.ActionRole) 
-        
+        split_button = button_box.addButton("确认当前分割", QDialogButtonBox.ActionRole)
+
         keep_button.clicked.connect(self.keep_original)
         split_button.clicked.connect(self.confirm_split)
         layout.addWidget(button_box)
@@ -65,11 +76,11 @@ class TagTranslationDialog(QDialog):
         self.result = "s"  # Default to skip
 
         layout = QVBoxLayout(self)
-        
+
         label = QLabel(f"发现新的<b>【{source_name}】</b>标签: <b>{tag}</b>")
         label.setWordWrap(True)
         layout.addWidget(label)
-        
+
         layout.addWidget(QLabel("请输入它的中文翻译:"))
 
         self.translation_input = QLineEdit()
@@ -85,7 +96,7 @@ class TagTranslationDialog(QDialog):
         skip_button.clicked.connect(lambda: self.set_result_and_accept("s"))
         ignore_perm_button.clicked.connect(lambda: self.set_result_and_accept("p"))
         cancel_button.clicked.connect(self.reject)
-        
+
         layout.addWidget(button_box)
 
     def accept_translation(self):
@@ -113,7 +124,7 @@ class BangumiSelectionDialog(QDialog):
             item = QListWidgetItem(candidate['display'])
             item.setData(Qt.UserRole, candidate['id'])
             self.list_widget.addItem(item)
-        
+
         # Add a "skip" option
         skip_item = QListWidgetItem("0. 放弃匹配")
         skip_item.setData(Qt.UserRole, None) # Represent skipping with None
@@ -169,10 +180,10 @@ class BangumiMappingDialog(QDialog):
         mapping_group = QGroupBox("映射到现有 Notion 属性")
         mapping_layout = QVBoxLayout(mapping_group)
         self.prop_list = QListWidget()
-        
+
         # Populate list with recommendations first
         other_props = [p for p in self.mappable_props if p not in self.recommended_props]
-        
+
         for prop in self.recommended_props:
             item = QListWidgetItem(f"[推荐] {prop}")
             item.setData(Qt.UserRole, prop) # Store original name
@@ -198,12 +209,12 @@ class BangumiMappingDialog(QDialog):
         # Other actions
         actions_group = QGroupBox("或执行其他操作")
         actions_layout = QVBoxLayout(actions_group)
-        
+
         self.create_same_name_button = QPushButton(f"创建同名新属性 '{self.bangumi_key}'")
         self.create_custom_name_button = QPushButton("自定义新属性名称并创建")
         self.ignore_session_button = QPushButton("本次运行中忽略此属性")
         self.ignore_permanent_button = QPushButton("永久忽略此属性")
-        
+
         self.create_same_name_button.clicked.connect(self.create_same_name)
         self.create_custom_name_button.clicked.connect(self.create_custom_name)
         self.ignore_session_button.clicked.connect(self.ignore_session)
@@ -223,7 +234,7 @@ class BangumiMappingDialog(QDialog):
         if not selected_item or not selected_item.flags() & Qt.ItemIsSelectable:
             QMessageBox.warning(self, "未选择或无效选择", "请从列表中选择一个有效的属性。\n")
             return
-        
+
         # Retrieve the original property name from item data
         prop_name = selected_item.data(Qt.UserRole)
         self.result = {"action": "map", "data": prop_name}
@@ -255,7 +266,7 @@ class PropertyTypeDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("选择新属性类型")
         layout = QVBoxLayout(self)
-        
+
         label = QLabel(f"请为新属性 '{prop_name}' 选择一个 Notion 类型：")
         label.setWordWrap(True)
         layout.addWidget(label)
@@ -339,7 +350,7 @@ class BrandMergeDialog(QDialog):
         self.result = "cancel"  # Default to cancel
 
         layout = QVBoxLayout(self)
-        
+
         # Use a QLabel with word wrap enabled for adaptive text
         text_label = QLabel(f"新品牌 '<b>{new_brand_name}</b>' 与已存在的品牌 '<b>{suggested_brand}</b>' 高度相似。\n\n您希望如何处理？")
         text_label.setWordWrap(True)
@@ -356,7 +367,7 @@ class BrandMergeDialog(QDialog):
         cancel_button.clicked.connect(self.on_cancel)
 
         layout.addWidget(button_box)
-        
+
         # Set a reasonable initial size; the layout will manage the rest
         self.resize(500, 150)
 

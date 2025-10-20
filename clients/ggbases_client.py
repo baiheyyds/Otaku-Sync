@@ -4,13 +4,14 @@ import logging
 import os
 import urllib.parse
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium_stealth import stealth
 
 from utils.tag_logger import append_new_tags
+
 from .base_client import BaseClient
 
 TAG_GGBASE_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_ggbase.json")
@@ -52,11 +53,16 @@ class GGBasesClient(BaseClient):
             candidates = []
 
             for row in rows[:15]:
+                if not isinstance(row, Tag):
+                    continue
                 detail_link = row.find("a", href=lambda x: x and "/view.so?id=" in x)
-                if not detail_link:
+                if not isinstance(detail_link, Tag):
                     continue
 
-                url = urllib.parse.urljoin(self.base_url, detail_link["href"])
+                href = detail_link.get("href")
+                if not isinstance(href, str):
+                    continue
+                url = urllib.parse.urljoin(self.base_url, href)
                 all_tds = row.find_all("td")
                 title = (
                     all_tds[1].get_text(separator=" ", strip=True) if len(all_tds) > 1 else "无标题"
@@ -148,12 +154,19 @@ class GGBasesClient(BaseClient):
         return None
 
     def _extract_tags(self, soup):
-        female_tags = [
-            span.get_text(strip=True)
-            for tr in soup.find_all("tr")
-            if tr.find("a", href=lambda x: x and "tags.so?target=female" in x)
-            for span in tr.find_all("span", class_="female_span")
-        ]
+        female_tags = []
+        for tr in soup.find_all("tr"):
+            if not isinstance(tr, Tag):
+                continue
+            
+            # Check for the specific link first
+            if tr.find("a", href=lambda x: x and "tags.so?target=female" in x):
+                # If the link exists, find all the spans
+                spans = tr.find_all("span", class_="female_span")
+                for span in spans:
+                    if isinstance(span, Tag):
+                        female_tags.append(span.get_text(strip=True))
+
         if female_tags:
             append_new_tags(TAG_GGBASE_PATH, female_tags)
         return female_tags

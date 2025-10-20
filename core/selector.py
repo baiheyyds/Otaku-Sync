@@ -1,7 +1,8 @@
 # core/selector.py
 import logging
-import unicodedata
 import re
+import unicodedata
+
 from rapidfuzz import fuzz
 
 # 定义一个较高的相似度阈值，确保自动选择的准确性
@@ -81,10 +82,10 @@ def _find_best_match(keyword: str, results: list) -> tuple[float, dict | None]:
         # fuzz.ratio is good for overall similarity
         # fuzz.partial_ratio is good for finding substrings
         # fuzz.token_sort_ratio is good for when words are reordered
-        
+
         r_ratio = fuzz.ratio(norm_keyword, norm_title)
         pr_ratio = fuzz.partial_ratio(norm_keyword, norm_title)
-        
+
         # Give a strong weight to partial ratio if it indicates a substring relationship,
         # but don't let it completely dominate.
         # If one string is fully contained in the other, partial_ratio will be 100.
@@ -102,7 +103,7 @@ def _find_best_match(keyword: str, results: list) -> tuple[float, dict | None]:
 
     # Sort by score descending
     candidates.sort(key=lambda x: x[0], reverse=True)
-    
+
     best_score, best_item = candidates[0]
     return best_score, best_item
 

@@ -1,8 +1,9 @@
 # gui/flow_layout.py
 # Adapted from the official Qt C++ FlowLayout example
 
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import QLayout, QStyle
-from PySide6.QtCore import Qt, QRect, QPoint, QSize
+
 
 class FlowLayout(QLayout):
     def __init__(self, parent=None, margin=0, spacing=-1):

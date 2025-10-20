@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
 
 from core.interaction import InteractionProvider
 
@@ -20,13 +20,20 @@ TAG_MAPPING_DICT_PATH = os.path.join(MAPPING_DIR, "tag_mapping_dict.json")
 class TagManager:
     """一个用于交互式处理、翻译和映射标签的中央管理器。"""
 
-    def __init__(self):
+    def __init__(
+        self,
+        jp_to_cn_path: str = TAG_JP_TO_CN_PATH,
+        fanza_to_cn_path: str = TAG_FANZA_TO_CN_PATH,
+        ggbase_path: str = TAG_GGBASE_PATH,
+        ignore_list_path: str = TAG_IGNORE_PATH,
+        mapping_dict_path: str = TAG_MAPPING_DICT_PATH,
+    ):
         self._interaction_lock = asyncio.Lock()
-        self._jp_to_cn_map = self._load_map(TAG_JP_TO_CN_PATH)
-        self._fanza_to_cn_map = self._load_map(TAG_FANZA_TO_CN_PATH)
-        self._ggbase_map = self._load_map(TAG_GGBASE_PATH)
-        self._ignore_set = set(self._load_map(TAG_IGNORE_PATH, default_type=list))
-        self._mapping_dict = self._load_map(TAG_MAPPING_DICT_PATH)
+        self._jp_to_cn_map = self._load_map(jp_to_cn_path)
+        self._fanza_to_cn_map = self._load_map(fanza_to_cn_path)
+        self._ggbase_map = self._load_map(ggbase_path)
+        self._ignore_set = set(self._load_map(ignore_list_path, default_type=list))
+        self._mapping_dict = self._load_map(mapping_dict_path)
         self._unified_reverse_map = self._build_unified_reverse_map()
 
     def _load_map(self, path: str, default_type=dict):
@@ -104,7 +111,7 @@ class TagManager:
                 logging.warning(f"⚠️ 发现新的【{source_name}】标签: '{tag}'")
                 print("  > 请输入对应的中文翻译。")
                 print("  > 输入 's' 跳过本次，'p' 永久忽略此标签。")
-                return input(f"  翻译为: ").strip()
+                return input("  翻译为: ").strip()
             translation = await asyncio.to_thread(get_input)
 
         if translation is None or translation.lower() == "s":
@@ -117,7 +124,7 @@ class TagManager:
         if not translation:
             logging.warning("⚠️ 输入为空，已跳过。")
             return None
-        
+
         source_map[tag] = translation
         logging.info(f"✅ 已在内存中添加新翻译: '{tag}' -> '{translation}'")
         return translation
@@ -133,7 +140,7 @@ class TagManager:
                 def get_choice():
                     logging.info(f"🔧 新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
                     print(f"  是否要将 '{concept}' 合并到 '{candidate}' 组中？")
-                    print(f"    1. 【合并】(推荐)")
+                    print("    1. 【合并】(推荐)")
                     print(f"    2. 【创建】将 '{concept}' 作为独立标签")
                     return input("  请选择 [1]: ").strip()
                 choice = await asyncio.to_thread(get_choice)
@@ -149,7 +156,7 @@ class TagManager:
                 if concept not in self._mapping_dict:
                     self._mapping_dict[concept] = [concept]
                 logging.info(f"✅ 已在内存中将 '{concept}' 创建为新的独立标签。")
-        
+
         self._unified_reverse_map[concept.lower()] = final_concept
         if final_concept.lower() not in self._unified_reverse_map:
              self._unified_reverse_map[final_concept.lower()] = final_concept
@@ -164,7 +171,7 @@ class TagManager:
         interaction_provider: InteractionProvider,
     ) -> List[str]:
         async with self._interaction_lock:
-            
+
             def _split_tags(tags: List[str]) -> List[str]:
                 processed_tags = []
                 for tag in tags:
@@ -210,7 +217,7 @@ class TagManager:
 
                 if not main_tag:
                     main_tag = await self._handle_new_concept_interactively(concept, interaction_provider)
-                
+
                 final_tags_set.add(main_tag)
 
             return sorted(list(final_tags_set))

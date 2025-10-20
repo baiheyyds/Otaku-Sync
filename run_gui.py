@@ -1,11 +1,12 @@
-import sys
 import logging
+import sys
+
+from PySide6.QtCore import QLibraryInfo, QTranslator
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTranslator, QLibraryInfo
 
 from gui.main_window import MainWindow
-from utils.logger import setup_logging_for_gui
 from utils.gui_bridge import log_bridge
+from utils.logger import setup_logging_for_gui
 
 if __name__ == "__main__":
     # 1. Setup logging for GUI

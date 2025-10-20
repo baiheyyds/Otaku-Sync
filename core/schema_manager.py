@@ -84,7 +84,9 @@ class NotionSchemaManager:
         # --- [修改结束] ---
 
 
-    def get_property_type(self, db_id: str, prop_name: str) -> str | None:
+    def get_property_type(self, db_id: str | None, prop_name: str) -> str | None:
+        if not db_id:
+            return None
         schema = self._schemas.get(db_id, {})
         prop_info = schema.get(prop_name)
         if prop_info and isinstance(prop_info, dict):

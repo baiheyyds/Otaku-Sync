@@ -1,26 +1,40 @@
-import os
 import json
+import os
 from functools import partial
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QComboBox, QListWidget, QPushButton, QLabel, QMessageBox,
-    QInputDialog, QLineEdit, QGroupBox, QFormLayout, QStyle,
-    QGraphicsDropShadowEffect
-)
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QFont, QColor, QPixmap, QPainter, QIcon, QPen
 
-# Import the new FlowLayout
-from .flow_layout import FlowLayout
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFormLayout,
+    QGraphicsDropShadowEffect,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QStyle,
+    QVBoxLayout,
+    QWidget,
+)
+
+from scripts.auto_tag_completer import complete_missing_tags
+from scripts.export_all_tags import export_all_tags
+from scripts.extract_brands import export_brand_names
 
 # Import script functions directly
 from scripts.fill_missing_bangumi import fill_missing_bangumi_links
 from scripts.fill_missing_character_fields import fill_missing_character_fields
-from scripts.auto_tag_completer import complete_missing_tags
-from scripts.update_brand_latestBeat import update_brand_and_game_stats
 from scripts.replace_and_clean_tags import run_replace_and_clean_tags
-from scripts.extract_brands import export_brand_names
-from scripts.export_all_tags import export_all_tags
+from scripts.update_brand_latestBeat import update_brand_and_game_stats
+
+# Import the new FlowLayout
+from .flow_layout import FlowLayout
+
 
 def apply_glow_effect(widget, color="#888888", blur_radius=10, x_offset=2, y_offset=2):
     """为给定的组件应用一个辉光或阴影效果。"""
@@ -39,16 +53,16 @@ def create_plus_icon(color, size=QSize(14, 14)):
     pen.setCapStyle(Qt.RoundCap) # 圆润的笔端
     painter.setPen(pen)
     painter.setRenderHint(QPainter.Antialiasing) # 抗锯齿
-    
+
     # 绘制两条线组成 '+'
     center = size.width() / 2
     line_len = size.width() * 0.7
     start_pos = center - line_len / 2
     end_pos = center + line_len / 2
-    
+
     painter.drawLine(start_pos, center, end_pos, center) # 水平线
     painter.drawLine(center, start_pos, center, end_pos) # 垂直线
-    
+
     painter.end()
     return QIcon(pixmap)
 
@@ -107,7 +121,7 @@ class MappingEditorWidget(QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__("映射文件编辑器", parent)
-        
+
         self.current_mapping_file = None
         self.current_data = {}
         self.mapping_dir = 'mapping'
@@ -124,10 +138,10 @@ class MappingEditorWidget(QGroupBox):
         self.mapping_files_combo = QComboBox()
         top_form_layout.addRow("映射文件:", self.mapping_files_combo)
         main_layout.addLayout(top_form_layout)
-        
+
         # Main editor area
         editor_splitter = QSplitter(Qt.Horizontal)
-        
+
         # --- Left Side: Master List (Keys) ---
         master_widget = QWidget()
         master_layout = QVBoxLayout(master_widget)
@@ -137,7 +151,7 @@ class MappingEditorWidget(QGroupBox):
         master_title_layout = QHBoxLayout()
         master_title_layout.addWidget(QLabel("原始值 (Keys)"))
         master_title_layout.addStretch()
-        
+
         # Create high-quality icons programmatically
         add_icon = create_plus_icon("#333333")
         delete_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon)
@@ -164,7 +178,7 @@ class MappingEditorWidget(QGroupBox):
 
         self.master_list = QListWidget()
         master_layout.addWidget(self.master_list)
-        
+
         # --- Right Side: Detail List (Values) ---
         detail_widget = QWidget()
         detail_layout = QVBoxLayout(detail_widget)
@@ -193,7 +207,7 @@ class MappingEditorWidget(QGroupBox):
         self.detail_list = QListWidget()
         self.detail_list.setAlternatingRowColors(True)
         detail_layout.addWidget(self.detail_list)
-        
+
         # Add widgets to splitter
         editor_splitter.addWidget(master_widget)
         editor_splitter.addWidget(detail_widget)
@@ -220,7 +234,7 @@ class MappingEditorWidget(QGroupBox):
         self.delete_value_button.clicked.connect(self.delete_value)
         self.search_input.returnPressed.connect(self.search_master_list)
         self.search_input.textChanged.connect(self.search_master_list)
-        
+
         self.populate_mapping_files()
 
     @property
@@ -245,9 +259,9 @@ class MappingEditorWidget(QGroupBox):
         try:
             if not os.path.isdir(self.mapping_dir):
                 raise FileNotFoundError(f"Mapping directory '{self.mapping_dir}' not found.")
-            
+
             files = [f for f in os.listdir(self.mapping_dir) if f.endswith('.json') and f not in NON_EDITABLE_FILES]
-            
+
             self.mapping_files_combo.clear()
             for filename in sorted(files):
                 display_name = self.MAPPING_FILE_DISPLAY_NAMES.get(filename, filename)
@@ -297,7 +311,7 @@ class MappingEditorWidget(QGroupBox):
         filename = self.mapping_files_combo.currentData()
         if not filename:
             return
-            
+
         self.current_mapping_file = os.path.join(self.mapping_dir, filename)
         try:
             with open(self.current_mapping_file, 'r', encoding='utf-8') as f:
@@ -305,7 +319,7 @@ class MappingEditorWidget(QGroupBox):
         except (json.JSONDecodeError, FileNotFoundError) as e:
             self.log_message.emit(f"❌ 加载文件 '{filename}'失败: {e}" + "\n")
             data = {}
-        
+
         self.master_list.clear()
         self.detail_list.clear()
         self.set_dirty(False)
@@ -331,17 +345,17 @@ class MappingEditorWidget(QGroupBox):
             return
         key = current_item.text()
         values = self.current_data.get(key, [])
-        
+
         if not isinstance(values, list):
             values = [values]
-            
+
         self.detail_list.addItems([str(v) for v in values])
 
     def edit_detail_item(self, item):
         key_item = self.master_list.currentItem()
         if not key_item: return
         key = key_item.text()
-        
+
         old_value = item.text()
         row = self.detail_list.row(item)
 
@@ -353,17 +367,17 @@ class MappingEditorWidget(QGroupBox):
                 current_values[row] = new_value
             else:
                 self.current_data[key] = new_value
-            
+
             self.set_dirty(True)
             self.display_details(key_item)
             self.detail_list.setCurrentRow(row)
-            self.log_message.emit(f"🔧 值已在界面中更新，请记得保存。" + "\n")
+            self.log_message.emit("🔧 值已在界面中更新，请记得保存。" + "\n")
 
     def save_current_file(self):
         if not self.current_mapping_file:
             QMessageBox.warning(self, "没有文件", "没有选择要保存的文件。\n")
             return False
-        
+
         try:
             unflattened_data = self.unflatten_dict(self.current_data)
             with open(self.current_mapping_file, 'w', encoding='utf-8') as f:
@@ -383,7 +397,7 @@ class MappingEditorWidget(QGroupBox):
             if key in self.current_data:
                 QMessageBox.warning(self, "键已存在", f"键 '{key}' 已存在。\n")
                 return
-            self.current_data[key] = [] 
+            self.current_data[key] = []
             self.set_dirty(True)
             self.master_list.addItem(key)
             self.master_list.sortItems()
@@ -395,7 +409,7 @@ class MappingEditorWidget(QGroupBox):
     def delete_key(self):
         current_item = self.master_list.currentItem()
         if not current_item: return
-        
+
         key = current_item.text()
         reply = QMessageBox.question(self, "确认删除", f"确定要删除键 '{key}' 及其所有映射值吗？",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -417,14 +431,14 @@ class MappingEditorWidget(QGroupBox):
         value, ok = QInputDialog.getText(self, "添加新值", f"为 '{key}' 添加新的映射值:")
         if ok and value:
             current_values = self.current_data.get(key)
-            
+
             if not isinstance(current_values, list):
                 current_values = [current_values] if current_values is not None and str(current_values).strip() != "" else []
 
             if value in [str(v) for v in current_values]:
                 QMessageBox.warning(self, "值已存在", f"值 '{value}' 已经存在于 '{key}' 的映射中。\n")
                 return
-            
+
             current_values.append(value)
             self.current_data[key] = current_values
             self.set_dirty(True)
@@ -435,12 +449,12 @@ class MappingEditorWidget(QGroupBox):
         current_key_item = self.master_list.currentItem()
         current_value_item = self.detail_list.currentItem()
         if not current_key_item or not current_value_item: return
-        
+
         key = current_key_item.text()
         value_to_delete = current_value_item.text()
-        
+
         current_values = self.current_data.get(key)
-        
+
         if isinstance(current_values, list):
             reply = QMessageBox.question(self, "确认删除", f"确定要从 '{key}' 中删除值 '{value_to_delete}' 吗？",
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -451,7 +465,7 @@ class MappingEditorWidget(QGroupBox):
                         if str(v) == value_to_delete:
                             index_to_del = i
                             break
-                    
+
                     if index_to_del != -1:
                         current_values.pop(index_to_del)
                         self.current_data[key] = current_values

@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import re
-from typing import List, Set, Optional
+from typing import List, Set
 
 from core.interaction import InteractionProvider
 
@@ -110,12 +110,12 @@ class NameSplitter:
 
         # 增强风险识别 (现在基于后处理的结果)
         is_dangerous = any(len(p) <= 1 for p in processed_parts)
-        
+
         is_alpha_dot_split = False
         if not is_dangerous and '・' in text and len(processed_parts) > 1:
             if all(re.fullmatch(r'[a-zA-Z]+', p) for p in processed_parts):
                 is_alpha_dot_split = True
-        
+
         if not is_dangerous and not is_alpha_dot_split:
             return processed_parts
 
@@ -146,7 +146,7 @@ class NameSplitter:
                 choice = "split"
             else:
                 choice = "keep"
-            
+
             if choice == "keep":
                 def _get_save_confirmation():
                     return (

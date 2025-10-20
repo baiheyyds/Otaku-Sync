@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+
 import httpx
 
 
@@ -45,20 +46,20 @@ class BaseClient:
         try:
             # 确保URL是绝对路径
             full_url = url if url.startswith("http") else f"{self.base_url}{url}"
-            
+
             # 合并默认headers和调用时传入的headers
             request_headers = self.headers.copy()
             if "headers" in kwargs:
                 request_headers.update(kwargs.pop("headers"))
 
             logging.info(f"🔍 [{self.__class__.__name__}] {method.upper()} {full_url}")
-            
+
             response = await self.client.request(method, full_url, headers=request_headers, **kwargs)
             response.raise_for_status()
-            
+
             logging.debug(f"✅ [{self.__class__.__name__}] 请求成功: {response.status_code} {response.reason_phrase}")
             return response
-            
+
         except httpx.HTTPStatusError as e:
             logging.error(f"❌ [{self.__class__.__name__}] 请求失败: {e.response.status_code} for url: {e.request.url}")
             logging.error(f"    -> 响应: {e.response.text[:300]}") # 打印部分响应内容

@@ -1,6 +1,6 @@
 # core/brand_handler.py
-import asyncio
 import logging
+
 from rapidfuzz import fuzz, process
 
 from utils.utils import normalize_brand_name as normalize
@@ -163,5 +163,5 @@ async def finalize_brand_update(context: dict, brand_name: str, page_id: str | N
         final_has_icon = bool(final_brand_info.get("icon_url"))
         context["brand_cache"].add_brand(brand_name, brand_id, final_has_icon)
         logging.info(f"🗂️ [品牌缓存] 已更新: '{brand_name}' (信息完整: {final_has_icon})")
-    
+
     return brand_id

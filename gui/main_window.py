@@ -1,25 +1,42 @@
-import sys
 import asyncio
 import logging
 import threading
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QPushButton, QLabel, QMessageBox, QLineEdit, QPlainTextEdit, QDialog, QCheckBox, QTabWidget
-)
-from PySide6.QtCore import Qt, QEvent
-from PySide6.QtGui import QScreen
 
-from utils.gui_bridge import log_bridge
-from core.gui_worker import GameSyncWorker, ScriptWorker
-from core.context_factory import create_shared_context
-from core.init import close_context
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSplitter,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
 from core.cache_warmer import warm_up_brand_cache_standalone
+from core.context_factory import create_shared_context
+from core.gui_worker import GameSyncWorker, ScriptWorker
+from core.init import close_context
+from utils.gui_bridge import log_bridge
 
 # Import dialogs and widgets from the new GUI package
 from .dialogs import (
-    NameSplitterDialog, TagTranslationDialog, BangumiSelectionDialog, 
-    BangumiMappingDialog, PropertyTypeDialog, SelectionDialog, 
-    DuplicateConfirmationDialog, BrandMergeDialog, ConceptMergeDialog
+    BangumiMappingDialog,
+    BangumiSelectionDialog,
+    BrandMergeDialog,
+    ConceptMergeDialog,
+    DuplicateConfirmationDialog,
+    NameSplitterDialog,
+    PropertyTypeDialog,
+    SelectionDialog,
+    TagTranslationDialog,
 )
 from .widgets import BatchToolsWidget, MappingEditorWidget
 
@@ -28,7 +45,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Otaku Sync - 图形工具")
-        
+
         screen = QApplication.primaryScreen()
         available_geometry = screen.availableGeometry()
         self.resize(int(available_geometry.width() * 0.7), int(available_geometry.height() * 0.8))
@@ -41,7 +58,7 @@ class MainWindow(QMainWindow):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         main_layout = QVBoxLayout(main_widget)
-        
+
         # Top search layout
         top_layout = QHBoxLayout()
         self.keyword_input = QLineEdit()
@@ -61,11 +78,11 @@ class MainWindow(QMainWindow):
         self.tab_widget = QTabWidget()
         self.batch_tools_widget = BatchToolsWidget()
         self.mapping_editor_widget = MappingEditorWidget()
-        
+
         self.tab_widget.addTab(self.batch_tools_widget, "批处理工具")
         self.tab_widget.addTab(self.mapping_editor_widget, "映射文件编辑器")
         # --- End of new Tab layout ---
-        
+
         # Bottom widget for the log console
         log_widget = QWidget()
         log_layout = QVBoxLayout(log_widget)
@@ -80,7 +97,7 @@ class MainWindow(QMainWindow):
         # Adjust splitter ratio for an initial 50/50 split
         main_splitter.setSizes([int(self.width() * 0.5), int(self.width() * 0.5)])
         main_layout.addWidget(main_splitter)
-        
+
         # Setup logging
         log_bridge.log_received.connect(self.log_console.appendPlainText)
         # Connect the mapping editor's log signal
@@ -147,12 +164,12 @@ class MainWindow(QMainWindow):
         if not keyword:
             logging.warning("⚠️ 请输入游戏名/关键词后再开始搜索.\n")
             return
-        
+
         self.set_all_buttons_enabled(False)
         self.search_button.setText("正在运行...")
         self.log_console.clear()
         manual_mode = self.manual_mode_checkbox.isChecked()
-        
+
         self.game_sync_worker = GameSyncWorker(keyword=keyword, manual_mode=manual_mode, shared_context=self.shared_context, parent=self)
         self.connect_game_sync_signals(self.game_sync_worker)
         self.game_sync_worker.start()
@@ -160,7 +177,7 @@ class MainWindow(QMainWindow):
     def start_script_execution(self, script_func, script_name):
         if self.is_worker_running():
             return
-        
+
         logging.info(f"🚀 即将执行脚本: {script_name}")
         self.log_console.clear()
         self.set_all_buttons_enabled(False)
@@ -218,7 +235,7 @@ class MainWindow(QMainWindow):
                 with open(output_filename, "w", encoding="utf-8") as f:
                     for name in result:
                         f.write(name + "\n")
-                QMessageBox.information(self, "导出成功", 
+                QMessageBox.information(self, "导出成功",
                                         f"已成功导出 {len(result)} 个品牌名到项目根目录下的\n"
                                         f"{output_filename} 文件中。 সন")
             except IOError as e:
@@ -240,8 +257,8 @@ class MainWindow(QMainWindow):
             return
 
         dialog = BrandMergeDialog(new_brand_name, suggested_brand, self)
-        dialog.exec() 
-        
+        dialog.exec()
+
         # The dialog's result property holds the user's choice
         worker.set_interaction_response(dialog.result)
 
@@ -277,7 +294,7 @@ class MainWindow(QMainWindow):
         logging.info("🔧 [GUI] Received bangumi_selection_required, creating dialog.")
         dialog = BangumiSelectionDialog(game_name, candidates, self)
         worker = self.sender()
-        
+
         result = dialog.exec()
 
         if result == QDialog.Accepted:
@@ -324,7 +341,7 @@ class MainWindow(QMainWindow):
                 price_display = f"{price}円" if str(price).isdigit() else price
                 item_type = item.get("类型", "未知")
                 display_items.append(f"[{source.upper()}] {item.get('title', 'No Title')} | 💴 {price_display} | 🏷️ {item_type}")
-        
+
         dialog = SelectionDialog(display_items, title=title, source=source, parent=self)
         result = dialog.exec()
 
@@ -343,7 +360,7 @@ class MainWindow(QMainWindow):
         worker = self.sender()
         if not worker:
             return
-            
+
         logging.info("🔍 发现可能重复的游戏，等待用户确认...\n")
         dialog = DuplicateConfirmationDialog(candidates, self)
         dialog.exec()
@@ -372,14 +389,14 @@ class MainWindow(QMainWindow):
             msg_box.setWindowTitle('未保存的更改')
             msg_box.setText("映射文件有未保存的更改。您想在退出前保存吗？")
             msg_box.setIcon(QMessageBox.Question)
-            
+
             save_button = msg_box.addButton("保存", QMessageBox.AcceptRole)
             discard_button = msg_box.addButton("不保存", QMessageBox.DestructiveRole)
             cancel_button = msg_box.addButton("取消", QMessageBox.RejectRole)
-            
+
             msg_box.setDefaultButton(cancel_button)
             msg_box.exec()
-            
+
             clicked_button = msg_box.clickedButton()
 
             if clicked_button == save_button:
@@ -394,7 +411,7 @@ class MainWindow(QMainWindow):
         # Then, check for running workers
         if (self.game_sync_worker and self.game_sync_worker.isRunning()) or \
            (self.script_worker and self.script_worker.isRunning()):
-            reply = QMessageBox.question(self, '任务正在进行', 
+            reply = QMessageBox.question(self, '任务正在进行',
                                        "当前有任务正在后台运行，强制退出可能导致数据不一致或浏览器进程残留。\n\n确定要退出吗？",
                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
@@ -402,7 +419,7 @@ class MainWindow(QMainWindow):
             else:
                 event.ignore()
                 return
-        
+
         logging.info("🔧 正在清理应用资源并保存所有数据...")
         if self.shared_context:
             try:

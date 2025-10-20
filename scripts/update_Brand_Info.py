@@ -10,6 +10,10 @@ import httpx
 # 将项目根目录添加到 Python 路径中，以便能够导入其他模块
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+from asyncio import Semaphore
+
+from tqdm.asyncio import tqdm_asyncio
+
 from clients.bangumi_client import BangumiClient
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION_TOKEN
@@ -17,9 +21,6 @@ from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
 
-
-from asyncio import Semaphore
-from tqdm.asyncio import tqdm_asyncio
 
 async def process_brand_page(
     brand_page: dict,
@@ -106,7 +107,7 @@ async def main():
                 error_count += 1
             else:
                 success_count += 1
-        
+
         logging.info(f"全部任务完成: {success_count} 个成功, {error_count} 个失败。")
 
     except Exception as e:

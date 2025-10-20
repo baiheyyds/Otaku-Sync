@@ -47,7 +47,7 @@ async def complete_missing_tags(
     dlsite_client = context["dlsite"]
     ggbases_client = context["ggbases"]
     tag_manager = context["tag_manager"]
-    
+
     logging.info("🛠️ 开始批量补全标签...")
 
     query_url = f"https://api.notion.com/v1/databases/{GAME_DB_ID}/query"

@@ -12,6 +12,8 @@ venv/
 .venv/
 
 # Application-generated files
+.mypy_cache/
+.pytest_cache
 cache/
 *.tmp
 *.bak_*

@@ -2,8 +2,9 @@
 # 该模块现在负责从环境变量中安全地加载配置信息
 
 import os
-from dotenv import load_dotenv
 import sys
+
+from dotenv import load_dotenv
 
 # 从项目根目录的 .env 文件中加载环境变量
 # 这使得脚本无论从哪里运行都能找到 .env 文件

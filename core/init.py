@@ -1,9 +1,10 @@
 # core/init.py
-import asyncio
 import logging
-from .context_factory import create_shared_context, create_loop_specific_context
+
+from .context_factory import create_loop_specific_context, create_shared_context
 from .driver_factory import driver_factory
 from .interaction import ConsoleInteractionProvider
+
 
 async def init_context():
     """Initializes the context for the command-line application."""
@@ -35,6 +36,6 @@ async def close_context(context: dict):
 
     if context.get("brand_mapping_manager"):
         context["brand_mapping_manager"].save_mapping()
-    
+
     if context.get("name_splitter"):
         context["name_splitter"].save_exceptions()

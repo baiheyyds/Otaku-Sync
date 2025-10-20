@@ -9,19 +9,19 @@ def normalize_brand_name(name: str) -> str:
         return ""
     # 全角转半角
     full_width_chars = "０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ！＂＃＄％＆＇（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～　"
-    half_width_chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!\"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ "
+    half_width_chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ "
     translator = str.maketrans(full_width_chars, half_width_chars)
     name = name.translate(translator)
-    
+
     # 统一小写
     name = name.lower()
-    
+
     # 移除特殊符号
     name = re.sub(r'[\'"`’.,!@#$%^&*()_\-+\\=[\\]{};:<>/?~]', ' ', name)
-    
+
     # 多个空格合并为一个
     name = re.sub(r'\s+', ' ', name).strip()
-    
+
     return name
 
 def extract_main_keyword(raw_keyword):

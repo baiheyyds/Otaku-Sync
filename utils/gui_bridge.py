@@ -1,12 +1,13 @@
 # utils/gui_bridge.py
-import asyncio
 from abc import ABCMeta
+
 from PySide6.QtCore import QObject, Signal
+
 from core.interaction import InteractionProvider
-from typing import Any, Dict, List
+
 
 class _LogBridge(QObject):
-    """ A bridge to forward logs from the custom logger to the GUI. """ 
+    """ A bridge to forward logs from the custom logger to the GUI. """
     log_received = Signal(str)
 
 # Global instance of the bridge, used by the QtLogHandler

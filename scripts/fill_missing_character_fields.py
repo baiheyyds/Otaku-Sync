@@ -54,7 +54,7 @@ async def fill_missing_character_fields(
     """遍历角色数据库，为缺少特定字段的角色从Bangumi补充信息。"""
     notion_client = context["notion"]
     bangumi_client = context["bangumi"]
-    
+
     logging.info("开始扫描角色数据库以补充缺失字段...")
     all_characters = await notion_client.get_all_pages_from_db(CHARACTER_DB_ID)
     if not all_characters:

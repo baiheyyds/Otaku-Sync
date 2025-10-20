@@ -1,14 +1,12 @@
 # scripts/update_brand_latestBeat.py
 import asyncio
-import logging
-from datetime import datetime, timezone
-from tqdm.asyncio import tqdm_asyncio
-
 import json
+import logging
 import os
 import sys
 
 import httpx
+from tqdm.asyncio import tqdm_asyncio
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

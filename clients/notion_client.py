@@ -3,8 +3,7 @@
 import asyncio
 import logging
 import re
-import time
-from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -23,7 +22,7 @@ class NotionClient:
             "Notion-Version": "2022-06-28",
             "Content-Type": "application/json",
         }
-        self._all_brands_cache = None
+        self._all_brands_cache: Optional[List[Dict[str, Any]]] = None
 
     async def _request(self, method, url, json_data=None):
         max_retries = 3
@@ -111,17 +110,17 @@ class NotionClient:
 
         if not silent:
             logging.info("🔍 正在从 Notion 获取所有品牌信息用于预热缓存...")
-            
+
         all_pages = await self.get_all_pages_from_db(self.brand_db_id)
         brands = []
         for page in all_pages:
             properties = page.get("properties", {})
-            
+
             # 提取品牌名称
             title_prop = properties.get(FIELDS["brand_name"], {})
             title_list = title_prop.get("title", [])
             name = "".join([part.get("plain_text", "") for part in title_list]).strip()
-            
+
             if not name:
                 continue
 
@@ -134,7 +133,7 @@ class NotionClient:
                 "page_id": page["id"],
                 "has_icon": has_icon,
             })
-        
+
         self._all_brands_cache = brands
         if not silent:
             logging.info(f"✅ 品牌缓存预热：成功获取到 {len(brands)} 个品牌的信息。")
@@ -144,9 +143,9 @@ class NotionClient:
         """根据品牌名称查找品牌，并返回其ID和图标状态。"""
         if not name:
             return None
-        
+
         normalized_name_to_find = normalize_brand_name(name)
-        
+
         # 尝试从内存缓存获取（如果已填充）
         if self._all_brands_cache:
             for brand in self._all_brands_cache:
@@ -164,7 +163,7 @@ class NotionClient:
             icon_prop = properties.get(FIELDS["brand_icon"], {})
             has_icon = bool(icon_prop.get("files"))
             return {"page_id": page["id"], "has_icon": has_icon}
-            
+
         return None
 
     async def get_all_game_titles(self):
@@ -172,7 +171,7 @@ class NotionClient:
         all_games = []
         next_cursor = None
         while True:
-            payload = {"start_cursor": next_cursor} if next_cursor else {}
+            payload: Dict[str, Any] = {"start_cursor": next_cursor} if next_cursor else {}
             resp = await self._request("POST", url, payload)
             if not resp:
                 break
@@ -196,7 +195,7 @@ class NotionClient:
         url = f"https://api.notion.com/v1/databases/{db_id}/query"
 
         while True:
-            payload = {"start_cursor": next_cursor} if next_cursor else {}
+            payload: Dict[str, Any] = {"start_cursor": next_cursor} if next_cursor else {}
             resp = await self._request("POST", url, payload)
             if not resp:
                 break
@@ -229,7 +228,7 @@ class NotionClient:
         """向指定的数据库添加一个指定类型的新属性"""
         url = f"https://api.notion.com/v1/databases/{db_id}"
 
-        prop_payload = {}
+        prop_payload: Dict[str, Any] = {}
         if prop_type in ["rich_text", "number", "date", "url", "files", "checkbox"]:
             prop_payload = {prop_type: {}}
         elif prop_type == "select":
@@ -240,7 +239,7 @@ class NotionClient:
             prop_type = "rich_text"
             prop_payload = {"rich_text": {}}
 
-        payload = {"properties": {prop_name: prop_payload}}
+        payload: Dict[str, Any] = {"properties": {prop_name: prop_payload}}
 
         logging.info(
             f"🔧 正在尝试向 Notion 数据库 ({db_id[-5:]}) 添加新属性 '{prop_name}' (类型: {prop_type})..."
@@ -329,7 +328,7 @@ class NotionClient:
         if title:
             data_for_notion[FIELDS["game_name"]] = title
 
-        props = {}
+        props: Dict[str, Any] = {}
         for notion_prop_name, value in data_for_notion.items():
             if value is None:
                 continue
@@ -441,7 +440,7 @@ class NotionClient:
                         use_slash_as_separator = True
                         if '/' in item:
                             # Threshold for a segment to be considered "too short"
-                            MIN_SEGMENT_LEN = 3 
+                            MIN_SEGMENT_LEN = 3
                             if any(len(part.strip()) < MIN_SEGMENT_LEN for part in item.split('/')):
                                 use_slash_as_separator = False
 
@@ -449,7 +448,7 @@ class NotionClient:
                         processed_item = item.replace('，', ',').replace('、', ',')
                         if use_slash_as_separator:
                             processed_item = processed_item.replace('/', ',')
-                        
+
                         options.extend([opt.strip() for opt in processed_item.split(',') if opt.strip()])
 
                 if options:
@@ -510,7 +509,7 @@ class NotionClient:
 
         data_to_build[FIELDS["brand_name"]] = brand_name
 
-        props = {}
+        props: Dict[str, Any] = {}
         for notion_prop_name, value in data_to_build.items():
             if value is None or notion_prop_name not in properties_schema:
                 if notion_prop_name not in properties_schema:

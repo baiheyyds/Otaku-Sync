@@ -1,17 +1,15 @@
 # main.py
 import asyncio
 import logging
-import sys
-import traceback
 
+from config.config_token import GAME_DB_ID
 from core.brand_handler import check_brand_status, finalize_brand_update
 from core.cache_warmer import warm_up_brand_cache_standalone
 from core.game_processor import process_and_sync_game
 from core.init import close_context, init_context
 from core.selector import select_game
 from utils.logger import setup_logging_for_cli
-from utils.similarity_check import check_existing_similar_games, load_or_update_titles
-from config.config_token import GAME_DB_ID
+from utils.similarity_check import check_existing_similar_games
 
 
 async def prompt_and_select_game(context: dict) -> tuple | None:
@@ -99,7 +97,7 @@ async def _fetch_ggbases_data_cli(context: dict, keyword: str, manual_mode: bool
         driver = await context["driver_factory"].get_driver("ggbases_driver")
         if driver and not context["ggbases"].has_driver():
             context["ggbases"].set_driver(driver)
-        
+
         info = await context["ggbases"].get_info_by_url_with_selenium(url)
         logging.info("✅ [GGBases] Selenium 抓取完成。")
         return {"info": info, "selected_game": selected_game}
@@ -116,7 +114,7 @@ async def _fetch_bangumi_data_cli(context: dict, keyword: str) -> dict:
         if not bangumi_id:
             logging.warning("⚠️ [Bangumi] 未找到或未选择 Bangumi 条目。")
             return {}
-        
+
         logging.info(f"🔍 [Bangumi] 已确认 Bangumi ID: {bangumi_id}, 正在获取详细信息...")
         game_info = await context["bangumi"].fetch_game(bangumi_id)
         logging.info("✅ [Bangumi] 游戏详情获取完成。")
@@ -133,20 +131,20 @@ async def _fetch_and_process_brand_data_cli(context: dict, detail: dict, source:
         raw_brand_name = detail.get("品牌")
         brand_name = context["brand_mapping_manager"].get_canonical_name(raw_brand_name)
         brand_page_id, needs_fetching = await check_brand_status(context, brand_name)
-        
+
         fetched_data = {}
         if needs_fetching and brand_name:
             logging.info(f"🚀 品牌 '{brand_name}' 需要抓取新信息...")
             tasks = {}
             tasks["bangumi_brand_info"] = context["bangumi"].fetch_brand_info_from_bangumi(brand_name)
-            
+
             dlsite_brand_url = detail.get("品牌页链接") if source == 'dlsite' else None
             if dlsite_brand_url and "/maniax/circle" in dlsite_brand_url:
                 driver = await context["driver_factory"].get_driver("dlsite_driver")
                 if driver and not context["dlsite"].has_driver():
                     context["dlsite"].set_driver(driver)
                 tasks["brand_extra_info"] = context["dlsite"].get_brand_extra_info_with_selenium(dlsite_brand_url)
-            
+
             if tasks:
                 results = await asyncio.gather(*tasks.values(), return_exceptions=True)
                 fetched_data = {key: res for key, res in zip(tasks.keys(), results) if not isinstance(res, Exception)}

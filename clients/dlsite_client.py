@@ -12,8 +12,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium_stealth import stealth
 
-from utils.driver import create_driver
 from utils.tag_logger import append_new_tags
+
 from .base_client import BaseClient
 
 TAG_JP_PATH = os.path.join(os.path.dirname(__file__), "..", "mapping", "tag_jp_to_cn.json")
@@ -48,7 +48,7 @@ class DlsiteClient(BaseClient):
         logging.info(f"🔍 [Dlsite] 正在搜索关键词: {keyword}")
         query = urllib.parse.quote_plus(keyword)
         url = f"/maniax/fsr/=/language/jp/sex_category%5B0%5D/male/keyword/{query}/work_category%5B0%5D/doujin/work_category%5B1%5D/books/work_category%5B2%5D/pc/work_category%5B3%5D/app/order%5B0%5D/trend/options_and_or/and/per_page/30/page/1/from/fs.header"
-        
+
         resp = await self.get(url, timeout=15)
         if not resp:
             return []
@@ -128,10 +128,10 @@ class DlsiteClient(BaseClient):
                         # Replace <br> tags with a common separator
                         for br in table_cell.find_all("br"):
                             br.replace_with(",")
-                        
+
                         # Get all text, using the common separator
                         all_text = table_cell.get_text(separator=",")
-                        
+
                         # Standardize all separators to the common one and then split
                         processed_text = all_text.replace('、', ',').replace('/', ',').replace('，', ',')
                         return [name.strip() for name in processed_text.split(',') if name.strip()]

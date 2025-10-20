@@ -1,10 +1,10 @@
 # utils/logger.py
 import logging
 import os
-import sys
 from logging import Handler, LogRecord
 
 from rich.logging import RichHandler
+
 
 # 1. Define the custom handler for GUI
 class QtLogHandler(Handler):
@@ -44,7 +44,7 @@ def setup_logging_for_cli(level=None):
 
     log = logging.getLogger()
     log.setLevel(log_level)
-    
+
     # Remove any existing handlers to avoid duplicates
     if log.hasHandlers():
         log.handlers.clear()
@@ -52,14 +52,14 @@ def setup_logging_for_cli(level=None):
     is_debug = (log_level <= logging.DEBUG)
 
     rich_handler = RichHandler(
-        rich_tracebacks=True, 
+        rich_tracebacks=True,
         tracebacks_show_locals=is_debug, # Show locals only in debug mode
         log_time_format="[%X]",
         show_path=is_debug  # KEY CHANGE: Only show path in debug mode
     )
     rich_handler.setFormatter(cli_formatter)
     log.addHandler(rich_handler)
-    
+
     logging.debug("日志系统已初始化 (CLI 模式)。")
 
 def setup_logging_for_gui(qt_signal_emitter, level=logging.INFO):

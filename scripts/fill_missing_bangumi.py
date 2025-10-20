@@ -9,6 +9,7 @@ import httpx
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from asyncio import Semaphore
+
 from clients.bangumi_client import BangumiClient
 from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
@@ -16,7 +17,6 @@ from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION
 from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
-from tqdm.asyncio import tqdm_asyncio
 
 
 async def get_games_missing_bangumi(notion_client: NotionClient) -> list:
@@ -24,7 +24,7 @@ async def get_games_missing_bangumi(notion_client: NotionClient) -> list:
     logging.info("🔍 正在从 Notion 查询缺少 Bangumi 链接的游戏...")
     query_url = f"https://api.notion.com/v1/databases/{GAME_DB_ID}/query"
     payload = {"filter": {"property": FIELDS["bangumi_url"], "url": {"is_empty": True}}}
-    
+
     all_games = []
     next_cursor = None
     while True:
@@ -38,7 +38,7 @@ async def get_games_missing_bangumi(notion_client: NotionClient) -> list:
         if not resp.get("has_more"):
             break
         next_cursor = resp.get("next_cursor")
-        
+
     return all_games
 
 

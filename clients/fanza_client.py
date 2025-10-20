@@ -1,6 +1,7 @@
 # clients/fanza_client.py
 import logging
 import re
+from typing import Any, Dict, List
 from urllib.parse import quote, urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -20,26 +21,32 @@ class FanzaClient(BaseClient):
             encoded_keyword = quote(keyword.encode("utf-8", errors="ignore"))
             url = f"/search/?service=pcgame&searchstr={encoded_keyword}&sort=date"
             resp = await self.get(url, timeout=15, cookies=self.cookies)
-            
+
             results = []
             if resp:
                 soup = BeautifulSoup(resp.text, "lxml")
                 result_list = soup.select_one("ul.component-legacy-productTile")
                 if result_list:
                     for li in result_list.find_all("li", class_="component-legacy-productTile__item", limit=limit):
+                        if not isinstance(li, Tag):
+                            continue
                         title_tag = li.select_one(".component-legacy-productTile__title")
                         price_tag = li.select_one(".component-legacy-productTile__price")
                         url_tag = li.select_one("a.component-legacy-productTile__detailLink")
                         type_tag = li.select_one(".component-legacy-productTile__relatedInfo")
                         item_type = type_tag.get_text(strip=True) if type_tag else "未知"
 
-                        if not (title_tag and url_tag and url_tag.has_attr("href")):
+                        if not (title_tag and url_tag):
+                            continue
+
+                        href = url_tag.get("href")
+                        if not isinstance(href, str):
                             continue
 
                         title = title_tag.get_text(strip=True)
                         price_text = price_tag.get_text(strip=True) if price_tag else "未知"
                         price = price_text.split("円")[0].replace(",", "").strip()
-                        full_url = urljoin(self.base_url, url_tag["href"])
+                        full_url = urljoin(self.base_url, href)
 
                         results.append({
                             "title": title, "url": full_url,
@@ -59,13 +66,13 @@ class FanzaClient(BaseClient):
             if final_count > 0:
                 logging.info(f"✅ [Fanza] 主搜索成功，找到 {initial_count} 个原始结果，筛选后剩余 {final_count} 个游戏。")
                 return filtered_results
-            
+
             # --- 后备搜索逻辑 (如果主搜索无结果) ---
             logging.warning("⚠️ [Fanza] 主搜索 (dlsoft) 未找到结果，尝试后备搜索 (mono)...")
-            
+
             fallback_base_url = "https://www.dmm.co.jp"
             url_fallback = f"{fallback_base_url}/mono/-/search/=/searchstr={encoded_keyword}/sort=date/"
-            
+
             resp_fallback = await self.get(url_fallback, timeout=15, cookies=self.cookies)
             if not resp_fallback:
                 logging.error("❌ [Fanza] 后备搜索请求失败。")
@@ -79,24 +86,30 @@ class FanzaClient(BaseClient):
                 return []
 
             for li in result_list_fallback.find_all("li", limit=limit):
+                if not isinstance(li, Tag):
+                    continue
                 url_tag = li.select_one(".tmb a")
                 if not url_tag: continue
-                
+
                 title_tag = url_tag.select_one(".txt")
                 price_tag = li.select_one(".price")
 
-                if not (title_tag and url_tag.has_attr("href")): continue
+                if not (title_tag and url_tag): continue
+
+                href = url_tag.get("href")
+                if not isinstance(href, str):
+                    continue
 
                 title = title_tag.get_text(strip=True)
                 price_text = price_tag.get_text(strip=True) if price_tag else "未知"
                 price = price_text.split("円")[0].replace(",", "").strip()
-                full_url = urljoin(fallback_base_url, url_tag["href"])
+                full_url = urljoin(fallback_base_url, href)
 
                 results_fallback.append({
                     "title": title, "url": full_url,
                     "价格": price or "未知", "类型": "未知(后备)",
                 })
-            
+
             initial_count_fallback = len(results_fallback)
             filtered_results_fallback = [
                 item for item in results_fallback
@@ -117,7 +130,8 @@ class FanzaClient(BaseClient):
 
         try:
             soup = BeautifulSoup(resp.text, "lxml")
-            details = {}
+            details: Dict[str, Any] = {}
+            game_types: List[str] = []
 
             # ==================================================================
             # 智能解析：根据URL判断使用哪套解析逻辑
@@ -125,20 +139,23 @@ class FanzaClient(BaseClient):
             if "/mono/" in url:
                 # --- 旧版/后备接口 (`/mono/`) 的解析逻辑 ---
                 logging.info("🔍 [Fanza] 检测到 /mono/ 链接，使用旧版表格解析器。")
-                
+
                 if title_tag := soup.select_one("h1#title"):
                     details["标题"] = title_tag.get_text(strip=True)
-                
+
                 if cover_tag := soup.select_one("#sample-video img, .area-img img"):
                      if src := cover_tag.get("src"):
-                        details["封面图链接"] = urljoin(self.base_url, src)
+                        if isinstance(src, str):
+                            details["封面图链接"] = urljoin(self.base_url, src)
 
                 if main_table := soup.select_one("table.mg-b20"):
                     rows = main_table.find_all("tr")
                     for row in rows:
+                        if not isinstance(row, Tag):
+                            continue
                         cells = row.find_all("td")
                         if len(cells) < 2: continue
-                        
+
                         key = cells[0].get_text(strip=True)
                         value_cell = cells[1]
 
@@ -153,11 +170,9 @@ class FanzaClient(BaseClient):
                         elif key.startswith("ジャンル"):
                             details["标签"] = [a.get_text(strip=True) for a in value_cell.find_all("a")]
                         elif "ゲームジャンル" in key:
-                            game_types = details.get("作品形式", [])
                             genre_text = value_cell.get_text(strip=True).upper()
                             for genre_key, genre_value in self._genre_reverse_mapping.items():
                                 if genre_key in genre_text: game_types.append(genre_value)
-                            if game_types: details["作品形式"] = list(dict.fromkeys(game_types))
                         elif "ボイス" in key:
                             if "あり" in value_cell.get_text(strip=True):
                                 game_types = details.get("作品形式", [])
@@ -168,6 +183,8 @@ class FanzaClient(BaseClient):
                 logging.info("🔍 [Fanza] 未检测到 /mono/ 链接，使用新版解析器。")
                 if top_table := soup.select_one(".contentsDetailTop__table"):
                     for row in top_table.find_all("div", class_="contentsDetailTop__tableRow"):
+                        if not isinstance(row, Tag):
+                            continue
                         key_tag = row.select_one(".contentsDetailTop__tableDataLeft p")
                         value_tag = row.select_one(".contentsDetailTop__tableDataRight")
                         if not (key_tag and value_tag): continue
@@ -200,7 +217,6 @@ class FanzaClient(BaseClient):
                     for key in details:
                         if isinstance(details[key], list): details[key] = sorted(list(set(details[key])))
 
-                    game_types = []
                     if genre_div := find_row_value("ゲームジャンル"):
                         genre_text = genre_div.get_text(strip=True).upper()
                         for key, value in self._genre_reverse_mapping.items():
@@ -220,11 +236,14 @@ class FanzaClient(BaseClient):
                     cover_selector = (".productPreview__mainImage img, #fn-main_image, .main-visual img")
                     if cover_img_tag := soup.select_one(cover_selector):
                         if src := cover_img_tag.get("src"): details["封面图链接"] = urljoin(self.base_url, src)
-                
+
                 if title_tag := soup.select_one("h1.productTitle__txt"):
                     details["标题"] = title_tag.get_text(strip=True)
                 if price_tag := soup.select_one(".priceInformation__price"):
                     details["价格"] = price_tag.get_text(strip=True).replace("円", "").replace(",", "")
+
+            if game_types:
+                details["作品形式"] = sorted(list(dict.fromkeys(game_types)))
 
             return details
         except Exception as e:

@@ -1,10 +1,12 @@
 # core/cache_warmer.py
-import asyncio
 import httpx
+
+from clients.brand_cache import BrandCache
+
 # from utils import logger # No longer needed
 from clients.notion_client import NotionClient
-from clients.brand_cache import BrandCache
-from config.config_token import NOTION_TOKEN, BRAND_DB_ID, GAME_DB_ID
+from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
+
 
 async def warm_up_brand_cache_standalone():
     """
@@ -30,7 +32,7 @@ async def warm_up_brand_cache_standalone():
                     page_id=brand_details["page_id"],
                     has_icon=brand_details["has_icon"],
                 )
-            
+
             brand_cache.save_cache(silent=True) # This method also needs to be silent
 
     except Exception:

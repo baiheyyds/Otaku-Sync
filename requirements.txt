@@ -11,5 +11,9 @@ selenium_stealth==1.0.6
 tqdm==4.66.6
 webdriver_manager==4.0.2
 rapidfuzz==3.9.4
-qdarkstyle==3.2.4
 rich==13.7.1
+
+# Development dependencies
+pytest
+ruff
+mypy

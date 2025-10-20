@@ -1,8 +1,8 @@
 import asyncio
+import logging
 import traceback
 from PySide6.QtCore import QThread, Signal, QMutex, QWaitCondition
 
-from utils import logger
 from core.brand_handler import check_brand_status, finalize_brand_update
 from core.game_processor import process_and_sync_game
 from core.selector import search_all_sites, _find_best_match, SIMILARITY_THRESHOLD
@@ -42,7 +42,7 @@ class GameSyncWorker(QThread):
         async def setup_context():
             """Create shared context if it doesn't exist, then create loop-specific context."""
             if not self.shared_context:
-                logger.system("正在创建新的共享应用上下文...")
+                logging.info("🔧 正在创建新的共享应用上下文...")
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
@@ -70,8 +70,8 @@ class GameSyncWorker(QThread):
             self.loop.run_until_complete(self.game_flow())
 
         except Exception as e:
-            logger.error(f"线程运行时出现致命错误: {e}")
-            logger.error(traceback.format_exc())
+            logging.error(f"❌ 线程运行时出现致命错误: {e}")
+            logging.error(traceback.format_exc())
             self.process_completed.emit(False)
         finally:
             if self.interaction_provider:
@@ -93,15 +93,15 @@ class GameSyncWorker(QThread):
             async def cleanup_tasks():
                 background_tasks = self.context.get("background_tasks", [])
                 if background_tasks:
-                    logger.system(f"正在取消 {len(background_tasks)} 个后台任务...")
+                    logging.info(f"🔧 正在取消 {len(background_tasks)} 个后台任务...")
                     for task in background_tasks:
                         task.cancel()
                     await asyncio.gather(*background_tasks, return_exceptions=True)
-                    logger.system("所有后台任务已处理。")
+                    logging.info("🔧 所有后台任务已处理。")
 
                 if self.context.get("async_client"):
                     await self.context["async_client"].aclose()
-                    logger.system("线程内HTTP客户端已关闭。")
+                    logging.info("🔧 线程内HTTP客户端已关闭。")
 
             if self.loop.is_running():
                 self.loop.run_until_complete(cleanup_tasks())
@@ -146,27 +146,27 @@ class GameSyncWorker(QThread):
         game = None
         while True:
             if not results:
-                logger.warn(f"在 {source or '所有网站'} 未找到结果。")
+                logging.warning(f"⚠️ 在 {source or '所有网站'} 未找到结果。")
                 return None, source
             
             if not self.manual_mode:
                 best_score, best_match = _find_best_match(self.keyword, results)
                 if best_score >= SIMILARITY_THRESHOLD:
-                    logger.info(f"[Selector] 智能模式自动选择 (相似度: {best_score:.2f}) -> {best_match['title']}")
+                    logging.info(f"🔍 [Selector] 智能模式自动选择 (相似度: {best_score:.2f}) -> {best_match['title']}")
                     game = best_match
                 else:
-                    logger.info(f"智能模式匹配度 ({best_score:.2f}) 过低，转为手动选择。")
+                    logging.info(f"🔍 智能模式匹配度 ({best_score:.2f}) 过低，转为手动选择。")
             
             if game is None:
                 # REFACTORED: Call the provider instead of wait_for_choice
                 choice = await self.interaction_provider.select_game(results, f"请从 {source.upper()} 结果中选择", source)
                 
                 if choice == "search_fanza":
-                    logger.info("切换到 Fanza 搜索...")
+                    logging.info("🔍 切换到 Fanza 搜索...")
                     results, source = await search_all_sites(self.context["dlsite"], self.context["fanza"], self.keyword, site="fanza")
                     continue
                 elif choice == -1 or choice is None:
-                    logger.info("用户取消了选择。")
+                    logging.info("🔍 用户取消了选择。")
                     return None, source
                 else:
                     game = results[choice]
@@ -184,28 +184,28 @@ class GameSyncWorker(QThread):
         choice = await self.interaction_provider.confirm_duplicate(candidates)
 
         if choice == "skip":
-            logger.info("已选择跳过。")
+            logging.info("🔍 已选择跳过。")
             return "skip"
         elif choice == "update":
             page_id = candidates[0][0].get("id")
-            logger.info(f"已选择更新游戏：{candidates[0][0].get('title')}")
+            logging.info(f"🔍 已选择更新游戏：{candidates[0][0].get('title')}")
             return page_id
         elif choice == "create":
-            logger.info("已选择强制创建新游戏。")
+            logging.info("🔍 已选择强制创建新游戏。")
             return None
         return None # Default to cancel
 
     async def _fetch_ggbases_data(self, keyword, manual_mode):
-        logger.info("[GGBases] 开始获取 GGBases 数据...")
+        logging.info("🔍 [GGBases] 开始获取 GGBases 数据...")
         try:
             candidates = await self.context["ggbases"].choose_or_parse_popular_url_with_requests(keyword)
             if not candidates:
-                logger.warn("[GGBases] 未找到任何候选。")
+                logging.warning("⚠️ [GGBases] 未找到任何候选。")
                 return {}
 
             selected_game = None
             if manual_mode:
-                logger.info("[GGBases] 手动模式，需要用户选择。")
+                logging.info("🔍 [GGBases] 手动模式，需要用户选择。")
                 # REFACTORED: Call the provider instead of wait_for_choice
                 choice = await self.interaction_provider.select_game(candidates, "请从GGBases结果中选择", "ggbases")
                 if isinstance(choice, int) and choice != -1:
@@ -214,10 +214,10 @@ class GameSyncWorker(QThread):
                 selected_game = max(candidates, key=lambda x: x.get("popularity", 0))
             
             if not selected_game:
-                logger.info("[GGBases] 用户未选择或无有效结果。")
+                logging.info("🔍 [GGBases] 用户未选择或无有效结果。")
                 return {}
 
-            logger.success(f"[GGBases] 已选择结果: {selected_game['title']}")
+            logging.info(f"✅ [GGBases] 已选择结果: {selected_game['title']}")
             url = selected_game.get("url")
             if not url:
                 return {"selected_game": selected_game}
@@ -227,30 +227,30 @@ class GameSyncWorker(QThread):
                 self.context["ggbases"].set_driver(driver)
             
             info = await self.context["ggbases"].get_info_by_url_with_selenium(url)
-            logger.success("[GGBases] Selenium 抓取完成。")
+            logging.info("✅ [GGBases] Selenium 抓取完成。")
             return {"info": info, "selected_game": selected_game}
         except Exception as e:
-            logger.error(f"[GGBases] 获取数据时出错: {e}")
+            logging.error(f"❌ [GGBases] 获取数据时出错: {e}")
             return {}
 
     async def _fetch_bangumi_data(self, keyword):
-        logger.info("[Bangumi] 开始获取 Bangumi 数据...")
+        logging.info("🔍 [Bangumi] 开始获取 Bangumi 数据...")
         try:
             bangumi_id = await self.context["bangumi"].search_and_select_bangumi_id(keyword)
             if not bangumi_id:
-                logger.warn("[Bangumi] 未找到或未选择 Bangumi 条目。")
+                logging.warning("⚠️ [Bangumi] 未找到或未选择 Bangumi 条目。")
                 return {}
             
-            logger.info(f"[Bangumi] 已确定 Bangumi ID: {bangumi_id}, 正在获取详细信息...")
+            logging.info(f"🔍 [Bangumi] 已确定 Bangumi ID: {bangumi_id}, 正在获取详细信息...")
             game_info = await self.context["bangumi"].fetch_game(bangumi_id)
-            logger.success("[Bangumi] 游戏详情获取完成。")
+            logging.info("✅ [Bangumi] 游戏详情获取完成。")
             return {"game_info": game_info, "bangumi_id": bangumi_id}
         except Exception as e:
-            logger.error(f"[Bangumi] 获取数据时出错: {e}")
+            logging.error(f"❌ [Bangumi] 获取数据时出错: {e}")
             return {}
 
     async def _fetch_and_process_brand_data(self, detail, source):
-        logger.info("[品牌] 开始处理品牌信息...")
+        logging.info("🔍 [品牌] 开始处理品牌信息...")
         try:
             raw_brand_name = detail.get("品牌")
             brand_name = self.context["brand_mapping_manager"].get_canonical_name(raw_brand_name)
@@ -258,7 +258,7 @@ class GameSyncWorker(QThread):
             
             fetched_data = {}
             if needs_fetching and brand_name:
-                logger.step(f"品牌 '{brand_name}' 需要抓取新信息...")
+                logging.info(f"🚀 品牌 '{brand_name}' 需要抓取新信息...")
                 tasks = {}
                 tasks["bangumi_brand_info"] = self.context["bangumi"].fetch_brand_info_from_bangumi(brand_name)
                 
@@ -272,12 +272,12 @@ class GameSyncWorker(QThread):
                 if tasks:
                     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
                     fetched_data = {key: res for key, res in zip(tasks.keys(), results) if not isinstance(res, Exception)}
-                    logger.success(f"[品牌] '{brand_name}' 的新信息抓取完成。")
+                    logging.info(f"✅ [品牌] '{brand_name}' 的新信息抓取完成。")
 
             brand_id = await finalize_brand_update(self.context, brand_name, brand_page_id, fetched_data)
             return {"brand_id": brand_id, "brand_name": brand_name}
         except Exception as e:
-            logger.error(f"[品牌] 处理品牌信息时出错: {e}")
+            logging.error(f"❌ [品牌] 处理品牌信息时出错: {e}")
             return {}
 
     async def game_flow(self) -> bool:
@@ -288,7 +288,7 @@ class GameSyncWorker(QThread):
             if not game:
                 self.process_completed.emit(True)
                 return True
-            logger.info(f"已选择来源: {source.upper()}, 游戏: {game['title']}")
+            logging.info(f"🚀 已选择来源: {source.upper()}, 游戏: {game['title']}")
 
             # 阶段二：重复项检查
             selected_similar_page_id = await self._check_for_duplicates(game['title'])
@@ -297,7 +297,7 @@ class GameSyncWorker(QThread):
                 return True
 
             # 阶段三：极致并发I/O操作
-            logger.info("启动极致并发I/O任务...")
+            logging.info("🚀 启动极致并发I/O任务...")
 
             # 1. 立即启动所有不互相依赖的任务
             loop = asyncio.get_running_loop()
@@ -306,25 +306,25 @@ class GameSyncWorker(QThread):
             bangumi_task = loop.create_task(self._fetch_bangumi_data(self.keyword))
 
             # 2. 仅等待详情任务完成，以便触发依赖它的品牌任务
-            logger.info("等待详情页数据以触发品牌抓取...")
+            logging.info("🔍 等待详情页数据以触发品牌抓取...")
             detail = await detail_task
             if not detail:
-                logger.error(f"获取游戏 '{game['title']}' 的核心详情失败，流程终止。")
+                logging.error(f"❌ 获取游戏 '{game['title']}' 的核心详情失败，流程终止。")
                 # 取消其他还在运行的任务
                 ggbases_task.cancel()
                 bangumi_task.cancel()
                 self.process_completed.emit(False)
                 return False
             detail["source"] = source
-            logger.success("详情页数据已获取。")
+            logging.info("✅ 详情页数据已获取。")
 
             # 3. 详情获取后，立即启动品牌处理任务
             brand_task = loop.create_task(self._fetch_and_process_brand_data(detail, source))
 
             # 4. 等待所有剩余的后台任务完成
-            logger.info("等待所有后台任务 (GGBases, Bangumi, Brand) 完成...")
+            logging.info("🔍 等待所有后台任务 (GGBases, Bangumi, Brand) 完成...")
             results = await asyncio.gather(ggbases_task, bangumi_task, brand_task, return_exceptions=True)
-            logger.success("所有后台I/O任务均已完成！")
+            logging.info("✅ 所有后台I/O任务均已完成！")
 
             # 5. 从结果中安全解包
             ggbases_result = results[0] if not isinstance(results[0], Exception) else {}
@@ -337,7 +337,7 @@ class GameSyncWorker(QThread):
             bangumi_id = bangumi_result.get("bangumi_id")
 
             # 阶段四：数据处理与同步
-            logger.info("所有数据已获取, 开始进行最终处理与同步...")
+            logging.info("🚀 所有数据已获取, 开始进行最终处理与同步...")
             created_page_id = await process_and_sync_game(
                 game=game, detail=detail, notion_client=self.context["notion"], brand_id=brand_data.get("brand_id"),
                 ggbases_client=self.context["ggbases"], user_keyword=self.keyword,
@@ -361,18 +361,18 @@ class GameSyncWorker(QThread):
                     if clean_title:
                         new_game_entry = {"id": created_page_id, "title": clean_title}
                         self.context["cached_titles"].append(new_game_entry)
-                        logger.cache(f"实时查重缓存已更新: {clean_title}")
+                        logging.info(f"🗂️ 实时查重缓存已更新: {clean_title}")
 
             if created_page_id and bangumi_id:
                 await self.context["bangumi"].create_or_link_characters(created_page_id, bangumi_id)
 
-            logger.success(f"游戏 '{game['title']}' 处理流程完成！")
+            logging.info(f"✅ 游戏 '{game['title']}' 处理流程完成！")
             self.process_completed.emit(True)
             return True
 
         except Exception as e:
-            logger.error(f"处理流程出现严重错误: {e}")
-            logger.error(traceback.format_exc())
+            logging.error(f"❌ 处理流程出现严重错误: {e}")
+            logging.error(traceback.format_exc())
             self.process_completed.emit(False)
             return False
 
@@ -405,7 +405,7 @@ class ScriptWorker(QThread):
 
         async def setup_context():
             if not self.shared_context:
-                logger.system("正在为脚本运行创建新的共享应用上下文...")
+                logging.info("🔧 正在为脚本运行创建新的共享应用上下文...")
                 self.shared_context = create_shared_context()
                 self.context_created.emit(self.shared_context)
             
@@ -435,16 +435,16 @@ class ScriptWorker(QThread):
                     elif key == "ggbases_driver":
                         self.context["ggbases"].set_driver(driver)
 
-            logger.system(f"后台线程开始执行脚本: {self.script_name}")
+            logging.info(f"🚀 后台线程开始执行脚本: {self.script_name}")
             # Pass the entire context, which now includes the interaction_provider
             awaitable_func = self.script_function(self.context)
             result = self.loop.run_until_complete(awaitable_func)
-            logger.success(f"脚本 {self.script_name} 执行完毕。")
+            logging.info(f"✅ 脚本 {self.script_name} 执行完毕。")
             self.script_completed.emit(self.script_name, True, result)
 
         except Exception as e:
-            logger.error(f"脚本 {self.script_name} 执行时出现致命错误: {e}")
-            logger.error(traceback.format_exc())
+            logging.error(f"❌ 脚本 {self.script_name} 执行时出现致命错误: {e}")
+            logging.error(traceback.format_exc())
             self.script_completed.emit(self.script_name, False, None)
         finally:
             # Disconnect signals
@@ -463,16 +463,16 @@ class ScriptWorker(QThread):
                 # Cancel background tasks first
                 background_tasks = self.context.get("background_tasks", [])
                 if background_tasks:
-                    logger.system(f"正在取消 {len(background_tasks)} 个后台任务...")
+                    logging.info(f"🔧 正在取消 {len(background_tasks)} 个后台任务...")
                     for task in background_tasks:
                         task.cancel()
                     await asyncio.gather(*background_tasks, return_exceptions=True)
-                    logger.system("所有后台任务已处理。")
+                    logging.info("🔧 所有后台任务已处理。")
 
                 # Close HTTP client
                 if self.context.get("async_client"):
                     await self.context["async_client"].aclose()
-                    logger.system("脚本线程内的HTTP客户端已关闭。")
+                    logging.info("🔧 脚本线程内的HTTP客户端已关闭。")
 
             if self.loop.is_running():
                 self.loop.run_until_complete(cleanup_tasks())

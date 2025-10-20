@@ -1,12 +1,12 @@
 # core/mapping_manager.py
 import asyncio
 import json
+import logging
 import os
 from typing import Dict, List
 
 from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID
 from utils.similarity_check import get_close_matches_with_ratio
-from utils import logger
 from core.interaction import InteractionProvider
 from utils.utils import normalize_brand_name
 
@@ -31,14 +31,14 @@ class BrandMappingManager:
 
     def _load_mapping(self):
         if not os.path.exists(self.file_path):
-            logger.warn(f"品牌映射文件不存在: {self.file_path}")
+            logging.warning(f"⚠️ 品牌映射文件不存在: {self.file_path}")
             return
         try:
             with open(self.file_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 self._mapping = json.loads(content) if content else {}
         except (json.JSONDecodeError, IOError) as e:
-            logger.error(f"加载品牌映射文件失败: {e}")
+            logging.error(f"❌ 加载品牌映射文件失败: {e}")
             self._mapping = {}
         self._build_reverse_mapping()
 
@@ -76,7 +76,7 @@ class BrandMappingManager:
         # 添加新别名（如果它还不存在）
         if alias not in self._mapping[canonical_name] and alias != canonical_name:
             self._mapping[canonical_name].append(alias)
-            logger.info(f"品牌映射学习: ‘{alias}’ -> ‘{canonical_name}’")
+            logging.info(f"🔧 品牌映射学习: ‘{alias}’ -> ‘{canonical_name}’")
         
         # 重建反向映射以立即生效
         self._build_reverse_mapping()
@@ -86,9 +86,9 @@ class BrandMappingManager:
         try:
             with open(self.file_path, "w", encoding="utf-8") as f:
                 json.dump(self._mapping, f, ensure_ascii=False, indent=2, sort_keys=True)
-            logger.cache(f"品牌映射文件已成功保存到 {self.file_path}")
+            logging.info(f"🗂️ 品牌映射文件已成功保存到 {self.file_path}")
         except IOError as e:
-            logger.error(f"保存品牌映射文件失败: {e}")
+            logging.error(f"❌ 保存品牌映射文件失败: {e}")
 
 class BangumiMappingManager:
     def __init__(self, interaction_provider: InteractionProvider, file_path: str = BGM_PROP_MAPPING_PATH):
@@ -112,7 +112,7 @@ class BangumiMappingManager:
                 content = f.read()
                 self._permanent_ignored_keys = set(json.loads(content) if content else [])
         except (json.JSONDecodeError, IOError) as e:
-            logger.error(f"加载 Bangumi 忽略列表文件失败: {e}")
+            logging.error(f"❌ 加载 Bangumi 忽略列表文件失败: {e}")
             self._permanent_ignored_keys = set()
 
     def _load_mapping(self):
@@ -128,7 +128,7 @@ class BangumiMappingManager:
                         **(json.loads(content) if content else {}),
                     }
             except (json.JSONDecodeError, IOError) as e:
-                logger.error(f"加载 Bangumi 映射文件失败: {e}")
+                logging.error(f"❌ 加载 Bangumi 映射文件失败: {e}")
                 self._mapping = default_structure
         self._build_reverse_mapping()
 
@@ -165,17 +165,17 @@ class BangumiMappingManager:
             with open(self.file_path, "w", encoding="utf-8") as f:
                 json.dump(self._mapping, f, ensure_ascii=False, indent=2, sort_keys=True)
         except IOError as e:
-            logger.error(f"保存 Bangumi 映射文件失败: {e}")
+            logging.error(f"❌ 保存 Bangumi 映射文件失败: {e}")
             return
 
         self._reverse_mapping.setdefault(namespace, {})[bangumi_key] = notion_prop
-        logger.success(
-            f"已更新【{namespace}】映射表: Bangumi '{bangumi_key}' -> Notion '{notion_prop}'"
+        logging.info(
+            f"✅ 已更新【{namespace}】映射表: Bangumi '{bangumi_key}' -> Notion '{notion_prop}'"
         )
 
     def ignore_key_session(self, bangumi_key: str):
         self._ignored_keys.add(bangumi_key)
-        logger.info(f"属性 '{bangumi_key}' 将在本次运行中被忽略。")
+        logging.info(f"🔍 属性 '{bangumi_key}' 将在本次运行中被忽略。")
 
     def _add_to_permanent_ignore_list(self, bangumi_key: str):
         if bangumi_key in self._permanent_ignored_keys:
@@ -186,9 +186,9 @@ class BangumiMappingManager:
                 json.dump(
                     sorted(list(self._permanent_ignored_keys)), f, ensure_ascii=False, indent=2
                 )
-            logger.success(f"已将 '{bangumi_key}' 添加到永久忽略列表。")
+            logging.info(f"✅ 已将 '{bangumi_key}' 添加到永久忽略列表。")
         except IOError as e:
-            logger.error(f"保存 Bangumi 永久忽略列表失败: {e}")
+            logging.error(f"❌ 保存 Bangumi 永久忽略列表失败: {e}")
 
     async def _create_and_map_new_property(
         self,
@@ -201,7 +201,7 @@ class BangumiMappingManager:
         
         notion_type = await self.interaction_provider.ask_for_new_property_type(new_prop_name)
         if not notion_type:
-            logger.warn(f"未选择属性类型，已取消为 '{new_prop_name}' 创建属性的操作。")
+            logging.warning(f"⚠️ 未选择属性类型，已取消为 '{new_prop_name}' 创建属性的操作。")
             return None
 
         success = await notion_client.add_new_property_to_db(
@@ -275,11 +275,11 @@ class BangumiMappingManager:
                         custom_name, bangumi_key, notion_client, schema_manager, target_db_id
                     )
                 else:
-                    logger.warn("未提供自定义名称，操作已取消。")
+                    logging.warning("⚠️ 未提供自定义名称，操作已取消。")
                     self.ignore_key_session(bangumi_key)
                     return None
             
             # Default case if action is unknown or None
-            logger.error("无效操作，将忽略此属性。")
+            logging.error("❌ 无效操作，将忽略此属性。")
             self.ignore_key_session(bangumi_key)
             return None

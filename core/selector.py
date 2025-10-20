@@ -1,8 +1,8 @@
 # core/selector.py
+import logging
 import unicodedata
 import re
 from rapidfuzz import fuzz
-from utils import logger
 
 # 定义一个较高的相似度阈值，确保自动选择的准确性
 SIMILARITY_THRESHOLD = 90  # Using rapidfuzz's scale of 0-100
@@ -26,32 +26,35 @@ def _normalize_for_selection(text: str) -> str:
 
 
 async def search_all_sites(
-    dlsite_client, fanza_client, keyword: str, site: str = "all"
+    dlsite_client,
+    fanza_client,
+    keyword: str,
+    site: str = "all"
 ) -> tuple[list, str]:
     """
     Non-interactively search DLSite and/or Fanza.
     """
     if site == "dlsite" or site == "all":
-        logger.info(f"正在以 '{keyword}' 为关键词在 DLsite 上搜索...")
+        logging.info(f"🔍 正在以 '{keyword}' 为关键词在 DLsite 上搜索...")
         results = await dlsite_client.search(keyword)
         if results:
-            logger.success(f"在 DLsite 上找到 {len(results)} 个结果。")
+            logging.info(f"✅ 在 DLsite 上找到 {len(results)} 个结果。")
             return results, "dlsite"
         if site == "dlsite":
-            logger.error("DLsite 未找到结果。")
+            logging.error("❌ DLsite 未找到结果。")
             return [], None
 
     if site == "fanza" or site == "all":
-        logger.info(f"正在以 '{keyword}' 为关键词在 Fanza 上搜索...")
+        logging.info(f"🔍 正在以 '{keyword}' 为关键词在 Fanza 上搜索...")
         results = await fanza_client.search(keyword)
         if results:
-            logger.success(f"在 Fanza 上找到 {len(results)} 个结果。")
+            logging.info(f"✅ 在 Fanza 上找到 {len(results)} 个结果。")
             return results, "fanza"
         if site == "fanza":
-            logger.error("Fanza 未找到结果。")
+            logging.error("❌ Fanza 未找到结果。")
             return [], None
 
-    logger.error("所有平台均未找到结果。")
+    logging.error("❌ 所有平台均未找到结果。")
     return [], None
 
 
@@ -122,8 +125,8 @@ async def select_game(
             best_score, best_match = _find_best_match(original_keyword, results)
             # Note: best_score is now 0-100
             if best_score >= SIMILARITY_THRESHOLD:
-                logger.success(
-                    f"[Selector] 自动选择最匹配项 (相似度: {best_score:.2f}) (来源: DLsite)"
+                logging.info(
+                    f"✅ [Selector] 自动选择最匹配项 (相似度: {best_score:.2f}) (来源: DLsite)"
                 )
                 print(f"   -> 🎮 {best_match['title']}")
                 return best_match, "dlsite"
@@ -140,7 +143,7 @@ async def select_game(
         choice = input(prompt).strip().lower()
 
         if choice == 'f':
-            logger.info("切换到 Fanza 搜索...")
+            logging.info("🔍 切换到 Fanza 搜索...")
         elif choice == 'c':
             return None, "cancel"
         else:
@@ -149,10 +152,10 @@ async def select_game(
                 if 0 <= selected_idx < len(results):
                     return results[selected_idx], "dlsite"
             except (ValueError, IndexError):
-                logger.error("无效输入，操作已取消。")
+                logging.error("❌ 无效输入，操作已取消。")
                 return None, None
     else:
-        logger.info("DLsite 未找到，尝试 Fanza 搜索...")
+        logging.info("🔍 DLsite 未找到，尝试 Fanza 搜索...")
 
     # Fanza search logic
     results = await fanza_client.search(original_keyword)
@@ -160,8 +163,8 @@ async def select_game(
         if not manual_mode:
             best_score, best_match = _find_best_match(original_keyword, results)
             if best_score >= SIMILARITY_THRESHOLD:
-                logger.success(
-                    f"[Selector] 自动选择最匹配项 (相似度: {best_score:.2f}) (来源: Fanza)"
+                logging.info(
+                    f"✅ [Selector] 自动选择最匹配项 (相似度: {best_score:.2f}) (来源: Fanza)"
                 )
                 print(f"   -> 🎮 {best_match['title']}")
                 return best_match, "fanza"
@@ -183,8 +186,8 @@ async def select_game(
             if 0 <= selected_idx < len(results):
                 return results[selected_idx], "fanza"
         except (ValueError, IndexError):
-            logger.error("无效输入，操作已取消。")
+            logging.error("❌ 无效输入，操作已取消。")
             return None, None
 
-    logger.error("所有平台均未找到结果。")
+    logging.error("❌ 所有平台均未找到结果。")
     return None, None

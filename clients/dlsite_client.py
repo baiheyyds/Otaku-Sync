@@ -1,5 +1,6 @@
 # clients/dlsite_client.py
 import asyncio
+import logging
 import os
 import traceback
 import urllib.parse
@@ -11,7 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium_stealth import stealth
 
-from utils import logger
 from utils.driver import create_driver
 from utils.tag_logger import append_new_tags
 from .base_client import BaseClient
@@ -45,7 +45,7 @@ class DlsiteClient(BaseClient):
         return self.driver is not None
 
     async def search(self, keyword, limit=30):
-        logger.info(f"[Dlsite] 正在搜索关键词: {keyword}")
+        logging.info(f"🔍 [Dlsite] 正在搜索关键词: {keyword}")
         query = urllib.parse.quote_plus(keyword)
         url = f"/maniax/fsr/=/language/jp/sex_category%5B0%5D/male/keyword/{query}/work_category%5B0%5D/doujin/work_category%5B1%5D/books/work_category%5B2%5D/pc/work_category%5B3%5D/app/order%5B0%5D/trend/options_and_or/and/per_page/30/page/1/from/fs.header"
         
@@ -99,7 +99,7 @@ class DlsiteClient(BaseClient):
             for item in results
             if not any(ex_kw in (item.get("类型") or "") for ex_kw in exclude_keywords)
         ]
-        logger.success(f"[Dlsite] 筛选后找到 {len(filtered_results)} 条游戏相关结果")
+        logging.info(f"✅ [Dlsite] 筛选后找到 {len(filtered_results)} 条游戏相关结果")
         return filtered_results
 
     async def get_game_detail(self, url):
@@ -152,7 +152,7 @@ class DlsiteClient(BaseClient):
                     elif key == "ファイル容量":
                         value_container = td.select_one(".main_genre") or td
                         details["容量"] = (
-                            value_container.get_text(strip=True).replace("総計", "").strip()
+                            value_container.get_text(strip=True).replace("总计", "").strip()
                         )
 
             cover_tag = soup.find("meta", property="og:image")
@@ -175,12 +175,12 @@ class DlsiteClient(BaseClient):
                 "容量": details.get("容量"),
             }
         except Exception as e:
-            logger.error(f"[Dlsite] 解析详情页失败: {url} - {e}")
+            logging.error(f"❌ [Dlsite] 解析详情页失败: {url} - {e}")
             traceback.print_exc()
             return {}
 
     async def get_brand_extra_info_with_selenium(self, brand_page_url):
-        logger.info(f"[Dlsite] 正在用Selenium抓取品牌额外信息...")
+        logging.info("🔍 [Dlsite] 正在用Selenium抓取品牌额外信息...")
         if not self.driver:
             raise RuntimeError("DlsiteClient的专属driver未设置。")
         if not brand_page_url:
@@ -196,7 +196,7 @@ class DlsiteClient(BaseClient):
                         EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn_yes a"))
                     )
                     yes_button.click()
-                    logger.info("[Dlsite] (Selenium) 已自动通过年龄验证。")
+                    logging.info("🔍 [Dlsite] (Selenium) 已自动通过年龄验证。")
                 except Exception:
                     pass # 年龄验证不是每次都有，忽略失败
 
@@ -212,7 +212,7 @@ class DlsiteClient(BaseClient):
                     )
                     cien_url = cien_link_element.get_attribute("href").strip()
                 except TimeoutException:
-                    logger.warn("[Dlsite] (Selenium) 在品牌页面未找到 Ci-en 链接。")
+                    logging.warning("⚠️ [Dlsite] (Selenium) 在品牌页面未找到 Ci-en 链接。")
 
                 try:
                     icon_img_element = wait.until(
@@ -220,17 +220,17 @@ class DlsiteClient(BaseClient):
                     )
                     icon_url = icon_img_element.get_attribute("src").strip()
                 except TimeoutException:
-                    logger.warn("[Dlsite] (Selenium) 在品牌页面未找到图标。")
+                    logging.warning("⚠️ [Dlsite] (Selenium) 在品牌页面未找到图标。")
 
                 if cien_url or icon_url:
-                    logger.success(
-                        f"[Dlsite] (Selenium) 获取成功: Ci-en={cien_url}, 图标={icon_url}"
+                    logging.info(
+                        f"✅ [Dlsite] (Selenium) 获取成功: Ci-en={cien_url}, 图标={icon_url}"
                     )
                 return {"ci_en_url": cien_url, "icon_url": icon_url}
 
             except Exception as e:
-                logger.error(
-                    f"[Dlsite] (Selenium) 抓取品牌信息时发生未知错误 {brand_page_url}: {e}"
+                logging.error(
+                    f"❌ [Dlsite] (Selenium) 抓取品牌信息时发生未知错误 {brand_page_url}: {e}"
                 )
                 return {}
 

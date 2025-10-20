@@ -1,5 +1,6 @@
 # scripts/fill_missing_character_fields.py
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -15,7 +16,6 @@ from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION
 from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
-from utils import logger
 
 
 def extract_bangumi_char_id(url: str) -> str | None:
@@ -49,17 +49,20 @@ def is_update_needed(properties: dict) -> bool:
 
 
 async def fill_missing_character_fields(
-    notion_client: NotionClient, bangumi_client: BangumiClient
+    context: dict
 ):
     """遍历角色数据库，为缺少特定字段的角色从Bangumi补充信息。"""
-    logger.info("开始扫描角色数据库以补充缺失字段...")
+    notion_client = context["notion"]
+    bangumi_client = context["bangumi"]
+    
+    logging.info("开始扫描角色数据库以补充缺失字段...")
     all_characters = await notion_client.get_all_pages_from_db(CHARACTER_DB_ID)
     if not all_characters:
-        logger.warn("角色数据库中没有任何条目。")
+        logging.warning("角色数据库中没有任何条目。")
         return
 
     total = len(all_characters)
-    logger.info(f"共拉取到 {total} 个角色条目，开始检查和更新。")
+    logging.info(f"共拉取到 {total} 个角色条目，开始检查和更新。")
 
     updated_count = 0
     skipped_count = 0
@@ -69,10 +72,10 @@ async def fill_missing_character_fields(
         props = page.get("properties", {})
         char_name = notion_client.get_page_title(page)
 
-        logger.info(f"\n[{idx}/{total}] 正在处理角色: {char_name}")
+        logging.info(f"\n[{idx}/{total}] 正在处理角色: {char_name}")
 
         if not is_update_needed(props):
-            logger.info("✅ 所有关键字段已填写，跳过。")
+            logging.info("✅ 所有关键字段已填写，跳过。")
             skipped_count += 1
             continue
 
@@ -80,15 +83,15 @@ async def fill_missing_character_fields(
         char_id = extract_bangumi_char_id(detail_url)
 
         if not char_id:
-            logger.warn(f"⚠️ 无法从URL中提取Bangumi角色ID，跳过: {detail_url}")
+            logging.warning(f"⚠️ 无法从URL中提取Bangumi角色ID，跳过: {detail_url}")
             skipped_count += 1
             continue
 
-        logger.info(f"正在从Bangumi获取角色 {char_id} 的详细信息...")
+        logging.info(f"正在从Bangumi获取角色 {char_id} 的详细信息...")
         char_data_to_update = await bangumi_client.fetch_and_prepare_character_data(char_id)
 
         if not char_data_to_update:
-            logger.error(f"❌ 从Bangumi获取角色 {char_id} 的信息失败。")
+            logging.error(f"❌ 从Bangumi获取角色 {char_id} 的信息失败。")
             skipped_count += 1
             continue
 
@@ -101,9 +104,9 @@ async def fill_missing_character_fields(
 
         await asyncio.sleep(1)  # 尊重Bangumi API的速率限制
 
-    logger.system("\n--- 扫描完成 ---")
-    logger.success(f"✅ 成功更新或确认了 {updated_count} 个角色。")
-    logger.info(f"⏩ 跳过了 {skipped_count} 个无需更新或无法处理的角色。")
+    logging.info("\n--- 扫描完成 ---")
+    logging.info(f"✅ 成功更新或确认了 {updated_count} 个角色。")
+    logging.info(f"⏩ 跳过了 {skipped_count} 个无需更新或无法处理的角色。")
 
 
 async def main():
@@ -136,4 +139,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     asyncio.run(main())

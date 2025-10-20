@@ -2,7 +2,6 @@
 import asyncio
 from abc import ABCMeta
 from PySide6.QtCore import QObject, Signal
-from utils import logger as project_logger
 from core.interaction import InteractionProvider
 from typing import Any, Dict, List
 
@@ -10,52 +9,8 @@ class _LogBridge(QObject):
     """ A bridge to forward logs from the custom logger to the GUI. """ 
     log_received = Signal(str)
 
-# Global instance of the bridge
+# Global instance of the bridge, used by the QtLogHandler
 log_bridge = _LogBridge()
-
-def patch_logger():
-    """
-    Dynamically replaces the print-based functions in the project's custom
-    logger with functions that emit a Qt signal.
-    """
-    
-    # --- Define new functions that emit signals --- #
-    def new_step(message):
-        log_bridge.log_received.emit(f"🚀 {message}")
-
-    def new_info(message):
-        log_bridge.log_received.emit(f"🔍 {message}")
-
-    def new_success(message):
-        log_bridge.log_received.emit(f"✅ {message}")
-
-    def new_warn(message):
-        log_bridge.log_received.emit(f"⚠️ {message}")
-
-    def new_error(message):
-        log_bridge.log_received.emit(f"❌ {message}")
-
-    def new_system(message):
-        log_bridge.log_received.emit(f"🔧 {message}")
-
-    def new_cache(message):
-        log_bridge.log_received.emit(f"🗂️ {message}")
-
-    def new_result(message):
-        # For multi-line results, emit as is
-        log_bridge.log_received.emit(str(message))
-
-    # --- Apply the patches --- #
-    project_logger.step = new_step
-    project_logger.info = new_info
-    project_logger.success = new_success
-    project_logger.warn = new_warn
-    project_logger.error = new_error
-    project_logger.system = new_system
-    project_logger.cache = new_cache
-    project_logger.result = new_result
-
-    new_system("日志系统已成功接入GUI。后台终端将不再有重复输出。")
 
 # Metaclass to resolve conflict between QObject and ABC
 class QObjectABCMeta(type(QObject), ABCMeta):

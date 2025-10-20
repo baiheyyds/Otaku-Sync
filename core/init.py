@@ -1,13 +1,13 @@
 # core/init.py
 import asyncio
+import logging
 from .context_factory import create_shared_context, create_loop_specific_context
 from .driver_factory import driver_factory
 from .interaction import ConsoleInteractionProvider
-from utils import logger
 
 async def init_context():
     """Initializes the context for the command-line application."""
-    logger.system("启动程序...")
+    logging.info("🚀 启动程序...")
     interaction_provider = ConsoleInteractionProvider()
     shared_context = create_shared_context()
     loop_specific_context = await create_loop_specific_context(shared_context, interaction_provider)
@@ -20,10 +20,10 @@ async def close_context(context: dict):
     # Close loop-specific resources
     if context.get("async_client"):
         await context["async_client"].aclose()
-        logger.system("HTTP 客户端已关闭。")
+        logging.info("🔧 HTTP 客户端已关闭。")
 
     # Save all caches and mappings
-    logger.system("正在保存所有缓存和映射数据...")
+    logging.info("🔧 正在保存所有缓存和映射数据...")
     if context.get("brand_cache"):
         context["brand_cache"].save_cache()
 

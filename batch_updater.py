@@ -1,11 +1,11 @@
 # batch_updater.py
 import asyncio
+import logging
 import re
 from tqdm import tqdm
 from typing import List, Dict, Any
 
 from core.init import init_context, close_context
-from utils import logger
 from config.config_token import GAME_DB_ID, BRAND_DB_ID, CHARACTER_DB_ID
 from config.config_fields import FIELDS
 
@@ -126,7 +126,7 @@ async def preprocess_item(context, page: Dict[str, Any], db_key: str) -> Dict[st
         }
     except Exception as e:
         page_title = context["notion"].get_page_title(page)
-        logger.warn(f"预处理 '{page_title}' 时失败: {e}")
+        logging.warning(f"⚠️ 预处理 '{page_title}' 时失败: {e}")
         return None
 
 
@@ -171,7 +171,7 @@ async def write_item_to_notion(context, item_data: Dict[str, Any], db_key: str):
             warned_keys = set()
             await context["bangumi"].create_or_update_character(bangumi_data, warned_keys)
     except Exception as e:
-        logger.error(f"写入页面 '{page_title}' ({page_id}) 时出错: {e}")
+        logging.error(f"❌ 写入页面 '{page_title}' ({page_id}) 时出错: {e}")
 
 
 async def batch_update(context, dbs_to_update: List[str]):
@@ -180,14 +180,14 @@ async def batch_update(context, dbs_to_update: List[str]):
 
     for db_key in dbs_to_update:
         config = DB_CONFIG[db_key]
-        logger.step(f"开始处理 {config['name']}...")
+        logging.info(f"🚀 开始处理 {config['name']}...")
 
         all_pages = await notion_client.get_all_pages_from_db(config["id"])
         if not all_pages:
-            logger.warn(f"{config['name']} 中没有找到任何页面。")
+            logging.warning(f"⚠️ {config['name']} 中没有找到任何页面。")
             continue
 
-        logger.info(f"共找到 {len(all_pages)} 个条目，将以每批 {CONCURRENCY_LIMIT} 个并发处理...")
+        logging.info(f"✅ 共找到 {len(all_pages)} 个条目，将以每批 {CONCURRENCY_LIMIT} 个并发处理...")
 
         # 使用tqdm包装分块器，以批次为单位显示进度
         for page_chunk in tqdm(
@@ -215,13 +215,13 @@ async def batch_update(context, dbs_to_update: List[str]):
                     async with interaction_lock:
                         await write_item_to_notion(context, item, db_key)
 
-        logger.success(f"{config['name']} 处理完成！")
+        logging.info(f"✅ {config['name']} 处理完成！")
 
 
 async def main():
     dbs_to_update = get_user_choice()
     if not dbs_to_update:
-        logger.info("用户选择退出。")
+        logging.info("🔍 用户选择退出。")
         return
 
     context = await init_context()
@@ -243,11 +243,11 @@ async def main():
             target_db_id,
         )
         if result and result not in schema_manager.get_schema(target_db_id):
-            logger.system(f"检测到新属性 '{result}' 已创建，正在刷新数据库结构...")
+            logging.info(f"🔧 检测到新属性 '{result}' 已创建，正在刷新数据库结构...")
             db_key = DB_ID_TO_KEY_MAP.get(target_db_id)
             if db_key:
                 await schema_manager.initialize_schema(target_db_id, DB_CONFIG[db_key]["name"])
-                logger.success("数据库结构缓存已刷新！")
+                logging.info("✅ 数据库结构缓存已刷新！")
         return result
 
     BangumiMappingManager.handle_new_key = new_handle_new_key_wrapper
@@ -255,14 +255,14 @@ async def main():
     try:
         await batch_update(context, dbs_to_update)
     except (KeyboardInterrupt, asyncio.CancelledError):
-        logger.warn("\n接收到中断信号，正在退出...")
+        logging.warning("\n⚠️ 接收到中断信号，正在退出...")
     except Exception as e:
-        logger.error(f"批量更新流程出现未捕获的严重错误: {e}")
+        logging.error(f"❌ 批量更新流程出现未捕获的严重错误: {e}")
     finally:
-        logger.system("正在清理资源...")
+        logging.info("🔧 正在清理资源...")
         await close_context(context)
         context["brand_cache"].save_cache(context["brand_extra_info_cache"])
-        logger.system("批量更新程序已安全退出。")
+        logging.info("✅ 批量更新程序已安全退出。")
 
 
 # get_user_choice() 和 __main__ 部分保持不变
@@ -291,4 +291,6 @@ def get_user_choice():
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     asyncio.run(main())

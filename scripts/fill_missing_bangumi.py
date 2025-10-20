@@ -1,5 +1,6 @@
 # scripts/fill_missing_bangumi.py
 import asyncio
+import logging
 import os
 import sys
 
@@ -15,13 +16,12 @@ from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION
 from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
-from utils import logger
 from tqdm.asyncio import tqdm_asyncio
 
 
 async def get_games_missing_bangumi(notion_client: NotionClient) -> list:
     """获取所有缺少 Bangumi 链接的游戏页面。"""
-    logger.info("正在从 Notion 查询缺少 Bangumi 链接的游戏...")
+    logging.info("🔍 正在从 Notion 查询缺少 Bangumi 链接的游戏...")
     query_url = f"https://api.notion.com/v1/databases/{GAME_DB_ID}/query"
     payload = {"filter": {"property": FIELDS["bangumi_url"], "url": {"is_empty": True}}}
     
@@ -48,25 +48,25 @@ async def process_single_game(
     """处理单个游戏的核心逻辑，作为一个独立的原子操作。"""
     page_id = game_page["id"]
     title = notion_client.get_page_title(game_page)
-    logger.info(f"\n正在处理游戏: {title}")
+    logging.info(f"\n正在处理游戏: {title}")
 
     try:
         subject_id = await bangumi_client.search_and_select_bangumi_id(title)
 
         if not subject_id:
-            logger.warn(f"❌ 未能为 '{title}' 找到匹配的 Bangumi 条目，已跳过。")
+            logging.warning(f"❌ 未能为 '{title}' 找到匹配的 Bangumi 条目，已跳过。")
             return title, False
 
-        logger.success(f"匹配成功！Bangumi Subject ID: {subject_id}")
-        logger.info("开始获取角色信息并更新 Notion 页面...")
+        logging.info(f"✅ 匹配成功！Bangumi Subject ID: {subject_id}")
+        logging.info("开始获取角色信息并更新 Notion 页面...")
 
         await bangumi_client.create_or_link_characters(page_id, subject_id)
 
-        logger.success(f"✅ 游戏 '{title}' 的 Bangumi 信息和角色关联已全部处理完毕。")
+        logging.info(f"✅ 游戏 '{title}' 的 Bangumi 信息和角色关联已全部处理完毕。")
         return title, True
 
     except Exception as e:
-        logger.error(f"处理游戏 '{title}' 时发生未知异常: {e}", exc_info=True)
+        logging.error(f"处理游戏 '{title}' 时发生未知异常: {e}", exc_info=True)
         return title, False
     finally:
         # 仍然保留一个小的延时，作为最后的保险，使整体请求更平滑
@@ -80,11 +80,11 @@ async def fill_missing_bangumi_links(context: dict):
 
     games_to_process = await get_games_missing_bangumi(notion_client)
     if not games_to_process:
-        logger.info("✅ 所有游戏都已包含 Bangumi 链接，无需处理。")
+        logging.info("✅ 所有游戏都已包含 Bangumi 链接，无需处理。")
         return
 
     total = len(games_to_process)
-    logger.info(f"找到 {total} 个缺少 Bangumi 链接的游戏，开始并发处理。")
+    logging.info(f"找到 {total} 个缺少 Bangumi 链接的游戏，开始并发处理。")
 
     # 在脚本内部创建信号量，限制并发处理的游戏数量
     semaphore = Semaphore(3)
@@ -100,19 +100,19 @@ async def fill_missing_bangumi_links(context: dict):
     unmatched_titles = []
     for result in results:
         if isinstance(result, Exception):
-            logger.error(f"任务执行中发生严重异常: {result}")
+            logging.error(f"任务执行中发生严重异常: {result}")
             continue
         title, success = result
         if not success:
             unmatched_titles.append(title)
 
     if unmatched_titles:
-        logger.warn("\n--- 未匹配的游戏 ---")
+        logging.warning("\n--- 未匹配的游戏 ---")
         for unmatched_title in unmatched_titles:
-            logger.warn(f"- {unmatched_title}")
+            logging.warning(f"- {unmatched_title}")
         with open("unmatched_games.txt", "w", encoding="utf-8") as f:
             f.write("\n".join(unmatched_titles))
-        logger.info("未匹配的游戏列表已保存到 unmatched_games.txt")
+        logging.info("未匹配的游戏列表已保存到 unmatched_games.txt")
 
 
 async def main():
@@ -141,11 +141,13 @@ async def main():
             await fill_missing_bangumi_links(context)
 
     except Exception as e:
-        logger.error(f"脚本主函数运行出错: {e}", exc_info=True)
+        logging.error(f"脚本主函数运行出错: {e}", exc_info=True)
     finally:
         if bgm_mapper:
             bgm_mapper.save_mappings()
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     asyncio.run(main())

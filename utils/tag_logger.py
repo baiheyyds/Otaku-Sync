@@ -1,9 +1,8 @@
 # utils/tag_logger.py
 # 该模块用于记录和管理标签映射
 import json
+import logging
 import os
-
-from utils import logger
 
 
 def load_tag_dict(file_path):
@@ -31,7 +30,7 @@ def append_new_tags(file_path, new_tags):
             added.append(tag)
 
     if added:
-        logger.info(f"新增标签 {len(added)} 条，已记录到 {os.path.basename(file_path)}")
+        logging.info(f"🔧 新增标签 {len(added)} 条，已记录到 {os.path.basename(file_path)}")
 
     save_tag_dict(file_path, tag_dict)
     return added

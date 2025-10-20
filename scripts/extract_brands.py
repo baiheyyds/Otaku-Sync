@@ -1,5 +1,6 @@
 # scripts/extract_brands.py
 import asyncio
+import logging
 import os
 import sys
 
@@ -9,7 +10,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from clients.notion_client import NotionClient
 from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN
-from utils import logger
 
 
 async def export_brand_names(context: dict) -> list[str]:
@@ -20,11 +20,11 @@ async def export_brand_names(context: dict) -> list[str]:
     :return: 一个包含所有品牌名称的排序列表。
     """
     notion_client: NotionClient = context["notion"]
-    logger.info("🔍 正在从 Notion 读取所有品牌...")
+    logging.info("🔍 正在从 Notion 读取所有品牌...")
     all_brand_pages = await notion_client.get_all_pages_from_db(BRAND_DB_ID)
 
     if not all_brand_pages:
-        logger.warn("⚠️ 未能从 Notion 获取到任何品牌信息。")
+        logging.warning("⚠️ 未能从 Notion 获取到任何品牌信息ảng。")
         return []
 
     brand_names = {
@@ -33,7 +33,7 @@ async def export_brand_names(context: dict) -> list[str]:
         if notion_client.get_page_title(page)
     }
 
-    logger.success(f"✅ 成功提取到 {len(brand_names)} 个唯一的品牌名称。")
+    logging.info(f"✅ 成功提取到 {len(brand_names)} 个唯一的品牌名称ảng。")
     return sorted(list(brand_names))
 
 
@@ -51,8 +51,10 @@ async def main():
             with open(output_filename, "w", encoding="utf-8") as f:
                 for name in brand_names:
                     f.write(name + "\n")
-            logger.system(f"✅ 已将 {len(brand_names)} 个品牌名写入到 {output_filename}")
+            logging.info(f"✅ 已将 {len(brand_names)} 个品牌名写入到 {output_filename}")
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     asyncio.run(main())

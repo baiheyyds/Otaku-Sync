@@ -1,6 +1,7 @@
 # scripts/update_all_brands.py
 # 该脚本用于批量更新 Notion 中所有品牌的 Bangumi 信息
 import asyncio
+import logging
 import os
 import sys
 
@@ -15,7 +16,6 @@ from config.config_token import BRAND_DB_ID, CHARACTER_DB_ID, GAME_DB_ID, NOTION
 from core.interaction import ConsoleInteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
-from utils import logger
 
 
 from asyncio import Semaphore
@@ -31,7 +31,7 @@ async def process_brand_page(
     brand_name = notion_client.get_page_title(brand_page)
     page_id = brand_page.get("id")
     if not brand_name:
-        logger.warn(f"跳过一个没有名称的品牌页面 (Page ID: {page_id})")
+        logging.warning(f"⚠️ 跳过一个没有名称的品牌页面 (Page ID: {page_id})")
         return
 
     # 使用信号量来限制对 Bangumi API 的并发访问
@@ -41,7 +41,7 @@ async def process_brand_page(
         bangumi_info = await bangumi_client.fetch_brand_info_from_bangumi(brand_name)
 
     if not bangumi_info:
-        logger.warn(f"在 Bangumi 上未能找到 '{brand_name}' 的匹配信息，跳过更新。")
+        logging.warning(f"⚠️ 在 Bangumi 上未能找到 '{brand_name}' 的匹配信息，跳过更新。")
         return
 
     success = await notion_client.create_or_update_brand(
@@ -49,14 +49,14 @@ async def process_brand_page(
     )
 
     if success:
-        logger.success(f"品牌 '{brand_name}' 的信息已成功更新。")
+        logging.info(f"✅ 品牌 '{brand_name}' 的信息已成功更新。")
     else:
-        logger.error(f"品牌 '{brand_name}' 的信息更新失败。")
+        logging.error(f"❌ 品牌 '{brand_name}' 的信息更新失败。")
 
 
 async def main():
     """主执行函数"""
-    logger.system("启动品牌信息批量更新脚本...")
+    logging.info("🚀 启动品牌信息批量更新脚本...")
 
     # 1. 初始化所有核心组件
     async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
@@ -75,14 +75,14 @@ async def main():
         await schema_manager.initialize_schema(CHARACTER_DB_ID, "角色数据库")
 
         # 3. 从 Notion 获取所有品牌页面
-        logger.info("正在从 Notion 获取所有品牌页面...")
+        logging.info("正在从 Notion 获取所有品牌页面...")
         all_brand_pages = await notion_client.get_all_pages_from_db(BRAND_DB_ID)
         if not all_brand_pages:
-            logger.error("未能从 Notion 获取到任何品牌信息，脚本终止。")
+            logging.error("未能从 Notion 获取到任何品牌信息，脚本终止。")
             return
 
         total_brands = len(all_brand_pages)
-        logger.success(f"成功获取到 {total_brands} 个品牌，开始并发更新...")
+        logging.info(f"✅ 成功获取到 {total_brands} 个品牌，开始并发更新...")
 
         # 4. 创建所有并发任务
         tasks = [
@@ -102,22 +102,24 @@ async def main():
         error_count = 0
         for result in results:
             if isinstance(result, Exception):
-                logger.error(f"任务执行中发生异常: {result}", exc_info=False)
+                logging.error(f"任务执行中发生异常: {result}", exc_info=False)
                 error_count += 1
             else:
                 success_count += 1
         
-        logger.system(f"全部任务完成: {success_count} 个成功, {error_count} 个失败。")
+        logging.info(f"全部任务完成: {success_count} 个成功, {error_count} 个失败。")
 
     except Exception as e:
-        logger.error(f"脚本执行过程中发生未处理的异常: {e}", exc_info=True)
+        logging.error(f"脚本执行过程中发生未处理的异常: {e}", exc_info=True)
     finally:
         # 7. 优雅地关闭资源
         await async_client.aclose()
-        logger.system("HTTP 客户端已关闭，脚本执行完毕。")
+        logging.info("HTTP 客户端已关闭，脚本执行完毕。")
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     # We might need to adjust this part if methods are no longer monkey-patched
     # For now, assuming the client has the necessary methods.
     asyncio.run(main())

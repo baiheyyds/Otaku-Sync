@@ -1,7 +1,7 @@
 # core/data_manager.py
 import json
+import logging
 import os
-from utils import logger
 
 MAPPING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mapping")
 
@@ -14,7 +14,7 @@ class DataManager:
     def _load_all_mappings(self):
         """加载 mapping 目录下所有的 .json 文件。"""
         if not os.path.isdir(self.mapping_dir):
-            logger.error(f"映射目录不存在: {self.mapping_dir}")
+            logging.error(f"❌ 映射目录不存在: {self.mapping_dir}")
             return
 
         for filename in os.listdir(self.mapping_dir):
@@ -27,9 +27,9 @@ class DataManager:
                         content = f.read()
                         # 允许空文件
                         self._data[key_name] = json.loads(content) if content else {}
-                        logger.cache(f"已加载映射文件: {filename}")
+                        logging.info(f"🗂️ 已加载映射文件: {filename}")
                 except (json.JSONDecodeError, IOError) as e:
-                    logger.warn(f"加载 {filename} 失败: {e}")
+                    logging.warning(f"⚠️ 加载 {filename} 失败: {e}")
                     self._data[key_name] = {}
 
     def get(self, key: str, default=None):

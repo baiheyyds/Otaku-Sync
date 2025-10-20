@@ -1,9 +1,8 @@
 # core/interaction.py
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
-
-from utils import logger
 
 # Replicating the necessary parts from mapping_manager.py for the console implementation
 TYPE_SELECTION_MAP = {
@@ -140,17 +139,17 @@ class ConsoleInteractionProvider(InteractionProvider):
             if custom_name:
                 return {"action": "create_custom_name", "data": custom_name}
             else:
-                logger.warn("未输入名称，已取消操作。")
+                logging.warning("⚠️ 未输入名称，已取消操作。 সন")
                 return {"action": "ignore_session"}
         
-        logger.error("输入无效，将忽略此属性。")
+        logging.error("❌ 输入无效，将忽略此属性。 সন")
         return {"action": "ignore_session"}
 
     async def get_bangumi_game_choice(self, search_term: str, candidates: List[Dict]) -> str | None:
         if not candidates:
             return None
 
-        logger.info(f'请为 "{search_term}" 选择最匹配的 Bangumi 条目:')
+        logging.info(f'🔍 请为 "{search_term}" 选择最匹配的 Bangumi 条目:')
         for candidate in candidates:
             print(f"  {candidate['display']}")
         print("")  # Add a newline for better formatting
@@ -160,7 +159,7 @@ class ConsoleInteractionProvider(InteractionProvider):
             choice = int(raw_choice.strip())
 
             if choice == 0:
-                logger.info("用户放弃选择。")
+                logging.info("🔍 用户放弃选择。 সন")
                 return None
             
             if 1 <= choice <= len(candidates):
@@ -168,10 +167,10 @@ class ConsoleInteractionProvider(InteractionProvider):
                 selected_candidate = candidates[choice - 1]
                 return selected_candidate['id']
             else:
-                logger.error("无效的序号，操作已取消。")
+                logging.error("❌ 无效的序号，操作已取消。 সন")
                 return None
         except (ValueError, IndexError):
-            logger.error("无效输入，请输入数字。操作已取消。")
+            logging.error("❌ 无效输入，请输入数字。操作已取消。 সন")
             return None
 
     async def ask_for_new_property_type(self, prop_name: str) -> str | None:
@@ -192,12 +191,12 @@ class ConsoleInteractionProvider(InteractionProvider):
                 notion_type, _ = selected_type
                 return notion_type
             else:
-                logger.error("无效的类型选项，请重新输入。")
+                logging.error("❌ 无效的类型选项，请重新输入。 সন")
 
     async def confirm_brand_merge(self, new_brand_name: str, suggested_brand: str) -> str:
         """当发现一个新品牌与一个现有品牌高度相似时，询问用户如何操作。"""
         def _get_input():
-            logger.warn(f"品牌查重：检测到新品牌 ‘{new_brand_name}’ 与现有品牌 ‘{suggested_brand}’ 高度相似。")
+            logging.warning(f"⚠️ 品牌查重：检测到新品牌 ‘{new_brand_name}’ 与现有品牌 ‘{suggested_brand}’ 高度相似。 সন")
             print("  请选择操作：")
             print(f"  [m] 合并为 ‘{suggested_brand}’ (默认)")
             print(f"  [c] 强制创建为新品牌 ‘{new_brand_name}’")
@@ -213,14 +212,14 @@ class ConsoleInteractionProvider(InteractionProvider):
             elif choice == "a":
                 return "cancel"
             else:
-                logger.error("输入无效，请重新输入。")
+                logging.error("❌ 输入无效，请重新输入。 সন")
 
     async def get_tag_translation(self, tag: str, source_name: str) -> str:
         return (await asyncio.to_thread(input, f"- 新标签({source_name}): 请输入 ‘{tag}’ 的中文翻译 (s跳过): ")).strip()
 
     async def get_concept_merge_decision(self, concept: str, candidate: str) -> str | None:
         def _get_input():
-            logger.warn(f"标签概念 ‘{concept}’ 与现有标签 ‘{candidate}’ 高度相似。是否合并？")
+            logging.warning(f"⚠️ 标签概念 ‘{concept}’ 与现有标签 ‘{candidate}’ 高度相似。是否合并？ সন")
             return input("  [y] 合并 (默认) / [n] 创建为新标签 / [c] 取消: ").strip().lower()
         
         choice = await asyncio.to_thread(_get_input)
@@ -233,7 +232,7 @@ class ConsoleInteractionProvider(InteractionProvider):
 
     async def get_name_split_decision(self, text: str, parts: list) -> dict:
         def _get_input():
-            logger.warn(f"名称 ‘{text}’ 被分割为: {parts}")
+            logging.warning(f"⚠️ 名称 ‘{text}’ 被分割为: {parts}")
             print("  [k] 保持原样 (默认)")
             print("  [s] 保存为特例，以后不再分割")
             return input("请选择或按回车确认: ").strip().lower()
@@ -246,7 +245,7 @@ class ConsoleInteractionProvider(InteractionProvider):
     async def select_game(self, choices: list, title: str, source: str) -> int | str | None:
         """要求用户从搜索结果列表中选择一个游戏。"""
         def _get_input():
-            logger.info(title)
+            logging.info(f"🔍 {title}")
             if source == 'ggbases':
                 for i, item in enumerate(choices):
                     size_info = item.get('容量', '未知')
@@ -268,24 +267,24 @@ class ConsoleInteractionProvider(InteractionProvider):
         while True:
             choice = await asyncio.to_thread(_get_input)
             if choice == 'f' and source == 'dlsite':
-                logger.info("切换到 Fanza 搜索...")
+                logging.info("🔍 切换到 Fanza 搜索... সন")
                 return "search_fanza"
             if choice == '0':
-                logger.info("用户取消了选择。")
+                logging.info("🔍 用户取消了选择。 সন")
                 return -1
             try:
                 choice_idx = int(choice) - 1
                 if 0 <= choice_idx < len(choices):
                     return choice_idx
                 else:
-                    logger.error("无效的序号，请重新输入。")
+                    logging.error("❌ 无效的序号，请重新输入。 সন")
             except ValueError:
-                logger.error("无效输入，请输入数字或指定字母。")
+                logging.error("❌ 无效输入，请输入数字或指定字母。 সন")
 
     async def confirm_duplicate(self, candidates: list) -> str | None:
         """显示潜在的重复游戏，并询问用户如何处理。"""
         def _get_input():
-            logger.warn("发现可能重复的游戏，请选择操作：")
+            logging.warning("⚠️ 发现可能重复的游戏，请选择操作： সন")
             for i, (game, similarity) in enumerate(candidates):
                 title = game.get("title", "未知标题")
                 print(f"  - 相似条目: {title} (相似度: {similarity:.2f})")
@@ -304,8 +303,8 @@ class ConsoleInteractionProvider(InteractionProvider):
             elif choice == 'c':
                 return "create"
             else:
-                logger.error("无效输入，请重新选择。")
+                logging.error("❌ 无效输入，请重新选择。 সন")
 
 # This will be implemented in a separate file to avoid circular dependencies with GUI components
 # class GuiInteractionProvider(InteractionProvider):
-#     ... 
+#     ...

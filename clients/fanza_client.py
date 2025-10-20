@@ -1,10 +1,10 @@
 # clients/fanza_client.py
+import logging
 import re
 from urllib.parse import quote, urljoin
 
 from bs4 import BeautifulSoup, Tag
 
-from utils import logger
 from .base_client import BaseClient
 
 
@@ -14,7 +14,7 @@ class FanzaClient(BaseClient):
         self.cookies = {"age_check_done": "1"}
 
     async def search(self, keyword: str, limit=30):
-        logger.info(f"[Fanza] 开始主搜索 (dlsoft): {keyword}")
+        logging.info(f"🔍 [Fanza] 开始主搜索 (dlsoft): {keyword}")
         try:
             # --- 主搜索逻辑 (使用 dlsoft) ---
             encoded_keyword = quote(keyword.encode("utf-8", errors="ignore"))
@@ -57,25 +57,25 @@ class FanzaClient(BaseClient):
             final_count = len(filtered_results)
 
             if final_count > 0:
-                logger.success(f"[Fanza] 主搜索成功，找到 {initial_count} 个原始结果，筛选后剩余 {final_count} 个游戏。")
+                logging.info(f"✅ [Fanza] 主搜索成功，找到 {initial_count} 个原始结果，筛选后剩余 {final_count} 个游戏。")
                 return filtered_results
             
             # --- 后备搜索逻辑 (如果主搜索无结果) ---
-            logger.warn("[Fanza] 主搜索 (dlsoft) 未找到结果，尝试后备搜索 (mono)...")
+            logging.warning("⚠️ [Fanza] 主搜索 (dlsoft) 未找到结果，尝试后备搜索 (mono)...")
             
             fallback_base_url = "https://www.dmm.co.jp"
             url_fallback = f"{fallback_base_url}/mono/-/search/=/searchstr={encoded_keyword}/sort=date/"
             
             resp_fallback = await self.get(url_fallback, timeout=15, cookies=self.cookies)
             if not resp_fallback:
-                logger.error("[Fanza] 后备搜索请求失败。")
+                logging.error("❌ [Fanza] 后备搜索请求失败。")
                 return []
 
             soup_fallback = BeautifulSoup(resp_fallback.text, "lxml")
             results_fallback = []
             result_list_fallback = soup_fallback.select_one("#list")
             if not result_list_fallback:
-                logger.warn("[Fanza] 后备搜索未找到结果列表 (#list)。")
+                logging.warning("⚠️ [Fanza] 后备搜索未找到结果列表 (#list)。")
                 return []
 
             for li in result_list_fallback.find_all("li", limit=limit):
@@ -103,11 +103,11 @@ class FanzaClient(BaseClient):
                 if not any(ex in item.get("title", "") for ex in exclude_keywords)
             ]
             final_count_fallback = len(filtered_results_fallback)
-            logger.success(f"[Fanza] 后备搜索成功，找到 {initial_count_fallback} 个原始结果，筛选后剩余 {final_count_fallback} 个。")
+            logging.info(f"✅ [Fanza] 后备搜索成功，找到 {initial_count_fallback} 个原始结果，筛选后剩余 {final_count_fallback} 个。")
             return filtered_results_fallback
 
         except Exception as e:
-            logger.error(f"[Fanza] 搜索过程中出现意外错误: {e}")
+            logging.error(f"❌ [Fanza] 搜索过程中出现意外错误: {e}")
             return []
 
     async def get_game_detail(self, url: str) -> dict:
@@ -124,7 +124,7 @@ class FanzaClient(BaseClient):
             # ==================================================================
             if "/mono/" in url:
                 # --- 旧版/后备接口 (`/mono/`) 的解析逻辑 ---
-                logger.info("[Fanza] 检测到 /mono/ 链接，使用旧版表格解析器。")
+                logging.info("🔍 [Fanza] 检测到 /mono/ 链接，使用旧版表格解析器。")
                 
                 if title_tag := soup.select_one("h1#title"):
                     details["标题"] = title_tag.get_text(strip=True)
@@ -165,7 +165,7 @@ class FanzaClient(BaseClient):
                                 details["作品形式"] = list(dict.fromkeys(game_types))
             else:
                 # --- 新版/主接口 (`dlsoft`) 的解析逻辑 (现有逻辑) ---
-                logger.info("[Fanza] 未检测到 /mono/ 链接，使用新版解析器。")
+                logging.info("🔍 [Fanza] 未检测到 /mono/ 链接，使用新版解析器。")
                 if top_table := soup.select_one(".contentsDetailTop__table"):
                     for row in top_table.find_all("div", class_="contentsDetailTop__tableRow"):
                         key_tag = row.select_one(".contentsDetailTop__tableDataLeft p")
@@ -228,5 +228,5 @@ class FanzaClient(BaseClient):
 
             return details
         except Exception as e:
-            logger.error(f"[Fanza] 解析详情页失败: {e}")
+            logging.error(f"❌ [Fanza] 解析详情页失败: {e}")
             return {}

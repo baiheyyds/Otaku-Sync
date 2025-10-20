@@ -1,5 +1,6 @@
 import sys
 import asyncio
+import logging
 import threading
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
@@ -8,9 +9,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QScreen
 
-from utils.gui_bridge import patch_logger, log_bridge
+from utils.gui_bridge import log_bridge
 from core.gui_worker import GameSyncWorker, ScriptWorker
-from utils import logger as project_logger
 from core.context_factory import create_shared_context
 from core.init import close_context
 from core.cache_warmer import warm_up_brand_cache_standalone
@@ -82,7 +82,6 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(main_splitter)
         
         # Setup logging
-        patch_logger()
         log_bridge.log_received.connect(self.log_console.appendPlainText)
         # Connect the mapping editor's log signal
         self.mapping_editor_widget.log_message.connect(self.log_console.appendPlainText)
@@ -91,7 +90,7 @@ class MainWindow(QMainWindow):
         self.init_shared_context()
         self.run_background_tasks()
 
-        project_logger.success("✅ 初始化完成，可以开始使用.\n")
+        logging.info("✅ 初始化完成，可以开始使用.\n")
 
         # Connect signals
         self.search_button.clicked.connect(self.start_search_process)
@@ -105,16 +104,16 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(title)
 
     def init_shared_context(self):
-        project_logger.system("🔧 正在初始化应用程序级共享上下文...")
+        logging.info("🔧 正在初始化应用程序级共享上下文...")
         self.shared_context = create_shared_context()
 
         # 程序启动时，在后台预创建所需的浏览器驱动
         if self.shared_context.get("driver_factory"):
-            project_logger.system("🚀 在后台预启动浏览器驱动...")
+            logging.info("🚀 在后台预启动浏览器驱动...")
             driver_factory = self.shared_context["driver_factory"]
             driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
 
-        project_logger.system("✅ 应用程序级共享上下文已准备就绪.\n")
+        logging.info("✅ 应用程序级共享上下文已准备就绪.\n")
 
     def run_background_tasks(self):
         # Wrapper to run asyncio code in a separate thread
@@ -123,7 +122,7 @@ class MainWindow(QMainWindow):
                 asyncio.run(task)
             except Exception as e:
                 # Log errors to the main log file, but don't interact with GUI
-                project_logger.error(f"后台任务执行失败: {e}", exc_info=True)
+                logging.error(f"❌ 后台任务执行失败: {e}", exc_info=True)
 
         # Start brand cache warming in a daemon thread
         cache_thread = threading.Thread(target=run_async_task, args=(warm_up_brand_cache_standalone(),))
@@ -138,7 +137,7 @@ class MainWindow(QMainWindow):
 
     def set_shared_context(self, context):
         if not self.shared_context:
-            project_logger.system("主窗口已接收并保存共享的应用上下文.\n")
+            logging.info("🔧 主窗口已接收并保存共享的应用上下文.\n")
             self.shared_context = context
 
     def start_search_process(self):
@@ -146,7 +145,7 @@ class MainWindow(QMainWindow):
             return
         keyword = self.keyword_input.text().strip()
         if not keyword:
-            project_logger.warn("请输入游戏名/关键词后再开始搜索.\n")
+            logging.warning("⚠️ 请输入游戏名/关键词后再开始搜索.\n")
             return
         
         self.set_all_buttons_enabled(False)
@@ -162,7 +161,7 @@ class MainWindow(QMainWindow):
         if self.is_worker_running():
             return
         
-        project_logger.system(f"即将执行脚本: {script_name}")
+        logging.info(f"🚀 即将执行脚本: {script_name}")
         self.log_console.clear()
         self.set_all_buttons_enabled(False)
 
@@ -204,7 +203,7 @@ class MainWindow(QMainWindow):
         worker.process_completed.connect(self.process_finished)
 
     def on_script_completed(self, script_name, success, result):
-        project_logger.info(f'脚本 "{script_name}" 执行结束，结果: {"成功" if success else "失败"}\n')
+        logging.info(f'✅ 脚本 "{script_name}" 执行结束，结果: {"成功" if success else "失败"}\n')
         # Only re-enable all buttons if it was a user-initiated script
         # The initial stats load runs in the background and shouldn't affect button state.
         if self.sender() and self.sender().parent() == self: # Check if it's a main worker
@@ -223,7 +222,7 @@ class MainWindow(QMainWindow):
                                         f"已成功导出 {len(result)} 个品牌名到项目根目录下的\n"
                                         f"{output_filename} 文件中。 সন")
             except IOError as e:
-                project_logger.error(f"写入文件 {output_filename} 时出错: {e}")
+                logging.error(f"❌ 写入文件 {output_filename} 时出错: {e}")
                 QMessageBox.critical(self, "文件写入失败", f"无法写入品牌列表到 {output_filename} সন")
 
     def set_all_buttons_enabled(self, enabled):
@@ -235,7 +234,7 @@ class MainWindow(QMainWindow):
     # --- All handler methods for dialogs --- #
 
     def handle_brand_merge_requested(self, new_brand_name, suggested_brand):
-        project_logger.info(f"检测到相似品牌: ‘{new_brand_name}’ ≈ ‘{suggested_brand}’")
+        logging.info(f"🔍 检测到相似品牌: ‘{new_brand_name}’ ≈ ‘{suggested_brand}’")
         worker = self.sender()
         if not worker:
             return
@@ -247,7 +246,7 @@ class MainWindow(QMainWindow):
         worker.set_interaction_response(dialog.result)
 
     def handle_name_split_decision_required(self, text, parts):
-        project_logger.info(f"需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")
+        logging.info(f"🔍 需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")
         dialog = NameSplitterDialog(text, parts, self)
         worker = self.sender()
         if dialog.exec() == QDialog.Accepted:
@@ -256,7 +255,7 @@ class MainWindow(QMainWindow):
             worker.set_interaction_response({"action": "keep", "save_exception": False})
 
     def handle_tag_translation_required(self, tag, source_name):
-        project_logger.info(f"需要为新标签 '{tag}' ({source_name}) 提供翻译...")
+        logging.info(f"🔍 需要为新标签 '{tag}' ({source_name}) 提供翻译...")
         dialog = TagTranslationDialog(tag, source_name, self)
         worker = self.sender()
         if dialog.exec() == QDialog.Accepted:
@@ -265,7 +264,7 @@ class MainWindow(QMainWindow):
             worker.set_interaction_response("s") # Treat cancel as skip
 
     def handle_concept_merge_required(self, concept, candidate):
-        project_logger.info(f"需要为新概念 '{concept}' 选择合并策略...")
+        logging.info(f"🔍 需要为新概念 '{concept}' 选择合并策略...")
         worker = self.sender()
         if not worker:
             return
@@ -275,7 +274,7 @@ class MainWindow(QMainWindow):
         worker.set_interaction_response(dialog.result)
 
     def handle_bangumi_selection_required(self, game_name, candidates):
-        project_logger.system("[GUI] Received bangumi_selection_required, creating dialog.")
+        logging.info("🔧 [GUI] Received bangumi_selection_required, creating dialog.")
         dialog = BangumiSelectionDialog(game_name, candidates, self)
         worker = self.sender()
         
@@ -287,13 +286,13 @@ class MainWindow(QMainWindow):
             worker.set_interaction_response(None)
 
     def handle_bangumi_mapping(self, request_data):
-        project_logger.info("需要进行 Bangumi 属性映射，等待用户操作...\n")
+        logging.info("🔧 需要进行 Bangumi 属性映射，等待用户操作...\n")
         dialog = BangumiMappingDialog(request_data, self)
         dialog.exec()
         self.sender().set_interaction_response(dialog.result)
 
     def handle_property_type(self, request_data):
-        project_logger.info(f"需要为新属性 '{request_data['prop_name']}' 选择类型...\n")
+        logging.info(f"🔧 需要为新属性 '{request_data['prop_name']}' 选择类型...\n")
         dialog = PropertyTypeDialog(request_data['prop_name'], self)
         worker = self.sender()
         if dialog.exec() == QDialog.Accepted:
@@ -308,11 +307,11 @@ class MainWindow(QMainWindow):
             return
 
         if not choices:
-            project_logger.warn("未找到任何结果.\n")
+            logging.warning("⚠️ 未找到任何结果.\n")
             worker.set_interaction_response(None)
             return
 
-        project_logger.info(f"接收到 {len(choices)} 个选项，请在弹出对话框中选择...\n")
+        logging.info(f"🔍 接收到 {len(choices)} 个选项，请在弹出对话框中选择...\n")
         display_items = []
         if source == 'ggbases':
             for item in choices:
@@ -331,13 +330,13 @@ class MainWindow(QMainWindow):
 
         if result == QDialog.Accepted:
             choice_index = dialog.selected_index()
-            project_logger.info(f"用户选择了第 {choice_index + 1} 项。\n")
+            logging.info(f"🔍 用户选择了第 {choice_index + 1} 项。\n")
             worker.set_interaction_response(choice_index)
         elif result == 2: # Custom result code for 'Search Fanza'
-            project_logger.info("用户选择切换到 Fanza 搜索...\n")
+            logging.info("🔍 用户选择切换到 Fanza 搜索...\n")
             worker.set_interaction_response("search_fanza")
         else:
-            project_logger.info("用户取消了选择。\n")
+            logging.info("🔍 用户取消了选择。\n")
             worker.set_interaction_response(-1)
 
     def handle_duplicate_check(self, candidates):
@@ -345,19 +344,19 @@ class MainWindow(QMainWindow):
         if not worker:
             return
             
-        project_logger.info("发现可能重复的游戏，等待用户确认...\n")
+        logging.info("🔍 发现可能重复的游戏，等待用户确认...\n")
         dialog = DuplicateConfirmationDialog(candidates, self)
         dialog.exec()
         choice = dialog.result
-        project_logger.info(f"用户对重复游戏的操作是: {choice}\n")
+        logging.info(f"🔍 用户对重复游戏的操作是: {choice}\n")
         worker.set_interaction_response(choice)
 
     def process_finished(self, success):
-        project_logger.info(f"任务完成，结果: {"成功" if success else "失败"}\n")
+        logging.info(f'✅ 任务完成，结果: {"成功" if success else "失败"}\n')
         self.set_all_buttons_enabled(True)
 
     def cleanup_worker(self):
-        project_logger.info("后台线程已退出，正在清理...\n")
+        logging.info("🔧 后台线程已退出，正在清理...\n")
         sender = self.sender()
         if sender == self.game_sync_worker:
             self.game_sync_worker.deleteLater()
@@ -399,17 +398,17 @@ class MainWindow(QMainWindow):
                                        "当前有任务正在后台运行，强制退出可能导致数据不一致或浏览器进程残留。\n\n确定要退出吗？",
                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
-                project_logger.warn("用户选择强制退出。\n")
+                logging.warning("⚠️ 用户选择强制退出。\n")
             else:
                 event.ignore()
                 return
         
-        project_logger.system("正在清理应用资源并保存所有数据...")
+        logging.info("🔧 正在清理应用资源并保存所有数据...")
         if self.shared_context:
             try:
                 asyncio.run(close_context(self.shared_context))
             except Exception as e:
-                project_logger.error(f"关闭应用时发生错误: {e}")
+                logging.error(f"❌ 关闭应用时发生错误: {e}")
 
-        project_logger.system("程序已安全退出。\n")
+        logging.info("🔧 程序已安全退出。\n")
         event.accept()

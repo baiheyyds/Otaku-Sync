@@ -1,10 +1,10 @@
 # utils/tag_manager.py
 import asyncio
 import json
+import logging
 import os
 from typing import Dict, List, Set, Optional
 
-from utils import logger
 from core.interaction import InteractionProvider
 
 # --- 文件路径定义 ---
@@ -49,17 +49,17 @@ class TagManager:
                     sorted_data = sorted(data)
                 json.dump(sorted_data, f, ensure_ascii=False, indent=2)
         except IOError as e:
-            logger.error(f"保存映射文件失败 {os.path.basename(path)}: {e}")
+            logging.error(f"❌ 保存映射文件失败 {os.path.basename(path)}: {e}")
 
     def save_all_maps(self):
         """将所有内存中的映射关系保存到对应的JSON文件中。"""
-        logger.system("正在保存所有标签映射文件...")
+        logging.info("🔧 正在保存所有标签映射文件...")
         self._save_map(TAG_JP_TO_CN_PATH, self._jp_to_cn_map)
         self._save_map(TAG_FANZA_TO_CN_PATH, self._fanza_to_cn_map)
         self._save_map(TAG_GGBASE_PATH, self._ggbase_map)
         self._save_map(TAG_IGNORE_PATH, list(self._ignore_set))
         self._save_map(TAG_MAPPING_DICT_PATH, self._mapping_dict)
-        logger.success("所有标签映射文件已保存。")
+        logging.info("✅ 所有标签映射文件已保存。")
 
     def _build_unified_reverse_map(self) -> Dict[str, str]:
         unified_map = {}
@@ -101,25 +101,25 @@ class TagManager:
             translation = await interaction_provider.get_tag_translation(tag, source_name)
         else:
             def get_input():
-                logger.warn(f"发现新的【{source_name}】标签: '{tag}'")
+                logging.warning(f"⚠️ 发现新的【{source_name}】标签: '{tag}'")
                 print("  > 请输入对应的中文翻译。")
                 print("  > 输入 's' 跳过本次，'p' 永久忽略此标签。")
                 return input(f"  翻译为: ").strip()
             translation = await asyncio.to_thread(get_input)
 
         if translation is None or translation.lower() == "s":
-            logger.info(f"已跳过标签 '{tag}'。")
+            logging.info(f"🔍 已跳过标签 '{tag}'。")
             return None
         if translation.lower() == "p":
             self._ignore_set.add(tag)
-            logger.info(f"标签 '{tag}' 已被标记为永久忽略。")
+            logging.info(f"🗑️ 标签 '{tag}' 已被标记为永久忽略。")
             return None
         if not translation:
-            logger.warn("输入为空，已跳过。")
+            logging.warning("⚠️ 输入为空，已跳过。")
             return None
         
         source_map[tag] = translation
-        logger.success(f"已在内存中添加新翻译: '{tag}' -> '{translation}'")
+        logging.info(f"✅ 已在内存中添加新翻译: '{tag}' -> '{translation}'")
         return translation
 
     async def _handle_new_concept_interactively(self, concept: str, interaction_provider: InteractionProvider) -> str:
@@ -131,7 +131,7 @@ class TagManager:
                 choice = await interaction_provider.get_concept_merge_decision(concept, candidate)
             else:
                 def get_choice():
-                    logger.system(f"新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
+                    logging.info(f"🔧 新的中文概念 '{concept}' 与已有的标签组 '{candidate}' 高度相关。")
                     print(f"  是否要将 '{concept}' 合并到 '{candidate}' 组中？")
                     print(f"    1. 【合并】(推荐)")
                     print(f"    2. 【创建】将 '{concept}' 作为独立标签")
@@ -143,12 +143,12 @@ class TagManager:
                 new_keywords = set(keywords)
                 new_keywords.add(concept)
                 self._mapping_dict[candidate] = sorted(list(new_keywords))
-                logger.success(f"操作成功！已在内存中将概念 '{concept}' 合并到 '{candidate}'。")
+                logging.info(f"✅ 操作成功！已在内存中将概念 '{concept}' 合并到 '{candidate}'。")
                 final_concept = candidate
             elif choice in ["2", "create"]:
                 if concept not in self._mapping_dict:
                     self._mapping_dict[concept] = [concept]
-                logger.info(f"已在内存中将 '{concept}' 创建为新的独立标签。")
+                logging.info(f"✅ 已在内存中将 '{concept}' 创建为新的独立标签。")
         
         self._unified_reverse_map[concept.lower()] = final_concept
         if final_concept.lower() not in self._unified_reverse_map:

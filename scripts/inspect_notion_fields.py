@@ -1,5 +1,6 @@
 # scripts/inspect_notion_fields.py
 import asyncio
+import logging
 import os
 import sys
 
@@ -9,7 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from clients.notion_client import NotionClient
 from config import config_token
-from utils import logger
 
 
 def list_database_ids_from_config() -> dict:
@@ -29,27 +29,27 @@ async def inspect_database(notion_client: NotionClient, db_id: str, db_name: str
     :param db_id: 要查询的数据库 ID。
     :param db_name: 数据库的变量名，用于显示。
     """
-    logger.info(f"\n🔍 正在查询 {db_name} ({db_id[-5:]})...")
+    logging.info(f"\n🔍 正在查询 {db_name} ({db_id[-5:]})...")
     schema = await notion_client.get_database_schema(db_id)
 
     if not schema:
-        logger.error(f"❌ 获取数据库 {db_name} 的结构失败。")
+        logging.error(f"❌ 获取数据库 {db_name} 的结构失败。")
         return
 
     properties = schema.get("properties", {})
-    logger.system("\n📘 数据库字段信息如下：\n")
+    logging.info("\n📘 数据库字段信息如下：\n")
     for name, prop in properties.items():
         prop_type = prop.get("type", "未知")
-        logger.info(f"🔹 字段名: {name}")
-        logger.info(f"   类型: {prop_type}")
-        logger.info("-" * 40)
+        logging.info(f"🔹 字段名: {name}")
+        logging.info(f"   类型: {prop_type}")
+        logging.info("-" * 40)
 
 
 async def main():
     """脚本主入口，处理用户交互。"""
     db_map = list_database_ids_from_config()
     if not db_map:
-        logger.error("在 config/config_token.py 中未找到任何 _DB_ID。")
+        logging.error("❌ 在 config/config_token.py 中未找到任何 _DB_ID。")
         return
 
     print("📂 请选择要查看的数据库：\n")
@@ -80,4 +80,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     asyncio.run(main())

@@ -1,11 +1,11 @@
 # core/name_splitter.py
 import asyncio
 import json
+import logging
 import os
 import re
 from typing import List, Set, Optional
 
-from utils import logger
 from core.interaction import InteractionProvider
 
 EXCEPTION_FILE_PATH = os.path.join(
@@ -14,7 +14,7 @@ EXCEPTION_FILE_PATH = os.path.join(
 
 # --- [核心升级 1] 使用更强大的正则表达式 ---
 # 涵盖了：、・,／/ ; 但不包括作为分隔符的空白符
-SPLIT_REGEX = re.compile(r"[、・,／/;]+")
+SPLIT_REGEX = re.compile(r"[、・,／/;]")
 
 
 class NameSplitter:
@@ -29,27 +29,27 @@ class NameSplitter:
                     content = f.read()
                     return set(json.loads(content)) if content else set()
         except (json.JSONDecodeError, IOError) as e:
-            logger.warn(f"加载名称分割例外文件失败: {e}")
+            logging.warning(f"⚠️ 加载名称分割例外文件失败: {e}")
         return set()
 
     def save_exceptions(self):
         """将内存中的例外列表保存到文件。"""
         if not self._exceptions:
             return
-        logger.system("正在保存名称分割例外列表...")
+        logging.info("🔧 正在保存名称分割例外列表...")
         try:
             with open(EXCEPTION_FILE_PATH, "w", encoding="utf-8") as f:
                 json.dump(sorted(list(self._exceptions)), f, ensure_ascii=False, indent=2)
-            logger.success("名称分割例外列表已保存。")
+            logging.info("✅ 名称分割例外列表已保存。")
         except Exception as e:
-            logger.error(f"保存名称分割例外文件失败: {e}")
+            logging.error(f"❌ 保存名称分割例外文件失败: {e}")
 
     def _add_exception(self, name: str):
         """将新的例外添加到内存中。"""
         if name in self._exceptions:
             return
         self._exceptions.add(name)
-        logger.info(f"已在内存中将 '{name}' 标记为本次运行的例外。")
+        logging.info(f"🔧 已在内存中将 '{name}' 标记为本次运行的例外。")
 
     def _post_process_parts(self, parts: List[str]) -> List[str]:
         """
@@ -99,7 +99,7 @@ class NameSplitter:
         # --- [核心升级 2] 启发式识别：处理 '名字A・名字B' 模式 ---
         # 如果分割结果为三部分，且中间部分为单个字符，则极有可能是完整的姓名
         if len(cleaned_parts) == 3 and len(cleaned_parts[1]) == 1 and (len(cleaned_parts[0]) > 1 or len(cleaned_parts[2]) > 1):
-            logger.info(f"检测到 '名字・首字母・名字' 模式，自动合并: {text}")
+            logging.info(f"🔍 检测到 '名字・首字母・名字' 模式，自动合并: {text}")
             return [normalize(text)]
 
         # 在风险识别前，先进行智能后处理
@@ -130,7 +130,7 @@ class NameSplitter:
         else:
             # CLI Fallback
             def _get_input():
-                logger.warn(f"检测到【高风险】的名称分割: '{text}'")
+                logging.warning(f"⚠️ 检测到【高风险】的名称分割: '{text}'")
                 print(f"  初步分割为: {processed_parts}")
                 if is_alpha_dot_split:
                     print("  原因: 检测到由'・'分割的纯英文名称，这可能是一个完整的名字。")
@@ -162,7 +162,7 @@ class NameSplitter:
         if choice == "split":
             return processed_parts
         else:  # "keep"
-            logger.info(f"用户选择不分割 '{text}'。")
+            logging.info(f"🔍 用户选择不分割 '{text}'。")
             if save_exception:
                 self._add_exception(text)
             return [normalize(text)]

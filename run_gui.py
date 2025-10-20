@@ -1,9 +1,17 @@
 import sys
+import logging
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTranslator, QLibraryInfo
+
 from gui.main_window import MainWindow
+from utils.logger import setup_logging_for_gui
+from utils.gui_bridge import log_bridge
 
 if __name__ == "__main__":
+    # 1. Setup logging for GUI
+    # This must be done before any logging calls are made.
+    setup_logging_for_gui(log_bridge.log_received)
+
     app = QApplication(sys.argv)
 
     # --- Start of Translation Block ---
@@ -15,7 +23,7 @@ if __name__ == "__main__":
         if translator.load("qtbase_zh_CN", "translations"):
              app.installTranslator(translator)
         else:
-            print("Warning: Could not load Chinese translations for Qt standard dialogs.")
+            logging.warning("Could not load Chinese translations for Qt standard dialogs.")
     # --- End of Translation Block ---
 
     # Load the custom stylesheet
@@ -25,7 +33,7 @@ if __name__ == "__main__":
             custom_stylesheet = f.read()
         app.setStyleSheet(custom_stylesheet)
     except FileNotFoundError:
-        print("Warning: gui/style.qss not found.")
+        logging.error("gui/style.qss not found.")
 
     window = MainWindow()
     window.show()

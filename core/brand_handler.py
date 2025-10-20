@@ -1,8 +1,8 @@
 # core/brand_handler.py
 import asyncio
+import logging
 from rapidfuzz import fuzz, process
 
-from utils import logger
 from utils.utils import normalize_brand_name as normalize
 
 
@@ -58,10 +58,10 @@ async def check_brand_status(context: dict, brand_name: str) -> tuple[str | None
         return page_id, needs_fetching
 
     # 2. 如果没有精确匹配，执行相似度搜索
-    logger.info(f"品牌 ‘{brand_name}’ 无精确匹配，开始进行相似度搜索...")
+    logging.info(f"🔍 品牌 ‘{brand_name}’ 无精确匹配，开始进行相似度搜索...")
     all_brand_names = list(brand_cache.cache.keys())
     if not all_brand_names:
-        logger.info("品牌缓存为空，无法进行相似度搜索。将创建新品牌。")
+        logging.info("🔍 品牌缓存为空，无法进行相似度搜索。将创建新品牌。")
         return None, True
 
     # 使用 rapidfuzz 进行模糊匹配
@@ -74,7 +74,7 @@ async def check_brand_status(context: dict, brand_name: str) -> tuple[str | None
     )
 
     if not best_match:
-        logger.info(f"未找到与 ‘{brand_name}’ 相似的品牌，将创建新品牌。")
+        logging.info(f"🔍 未找到与 ‘{brand_name}’ 相似的品牌，将创建新品牌。")
         return None, True
 
     # best_match 是 (normalized_name, score, index)
@@ -88,7 +88,7 @@ async def check_brand_status(context: dict, brand_name: str) -> tuple[str | None
     )
 
     if decision == "merge":
-        logger.info(f"用户选择合并: ‘{brand_name}’ -> ‘{original_suggested_brand}’")
+        logging.info(f"🔧 用户选择合并: ‘{brand_name}’ -> ‘{original_suggested_brand}’")
         # 更新映射文件
         brand_mapping_manager.add_alias(original_suggested_brand, brand_name)
         # 从缓存获取已存在品牌的 page_id
@@ -98,14 +98,14 @@ async def check_brand_status(context: dict, brand_name: str) -> tuple[str | None
             return existing_brand_details["page_id"], False
         else:
             # 这种情况很少见，但以防万一缓存出错了
-            logger.warn(f"在缓存中找不到 ‘{original_suggested_brand}’ 的页面ID，将继续创建流程。")
+            logging.warning(f"⚠️ 在缓存中找不到 ‘{original_suggested_brand}’ 的页面ID，将继续创建流程。")
             return None, True
 
     elif decision == "create":
-        logger.info(f"用户选择为 ‘{brand_name}’ 创建新品牌。")
+        logging.info(f"🔧 用户选择为 ‘{brand_name}’ 创建新品牌。")
         return None, True
     else:  # decision == "cancel" or None
-        logger.warn(f"用户取消了品牌 ‘{brand_name}’ 的处理。")
+        logging.warning(f"⚠️ 用户取消了品牌 ‘{brand_name}’ 的处理。")
         return None, False # 中止此品牌的处理
 
 
@@ -118,12 +118,12 @@ async def _find_exact_match(brand_cache, notion_client, brand_name):
             page_id = cached_page_id
             needs_fetching = not cached_details.get("has_icon", False)
             if not needs_fetching:
-                logger.cache(f"[品牌缓存] 命中且信息完整: ‘{brand_name}’，跳过抓取。")
+                logging.info(f"🗂️ [品牌缓存] 命中且信息完整: ‘{brand_name}’，跳过抓取。")
             else:
-                logger.cache(f"[品牌缓存] 命中但信息不完整: ‘{brand_name}’，需要抓取。")
+                logging.info(f"🗂️ [品牌缓存] 命中但信息不完整: ‘{brand_name}’，需要抓取。")
             return page_id, needs_fetching
         else:
-            logger.warn(f"[品牌缓存] 失效: ‘{brand_name}’ 对应的页面ID ‘{cached_page_id}’ 在Notion中已不存在。")
+            logging.warning(f"⚠️ [品牌缓存] 失效: ‘{brand_name}’ 对应的页面ID ‘{cached_page_id}’ 在Notion中已不存在。")
 
     notion_details = await notion_client.get_brand_details_by_name(brand_name)
     if notion_details:
@@ -132,9 +132,9 @@ async def _find_exact_match(brand_cache, notion_client, brand_name):
         brand_cache.add_brand(brand_name, page_id, has_icon)
         needs_fetching = not has_icon
         if not needs_fetching:
-            logger.cache(f"[Notion查询] 命中且信息完整: ‘{brand_name}’，跳过抓取。")
+            logging.info(f"🗂️ [Notion查询] 命中且信息完整: ‘{brand_name}’，跳过抓取。")
         else:
-            logger.cache(f"[Notion查询] 命中但信息不完整: ‘{brand_name}’，需要抓取。")
+            logging.info(f"🗂️ [Notion查询] 命中但信息不完整: ‘{brand_name}’，需要抓取。")
         return page_id, needs_fetching
 
     return None, True
@@ -152,7 +152,7 @@ async def finalize_brand_update(context: dict, brand_name: str, page_id: str | N
     )
 
     if not final_brand_info:
-        logger.info(f"品牌 '{brand_name}' 没有抓取到任何新信息，跳过更新。")
+        logging.info(f"🔍 品牌 '{brand_name}' 没有抓取到任何新信息，跳过更新。")
         return page_id
 
     brand_id = await context["notion"].create_or_update_brand(
@@ -162,6 +162,6 @@ async def finalize_brand_update(context: dict, brand_name: str, page_id: str | N
     if brand_id:
         final_has_icon = bool(final_brand_info.get("icon_url"))
         context["brand_cache"].add_brand(brand_name, brand_id, final_has_icon)
-        logger.cache(f"[品牌缓存] 已更新: '{brand_name}' (信息完整: {final_has_icon})")
+        logging.info(f"🗂️ [品牌缓存] 已更新: '{brand_name}' (信息完整: {final_has_icon})")
     
     return brand_id

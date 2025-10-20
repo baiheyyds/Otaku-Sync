@@ -1,8 +1,8 @@
 # clients/base_client.py
 import json
+import logging
 import os
 import httpx
-from utils import logger
 
 
 class BaseClient:
@@ -35,7 +35,7 @@ class BaseClient:
                 for source_value in source_values:
                     reverse_map[source_value.upper()] = final_value
         except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"无法加载或解析 genre_mapping.json: {e}")
+            logging.error(f"❌ 无法加载或解析 genre_mapping.json: {e}")
         return reverse_map
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response | None:
@@ -51,23 +51,23 @@ class BaseClient:
             if "headers" in kwargs:
                 request_headers.update(kwargs.pop("headers"))
 
-            logger.info(f"[{self.__class__.__name__}] {method.upper()} {full_url}")
+            logging.info(f"🔍 [{self.__class__.__name__}] {method.upper()} {full_url}")
             
             response = await self.client.request(method, full_url, headers=request_headers, **kwargs)
             response.raise_for_status()
             
-            logger.success(f"[{self.__class__.__name__}] 请求成功: {response.status_code} {response.reason_phrase}")
+            logging.debug(f"✅ [{self.__class__.__name__}] 请求成功: {response.status_code} {response.reason_phrase}")
             return response
             
         except httpx.HTTPStatusError as e:
-            logger.error(f"[{self.__class__.__name__}] 请求失败: {e.response.status_code} for url: {e.request.url}")
-            logger.error(f"    -> 响应: {e.response.text[:300]}") # 打印部分响应内容
+            logging.error(f"❌ [{self.__class__.__name__}] 请求失败: {e.response.status_code} for url: {e.request.url}")
+            logging.error(f"    -> 响应: {e.response.text[:300]}") # 打印部分响应内容
             return None
         except httpx.RequestError as e:
-            logger.error(f"[{self.__class__.__name__}] 网络请求异常: {e.__class__.__name__} for url: {e.request.url}")
+            logging.error(f"❌ [{self.__class__.__name__}] 网络请求异常: {e.__class__.__name__} for url: {e.request.url}")
             return None
         except Exception as e:
-            logger.error(f"[{self.__class__.__name__}] 未知错误: {e}")
+            logging.error(f"❌ [{self.__class__.__name__}] 未知错误: {e}")
             return None
 
     async def get(self, url: str, **kwargs) -> httpx.Response | None:

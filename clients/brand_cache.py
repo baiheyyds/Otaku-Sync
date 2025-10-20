@@ -2,12 +2,11 @@
 # 该模块用于处理品牌信息的缓存
 import hashlib
 import json
+import logging
 import os
 import shutil
 import threading
 from datetime import datetime
-
-from utils import logger
 
 CACHE_DIR = "cache"
 # 将缓存文件命名得更具体，以反映其新结构和用途
@@ -33,12 +32,12 @@ class BrandCache:
                         if isinstance(data, dict):
                             self.cache = data
                             self.last_cache_hash = self._hash_content(self.cache)
-                            logger.cache(f"已加载品牌状态缓存 {len(self.cache)} 条")
+                            logging.info(f"🗂️ 已加载品牌状态缓存 {len(self.cache)} 条")
                         else:
-                            logger.warn("品牌缓存文件格式不正确，将创建新缓存。")
+                            logging.warning("⚠️ 品牌缓存文件格式不正确，将创建新缓存。")
                             self.cache = {}
                 except Exception as e:
-                    logger.warn(f"读取品牌状态缓存失败: {e}")
+                    logging.warning(f"⚠️ 读取品牌状态缓存失败: {e}")
                     self.cache = {}
             return self.cache
 
@@ -47,7 +46,7 @@ class BrandCache:
             try:
                 if not self.cache:
                     if not silent:
-                        logger.info("检测到品牌状态缓存为空，跳过保存。")
+                        logging.info("🔍 检测到品牌状态缓存为空，跳过保存。")
                     return
 
                 new_hash = self._hash_content(self.cache)
@@ -72,11 +71,11 @@ class BrandCache:
 
                 self.last_cache_hash = new_hash
                 if not silent:
-                    logger.cache(f"已保存品牌状态缓存 {len(self.cache)} 条")
+                    logging.info(f"🗂️ 已保存品牌状态缓存 {len(self.cache)} 条")
 
             except Exception as e:
                 if not silent:
-                    logger.error(f"保存品牌状态缓存失败: {e}")
+                    logging.error(f"❌ 保存品牌状态缓存失败: {e}")
 
     def get_brand_details(self, name: str) -> dict | None:
         """从缓存中获取品牌的详细信息 (page_id, has_icon)。"""

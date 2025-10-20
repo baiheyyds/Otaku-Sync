@@ -1,65 +1,79 @@
 # utils/logger.py
-# A simple logging utility for beautiful and standardized console output
+import logging
+import os
+import sys
+from logging import Handler, LogRecord
 
+from rich.logging import RichHandler
 
-# ANSI color codes
-class Colors:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-
-
-def _log(prefix, message, color):
+# 1. Define the custom handler for GUI
+class QtLogHandler(Handler):
     """
-    Internal log function.
-    Note: Colors may not display on all terminals (e.g., old Windows CMD),
-    but work well in most modern terminals (VSCode, PowerShell, Linux/macOS).
+    A custom logging handler that emits a Qt signal.
+    The signal is defined in gui_bridge.py and connected in MainWindow.
     """
-    print(f"{color}{prefix}{Colors.ENDC} {Colors.BOLD}{message}{Colors.ENDC}")
+    def __init__(self, signal_emitter):
+        super().__init__()
+        self.signal_emitter = signal_emitter
 
+    def emit(self, record: LogRecord):
+        """
+        Emits a Qt signal with the formatted log message.
+        The actual formatting is controlled by the formatter set on this handler.
+        """
+        msg = self.format(record)
+        self.signal_emitter.emit(msg)
 
-def step(message):
-    """For marking major process steps."""
-    _log("🚀", message, Colors.HEADER)
+# 2. Define a shared, simple formatter
+# RichHandler will add extra info like time, level, and path based on its own config.
+gui_formatter = logging.Formatter("{message}", style="{")
+cli_formatter = logging.Formatter("{message}", datefmt="[%X]", style="{")
 
+# 3. Define setup functions
+def setup_logging_for_cli(level=None):
+    """
+    Configures the root logger for CLI output using RichHandler.
+    Log level is controlled by the LOG_LEVEL environment variable.
+    """
+    # Determine log level from environment variable or argument, defaulting to INFO
+    if level is None:
+        log_level_str = os.environ.get("LOG_LEVEL", "INFO").upper()
+        log_level = getattr(logging, log_level_str, logging.INFO)
+    else:
+        log_level = level
 
-def info(message):
-    """For general information, search prompts, etc."""
-    _log("🔍", message, Colors.OKBLUE)
+    log = logging.getLogger()
+    log.setLevel(log_level)
+    
+    # Remove any existing handlers to avoid duplicates
+    if log.hasHandlers():
+        log.handlers.clear()
 
+    is_debug = (log_level <= logging.DEBUG)
 
-def success(message):
-    """For marking successful operations."""
-    _log("✅", message, Colors.OKGREEN)
+    rich_handler = RichHandler(
+        rich_tracebacks=True, 
+        tracebacks_show_locals=is_debug, # Show locals only in debug mode
+        log_time_format="[%X]",
+        show_path=is_debug  # KEY CHANGE: Only show path in debug mode
+    )
+    rich_handler.setFormatter(cli_formatter)
+    log.addHandler(rich_handler)
+    
+    logging.debug("日志系统已初始化 (CLI 模式)。")
 
+def setup_logging_for_gui(qt_signal_emitter, level=logging.INFO):
+    """
+    Configures the root logger for GUI output using the custom QtLogHandler.
+    """
+    log = logging.getLogger()
+    log.setLevel(level)
 
-def warn(message):
-    """For printing warnings, where the program can still continue."""
-    _log("⚠️", message, Colors.WARNING)
+    # Remove any existing handlers
+    if log.hasHandlers():
+        log.handlers.clear()
 
-
-def error(message):
-    """For printing errors that might lead to failure or interruption."""
-    _log("❌", message, Colors.FAIL)
-
-
-def system(message):
-    """For system-level messages like startup, shutdown, caching."""
-    _log("🔧", message, Colors.OKCYAN)
-
-
-def cache(message):
-    """Specifically for cache-related messages."""
-    _log("🗂️", message, Colors.OKCYAN)
-
-
-def result(message):
-    """For printing final results or important data points."""
-    # Using a simple print for lists or multi-line results often looks cleaner.
-    print(message)
+    qt_handler = QtLogHandler(signal_emitter=qt_signal_emitter)
+    qt_handler.setFormatter(gui_formatter)
+    log.addHandler(qt_handler)
+    logging.info("🔧 日志系统已成功接入GUI。")

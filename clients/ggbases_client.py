@@ -1,5 +1,6 @@
 # clients/ggbases_client.py
 import asyncio
+import logging
 import os
 import urllib.parse
 
@@ -9,7 +10,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium_stealth import stealth
 
-from utils import logger
 from utils.tag_logger import append_new_tags
 from .base_client import BaseClient
 
@@ -39,7 +39,7 @@ class GGBasesClient(BaseClient):
         return self.driver is not None
 
     async def choose_or_parse_popular_url_with_requests(self, keyword: str) -> list:
-        logger.info(f"[GGBases] 正在搜索: {keyword}")
+        logging.info(f"🔍 [GGBases] 正在搜索: {keyword}")
         try:
             encoded = urllib.parse.quote(keyword)
             search_url = f"/search.so?p=0&title={encoded}&advanced="
@@ -83,14 +83,14 @@ class GGBasesClient(BaseClient):
                 )
 
             if not candidates:
-                logger.warn("[GGBases] 未找到任何结果")
+                logging.warning("⚠️ [GGBases] 未找到任何结果")
                 return []
 
-            logger.success(f"[GGBases] 搜索到 {len(candidates)} 个候选结果")
+            logging.info(f"✅ [GGBases] 搜索到 {len(candidates)} 个候选结果")
             return candidates
 
         except Exception as e:
-            logger.error(f"[GGBases] 解析搜索结果失败: {e}")
+            logging.error(f"❌ [GGBases] 解析搜索结果失败: {e}")
             return []
 
     async def get_info_by_url_with_selenium(self, detail_url):
@@ -98,7 +98,7 @@ class GGBasesClient(BaseClient):
             raise RuntimeError("GGBasesClient的专属driver未设置。")
         if not detail_url:
             return {}
-        logger.info(f"[GGBases] 正在用Selenium抓取详情页: {detail_url}")
+        logging.info(f"🔍 [GGBases] 正在用Selenium抓取详情页: {detail_url}")
 
         def _blocking_task():
             try:
@@ -115,10 +115,10 @@ class GGBasesClient(BaseClient):
                     "封面图链接": self._extract_cover_url(soup),
                     "标签": self._extract_tags(soup),
                 }
-                logger.success("[GGBases] (Selenium) 详情页信息抓取成功")
+                logging.info("✅ [GGBases] (Selenium) 详情页信息抓取成功")
                 return info
             except Exception as e:
-                logger.warn(f"[GGBases] (Selenium) 抓取详情页失败: {e}")
+                logging.warning(f"⚠️ [GGBases] (Selenium) 抓取详情页失败: {e}")
                 return {}
 
         return await asyncio.to_thread(_blocking_task)

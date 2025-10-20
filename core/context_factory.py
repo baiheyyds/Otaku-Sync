@@ -1,5 +1,6 @@
 # core/context_factory.py
 import asyncio
+import logging
 
 import httpx
 
@@ -14,7 +15,6 @@ from core.interaction import InteractionProvider
 from core.mapping_manager import BangumiMappingManager, BrandMappingManager
 from core.name_splitter import NameSplitter
 from core.schema_manager import NotionSchemaManager
-from utils import logger
 from utils.similarity_check import hash_titles, load_cache_quick, save_cache
 from utils.tag_manager import TagManager
 
@@ -24,7 +24,7 @@ from .driver_factory import driver_factory
 
 def create_shared_context():
     """Creates context with objects that are shared across the application's lifetime."""
-    logger.system("正在初始化共享应用上下文 (缓存、管理器、驱动工厂等)...")
+    logging.info("🔧 正在初始化共享应用上下文 (缓存、管理器、驱动工厂等)...")
     driver_factory.start_background_creation(["dlsite_driver", "ggbases_driver"])
 
     # 管理器是共享的
@@ -35,7 +35,7 @@ def create_shared_context():
     brand_cache = BrandCache()
     brand_cache.load_cache()
     cached_titles = load_cache_quick()
-    logger.cache(f"本地缓存游戏条目数: {len(cached_titles)}")
+    logging.info(f"🗂️ 本地缓存游戏条目数: {len(cached_titles)}")
 
     return {
         "driver_factory": driver_factory,
@@ -94,36 +94,36 @@ async def update_cache_background(notion_client, local_cache):
     for attempt in range(3):
         try:
             if attempt == 0:
-                logger.system("正在后台刷新查重缓存...")
+                logging.info("🔧 正在后台刷新查重缓存...")
             else:
-                logger.system(f"后台缓存刷新重试... ({attempt + 1}/3)")
+                logging.info(f"🔧 后台缓存刷新重试... ({attempt + 1}/3)")
 
             await asyncio.sleep(1)
             remote_data = await notion_client.get_all_game_titles()
 
             if remote_data is None:
-                logger.error("获取远程缓存时发生不可恢复的API错误，后台更新中止。")
+                logging.error("❌ 获取远程缓存时发生不可恢复的API错误，后台更新中止。")
                 return
 
             local_hash = hash_titles(local_cache)
             remote_hash = hash_titles(remote_data)
             if local_hash != remote_hash:
                 save_cache(remote_data)
-                logger.info("后台查重缓存已成功更新。")
+                logging.info("✅ 后台查重缓存已成功更新。")
             else:
-                logger.info("游戏标题缓存已是最新。")
+                logging.info("✅ 游戏标题缓存已是最新。")
             return  # Exit function on success
 
         except httpx.RequestError as e:
-            logger.warn(f"后台缓存更新时发生网络错误 (尝试 {attempt + 1}/3): {e}")
+            logging.warning(f"⚠️ 后台缓存更新时发生网络错误 (尝试 {attempt + 1}/3): {e}")
             if attempt < 2:
                 await asyncio.sleep(5 * (attempt + 1))  # 5s, 10s wait
             continue  # continue to the next attempt
         except Exception as e:
-            logger.error(f"处理后台缓存更新时发生未知严重错误: {e}")
+            logging.error(f"❌ 处理后台缓存更新时发生未知严重错误: {e}")
             return  # Abort on unknown errors
 
-    logger.error("后台缓存更新任务在多次网络尝试后彻底失败。")
+    logging.error("❌ 后台缓存更新任务在多次网络尝试后彻底失败。")
 
 
 async def create_context(interaction_provider: InteractionProvider):

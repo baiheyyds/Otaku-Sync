@@ -1,5 +1,6 @@
 # utils/similarity_check.py
 import asyncio
+import logging
 from rapidfuzz import fuzz
 import hashlib
 import json
@@ -8,8 +9,6 @@ import sys
 import unicodedata
 from pathlib import Path
 from collections import defaultdict
-
-from utils import logger
 
 # --- Constants ---
 N_GRAM_SIZE = 2
@@ -27,7 +26,7 @@ def normalize(text):
     text = unicodedata.normalize("NFKC", text)
     text = text.lower().strip()
     # Expanded regex to remove spaces, hyphens, colons, brackets, tildes, etc.
-    text = re.sub(r"[\s\-_:()[\]【】~～「」『』]+", "", text)
+    text = re.sub(r"[\s\-_:()[\].【】~～「」『』]+", "", text)
     return text
 
 def get_ngrams(text, n):
@@ -118,7 +117,7 @@ def load_cache_quick():
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
-        logger.warn(f"本地缓存读取失败: {e}")
+        logging.warning(f"⚠️ 本地缓存读取失败: {e}")
     return []
 
 def get_cache_path():
@@ -134,13 +133,13 @@ def save_cache(titles):
             return
         with open(get_cache_path(), "w", encoding="utf-8") as f:
             json.dump(valid_titles, f, ensure_ascii=False, indent=2)
-        logger.cache(f"游戏标题缓存成功写入，条目数: {len(valid_titles)}")
+        logging.info(f"🗂️ 游戏标题缓存成功写入，条目数: {len(valid_titles)}")
     except Exception as e:
-        logger.error(f"缓存写入失败: {e}")
+        logging.error(f"❌ 缓存写入失败: {e}")
 
 def hash_titles(data):
     items = sorted(
-        f'{item.get("id")}:{item.get("title")}'
+        f"{item.get("id")}:{item.get("title")}"
         for item in data
         if item.get("id") and item.get("title")
     )
@@ -152,18 +151,18 @@ async def load_or_update_titles(notion_client):
         local_data = load_cache_quick()
         remote_data = await notion_client.get_all_game_titles()
         if hash_titles(local_data) != hash_titles(remote_data):
-            logger.system("Notion 游戏标题有更新，重新缓存...")
+            logging.info("🔧 Notion 游戏标题有更新，重新缓存...")
             save_cache(remote_data)
             return remote_data
         return local_data
     except Exception as e:
-        logger.warn(f"校验缓存失败，尝试从 Notion 拉取: {e}")
+        logging.warning(f"⚠️ 校验缓存失败，尝试从 Notion 拉取: {e}")
         try:
             remote_data = await notion_client.get_all_game_titles()
             save_cache(remote_data)
             return remote_data
         except Exception as e2:
-            logger.error(f"无法连接 Notion，仅使用旧缓存: {e2}")
+            logging.error(f"❌ 无法连接 Notion，仅使用旧缓存: {e2}")
             return load_cache_quick()
 
 async def remove_invalid_pages(candidates, cached_titles, notion_client):
@@ -179,7 +178,7 @@ async def remove_invalid_pages(candidates, cached_titles, notion_client):
         if page_id and exists:
             valid_candidates.append((item, score))
         else:
-            logger.warn(f"已失效页面：{item.get('title')}，从缓存移除")
+            logging.warning(f"⚠️ 已失效页面：{item.get('title')}，从缓存移除")
             updated_cache = [x for x in updated_cache if x.get("id") != page_id]
             changed = True
     return valid_candidates, updated_cache, changed
@@ -187,7 +186,7 @@ async def remove_invalid_pages(candidates, cached_titles, notion_client):
 async def check_existing_similar_games(
     notion_client, new_title, cached_titles=None, threshold=0.85 # Increased threshold
 ):
-    logger.info("正在检查是否有可能重复的游戏...")
+    logging.info("🔍 正在检查是否有可能重复的游戏...")
 
     if not cached_titles or not isinstance(cached_titles[0], dict):
         cached_titles = await load_or_update_titles(notion_client)
@@ -205,8 +204,8 @@ async def check_existing_similar_games(
 
     notion_results = await notion_client.search_game(new_title)
     if notion_results:
-        logger.warn(
-            f"Notion 实时搜索发现已有同名游戏：{notion_client.get_page_title(notion_results[0]) or '[未知标题]'}"
+        logging.warning(
+            f"⚠️ Notion 实时搜索发现已有同名游戏：{notion_client.get_page_title(notion_results[0]) or '[未知标题]'}"
         )
         existing_page_data = {"id": notion_results[0]["id"], "title": new_title}
         valid_candidates = [
@@ -215,11 +214,11 @@ async def check_existing_similar_games(
         valid_candidates.insert(0, (existing_page_data, 1.0))
 
     if not valid_candidates:
-        logger.success("没有发现重复游戏，将创建新条目。")
+        logging.info("✅ 没有发现重复游戏，将创建新条目。")
         return True, cached_titles, "create", None
 
     def _interactive_selection():
-        logger.warn("检测到可能重复的游戏：")
+        logging.warning("⚠️ 检测到可能重复的游戏：")
         sorted_candidates = sorted(valid_candidates, key=lambda x: x[1], reverse=True)
         for i, (item, score) in enumerate(sorted_candidates):
             title_str = item.get("title") or notion_client.get_page_title(item)
@@ -240,19 +239,19 @@ async def check_existing_similar_games(
     choice, sorted_candidates = await asyncio.to_thread(_interactive_selection)
 
     if choice == "s":
-        logger.info("已选择跳过。")
+        logging.info("🔍 已选择跳过。")
         return False, cached_titles, "skip", None
     elif choice == "c":
         confirm_check = await notion_client.search_game(new_title)
         if confirm_check:
-            logger.warn("注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
+            logging.warning("⚠️ 注意：你选择了强制新建，但Notion中已存在完全同名的游戏，自动转为更新。")
             return True, cached_titles, "update", confirm_check[0].get("id")
         else:
-            logger.success("确认创建为新游戏。")
+            logging.info("✅ 确认创建为新游戏。")
             return True, cached_titles, "create", None
     else:  # 默认为 u
         selected_id = sorted_candidates[0][0].get("id")
-        logger.info(f"已选择更新游戏：{sorted_candidates[0][0].get('title')}")
+        logging.info(f"🔍 已选择更新游戏：{sorted_candidates[0][0].get('title')}")
         return True, cached_titles, "update", selected_id
 
 # Restored original implementation of get_close_matches_with_ratio

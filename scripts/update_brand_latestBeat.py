@@ -1,5 +1,6 @@
 # scripts/update_brand_latestBeat.py
 import asyncio
+import logging
 from datetime import datetime, timezone
 from tqdm.asyncio import tqdm_asyncio
 
@@ -14,7 +15,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from clients.notion_client import NotionClient
 from config.config_fields import FIELDS
 from config.config_token import BRAND_DB_ID, GAME_DB_ID, NOTION_TOKEN, STATS_DB_ID
-from utils import logger
 
 # 缓存文件路径
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "cache")
@@ -94,10 +94,10 @@ async def _update_brand_pages(notion_client: NotionClient, brand_map: dict, cach
     }
 
     if not to_update:
-        logger.info("⚡ 所有厂商通关记录均为最新，无需更新。")
+        logging.info("⚡ 所有厂商通关记录均为最新，无需更新。")
         return cache
 
-    logger.info(f"🚀 检测到 {len(to_update)} 个品牌需要更新，开始并发处理...")
+    logging.info(f"🚀 检测到 {len(to_update)} 个品牌需要更新，开始并发处理...")
 
     # Notion API 速率限制信号量，允许3个并发请求
     notion_semaphore = asyncio.Semaphore(3)
@@ -130,12 +130,12 @@ async def _update_brand_pages(notion_client: NotionClient, brand_map: dict, cach
     updated_count = 0
     for brand_id, title, error in results:
         if error:
-            logger.error(f"  ❌ 更新品牌 {brand_id} ({title}) 失败: {error}")
+            logging.error(f"  ❌ 更新品牌 {brand_id} ({title}) 失败: {error}")
         else:
             updated_count += 1
             # 成功日志可以省略，因为进度条已经提供了反馈
 
-    logger.info(f"✨ 本次共更新了 {updated_count} 个品牌记录。")
+    logging.info(f"✨ 本次共更新了 {updated_count} 个品牌记录。")
     return updated_cache
 
 
@@ -146,7 +146,7 @@ async def _update_statistics_page(notion_client: NotionClient, clear: dict, rele
         stat_page = next((p for p in pages if notion_client.get_page_title(p) == "通关统计"), None)
 
         if not stat_page:
-            logger.warn("⚠️ 未找到标题为「通关统计」的页面，无法更新统计数据。")
+            logging.warning("⚠️ 未找到标题为「通关统计」的页面，无法更新统计数据。")
             return
 
         page_id = stat_page["id"]
@@ -164,37 +164,37 @@ async def _update_statistics_page(notion_client: NotionClient, clear: dict, rele
             properties[FIELDS["latest_released_game"]] = {"rich_text": [{"type": "text", "text": {"content": release["title"]}}]}
 
         await notion_client._request("PATCH", f"https://api.notion.com/v1/pages/{page_id}", {"properties": properties})
-        logger.success("📊 成功更新统计页。")
+        logging.info("📊 成功更新统计页。")
 
     except Exception as e:
-        logger.error(f"❌ 更新统计页失败: {e}")
+        logging.error(f"❌ 更新统计页失败: {e}")
 
 
 async def update_brand_and_game_stats(context: dict):
     notion_client = context["notion"]
     """完整执行更新品牌最新通关和全局游戏统计的整个流程。"""
-    logger.info("开始执行品牌及游戏统计数据更新流程...")
+    logging.info("🚀 开始执行品牌及游戏统计数据更新流程...")
     cache = load_cache()
 
-    logger.info("📥 正在获取所有游戏记录...")
+    logging.info("📥 正在获取所有游戏记录...")
     all_games = await notion_client.get_all_pages_from_db(GAME_DB_ID)
     if not all_games:
-        logger.error("未能获取任何游戏数据，脚本终止。")
+        logging.error("未能获取任何游戏数据，脚本终止。")
         return
-    logger.info(f"✅ 获取到 {len(all_games)} 条游戏记录。")
+    logging.info(f"✅ 获取到 {len(all_games)} 条游戏记录。")
 
     brand_latest_map, latest_clear, latest_release, duration_map = _process_game_data(all_games)
 
     total = len(brand_latest_map)
     unchanged = sum(1 for k in brand_latest_map if cache.get(k) == brand_latest_map[k]["title"])
     if total > 0:
-        logger.info(f"📊 品牌缓存命中率: {unchanged}/{total} ({round(unchanged/total*100, 2)}%)")
+        logging.info(f"📊 品牌缓存命中率: {unchanged}/{total} ({round(unchanged/total*100, 2)}%)")
 
     new_cache = await _update_brand_pages(notion_client, brand_latest_map, cache)
     save_cache(new_cache)
 
     await _update_statistics_page(notion_client, latest_clear, latest_release, duration_map)
-    logger.system("流程执行完毕。")
+    logging.info("流程执行完毕。")
 
 
 async def main():
@@ -206,4 +206,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
     asyncio.run(main())

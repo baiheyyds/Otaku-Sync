@@ -1,6 +1,7 @@
 # clients/bangumi_client.py
 # 该模块用于与 Bangumi API 交互，获取游戏和角色信息
 import asyncio
+import logging
 from rapidfuzz import fuzz
 
 import json
@@ -18,7 +19,6 @@ from config.config_token import BANGUMI_TOKEN, BRAND_DB_ID, CHARACTER_DB_ID
 from core.interaction import InteractionProvider
 from core.mapping_manager import BangumiMappingManager
 from core.schema_manager import NotionSchemaManager
-from utils import logger
 
 API_TOKEN = BANGUMI_TOKEN
 HEADERS_API = {
@@ -83,11 +83,11 @@ class BangumiClient:
         try:
             resp = await self.client.post(url, headers=self.headers, json=payload, timeout=15)
             if resp.status_code != 200:
-                logger.warn(f"[Bangumi] API搜索失败: {resp.status_code}")
+                logging.warning(f"⚠️ [Bangumi] API搜索失败: {resp.status_code}")
                 return []
             return resp.json().get("data", [])
         except httpx.RequestError as e:
-            logger.error(f"[Bangumi] API请求异常: {e}")
+            logging.error(f"❌ [Bangumi] API请求异常: {e}")
             return []
 
     async def search_and_select_bangumi_id(self, keyword: str) -> str | None:
@@ -119,23 +119,23 @@ class BangumiClient:
             if clean_title(item.get("name", "")) and (
                 clean_title(keyword) in clean_title(item.get("name", ""))
             ):
-                logger.info(f"[Bangumi] 子串匹配成功: {item['name']}，视为同一作品")
+                logging.info(f"🔍 [Bangumi] 子串匹配成功: {item['name']}，视为同一作品")
                 return str(item["id"])
         if candidates and candidates[0][0] >= self.similarity_threshold:
             best = candidates[0][1]
-            logger.info(f"[Bangumi] 自动匹配成功: {best['name']} (相似度 {candidates[0][0]:.2f})")
+            logging.info(f"🔍 [Bangumi] 自动匹配成功: {best['name']} (相似度 {candidates[0][0]:.2f})")
             return str(best["id"])
         if candidates and candidates[0][0] >= 0.7:
             best = candidates[0][1]
             if clean_title(best["name"]) in clean_title(keyword) or clean_title(
                 keyword
             ) in clean_title(best["name"]):
-                logger.info(
-                    f"[Bangumi] 模糊匹配成功（放宽判定）: {best['name']} (相似度 {candidates[0][0]:.2f})"
+                logging.info(
+                    f"🔍 [Bangumi] 模糊匹配成功（放宽判定）: {best['name']} (相似度 {candidates[0][0]:.2f})"
                 )
                 return str(best["id"])
         
-        logger.warn("Bangumi自动匹配相似度不足，请手动选择:")
+        logging.warning("⚠️ Bangumi自动匹配相似度不足，请手动选择:")
         
         # Format candidates for display in GUI
         gui_candidates = []
@@ -335,7 +335,7 @@ class BangumiClient:
             prop_type = self.schema.get_property_type(CHARACTER_DB_ID, notion_prop_name)
             if not prop_type:
                 if notion_prop_name not in warned_keys:
-                    logger.warn(f"角色属性 '{notion_prop_name}' 在 Notion 角色库中不存在，已跳过。")
+                    logging.warning(f"⚠️ 角色属性 '{notion_prop_name}' 在 Notion 角色库中不存在，已跳过。")
                     warned_keys.add(notion_prop_name)
                 continue
             if prop_type == "title":
@@ -361,19 +361,19 @@ class BangumiClient:
                 "PATCH", f"https://api.notion.com/v1/pages/{existing_id}", {"properties": props}
             )
             if resp:
-                logger.info(f"角色已存在，已更新：{char['name']}")
+                logging.info(f"🔍 角色已存在，已更新：{char['name']}")
             return existing_id if resp else None
         else:
             payload = {"parent": {"database_id": CHARACTER_DB_ID}, "properties": props}
             resp = await self.notion._request("POST", "https://api.notion.com/v1/pages", payload)
             if resp:
-                logger.success(f"新角色已创建：{char['name']}")
+                logging.info(f"✅ 新角色已创建：{char['name']}")
             return resp.get("id") if resp else None
 
     async def create_or_link_characters(self, game_page_id: str, subject_id: str):
         characters = await self.fetch_characters(subject_id)
         if not characters:
-            logger.info("未找到任何 Bangumi 角色信息，跳过角色关联。")
+            logging.info("🔍 未找到任何 Bangumi 角色信息，跳过角色关联。")
             patch = {
                 "properties": {
                     FIELDS["bangumi_url"]: {"url": f"https://bangumi.tv/subject/{subject_id}"}
@@ -391,7 +391,7 @@ class BangumiClient:
         character_relations = [{"id": cid} for cid in char_ids if cid]
         page_data = await self.notion.get_page(game_page_id)
         if not page_data:
-            logger.error(f"无法获取游戏页面 {game_page_id} 的当前状态，跳过声优补充。")
+            logging.error(f"❌ 无法获取游戏页面 {game_page_id} 的当前状态，跳过声优补充。")
             return
         patch_props = {
             FIELDS["bangumi_url"]: {"url": f"https://bangumi.tv/subject/{subject_id}"},
@@ -401,32 +401,32 @@ class BangumiClient:
             page_data.get("properties", {}).get(FIELDS["voice_actor"], {}).get("multi_select", [])
         )
         if not existing_vcs:
-            logger.info("游戏页面声优信息为空，尝试从 Bangumi 角色数据中补充...")
+            logging.info("🔍 游戏页面声优信息为空，尝试从 Bangumi 角色数据中补充...")
             all_cvs = {ch["声优"].strip() for ch in characters if ch.get("声优")}
             if all_cvs:
-                logger.success(f"已为【游戏页面】补充 {len(all_cvs)} 位声优。")
+                logging.info(f"✅ 已为【游戏页面】补充 {len(all_cvs)} 位声优。")
                 patch_props[FIELDS["voice_actor"]] = {
                     "multi_select": [{"name": name} for name in sorted(all_cvs)]
                 }
             else:
-                logger.info("Bangumi 角色数据中也未找到声优信息以供补充。")
+                logging.info("🔍 Bangumi 角色数据中也未找到声优信息以供补充。")
         else:
-            logger.info("游戏页面已存在声优信息，跳过补充。")
+            logging.info("🔍 游戏页面已存在声优信息，跳过补充。")
         await self.notion._request(
             "PATCH", f"https://api.notion.com/v1/pages/{game_page_id}", {"properties": patch_props}
         )
-        logger.success("Bangumi 角色信息同步与关联完成。")
+        logging.info("✅ Bangumi 角色信息同步与关联完成。")
 
     async def fetch_brand_info_from_bangumi(self, brand_name: str) -> dict | None:
         """[已重构] 搜索品牌，找到ID后调用 fetch_person_by_id 获取完整信息。"""
 
         async def search_brand(keyword: str):
-            logger.info(f"[Bangumi] 正在搜索品牌关键词: {keyword}")
+            logging.info(f"🔍 [Bangumi] 正在搜索品牌关键词: {keyword}")
             url = "https://api.bgm.tv/v0/search/persons"
             data = {"keyword": keyword, "filter": {"career": ["artist", "director", "producer"]}}
             resp = await self.client.post(url, headers=self.headers, json=data)
             if resp.status_code != 200:
-                logger.error(f"[Bangumi] 品牌搜索失败，状态码: {resp.status_code}")
+                logging.error(f"❌ [Bangumi] 品牌搜索失败，状态码: {resp.status_code}")
                 return []
             return resp.json().get("data", [])
 
@@ -458,28 +458,28 @@ class BangumiClient:
         best_score, best_match = candidates[0] if candidates else (0, None)
 
         if not best_match or best_score < 0.7:
-            logger.warn(f"未找到相似度高于阈值的品牌（最高: {best_score:.2f})")
+            logging.warning(f"⚠️ 未找到相似度高于阈值的品牌（最高: {best_score:.2f})")
             return None
 
         person_id = best_match.get("id")
         if not person_id:
-            logger.warn("最佳匹配项缺少ID，无法获取详细信息。")
+            logging.warning("⚠️ 最佳匹配项缺少ID，无法获取详细信息。")
             return None
 
-        logger.success(
-            f"[Bangumi] 搜索匹配成功: {best_match.get('name')} (ID: {person_id}, 相似度: {best_score:.2f})"
+        logging.info(
+            f"✅ [Bangumi] 搜索匹配成功: {best_match.get('name')} (ID: {person_id}, 相似度: {best_score:.2f})"
         )
         return await self.fetch_person_by_id(str(person_id))
 
     async def fetch_person_by_id(self, person_id: str) -> dict | None:
         """[已重构] 通过 Person ID 直接获取并处理厂商/个人信息，作为唯一的数据处理源。"""
         url = f"https://api.bgm.tv/v0/persons/{person_id}"
-        logger.info(f"[Bangumi] 正在通过 ID 直接获取品牌信息: {person_id}")
+        logging.info(f"🔍 [Bangumi] 正在通过 ID 直接获取品牌信息: {person_id}")
         try:
             resp = await self.client.get(url, headers=self.headers)
             if resp.status_code != 200:
-                logger.error(
-                    f"[Bangumi] 品牌信息获取失败，ID: {person_id}, 状态码: {resp.status_code}"
+                logging.error(
+                    f"❌ [Bangumi] 品牌信息获取失败，ID: {person_id}, 状态码: {resp.status_code}"
                 )
                 return None
 
@@ -499,11 +499,11 @@ class BangumiClient:
             }
             brand_info.update(infobox_data)
 
-            logger.success(f"[Bangumi] 已成功获取并处理品牌: {person_data.get('name')}")
+            logging.info(f"✅ [Bangumi] 已成功获取并处理品牌: {person_data.get('name')}")
             return brand_info
 
         except Exception as e:
-            logger.error(f"[Bangumi] 通过ID获取品牌信息时发生异常: {e}")
+            logging.error(f"❌ [Bangumi] 通过ID获取品牌信息时发生异常: {e}")
             return None
 
     async def fetch_and_prepare_character_data(self, character_id: str) -> dict | None:
@@ -512,7 +512,7 @@ class BangumiClient:
             char_detail_url = f"https://api.bgm.tv/v0/characters/{character_id}"
             resp = await self.client.get(char_detail_url, headers=self.headers)
             if resp.status_code != 200:
-                logger.error(f"获取角色 {character_id} 详情失败: 状态码 {resp.status_code}")
+                logging.error(f"❌ 获取角色 {character_id} 详情失败: 状态码 {resp.status_code}")
                 return None
 
             detail = resp.json()
@@ -536,5 +536,5 @@ class BangumiClient:
 
             return char_data_to_update
         except Exception as e:
-            logger.error(f"处理角色 {character_id} 数据时出错: {e}")
+            logging.error(f"❌ 处理角色 {character_id} 数据时出错: {e}")
             return None

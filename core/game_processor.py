@@ -1,7 +1,7 @@
 # core/game_processor.py
+import logging
 import re
 
-from utils import logger
 from utils.tag_manager import TagManager
 from core.name_splitter import NameSplitter
 from core.interaction import InteractionProvider
@@ -77,7 +77,7 @@ async def process_and_sync_game(
     # --- [修复结束] ---
 
     # ... 标签处理逻辑无变化 ...
-    logger.system("正在处理和映射所有标签...")
+    logging.info("🔧 正在处理和映射所有标签...")
     final_tags = await tag_manager.process_tags(
         dlsite_tags=detail.get("标签", []) if source == "dlsite" else [],
         fanza_tags=detail.get("标签", []) if source == "fanza" else [],
@@ -85,7 +85,7 @@ async def process_and_sync_game(
         interaction_provider=interaction_provider,
     )
     merged["标签"] = final_tags
-    logger.success("标签处理完成！")
+    logging.info("✅ 标签处理完成！")
 
     # ... 后续数据组装无变化 ...
     merged["title"] = bangumi_info.get("title") or detail.get("标题") or game.get("title")

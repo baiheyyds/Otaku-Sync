@@ -1,6 +1,7 @@
 # clients/notion_client.py
 # 该模块用于与 Notion API 交互，处理游戏和品牌数据的
 import asyncio
+import logging
 import re
 import time
 from datetime import datetime
@@ -8,7 +9,6 @@ from datetime import datetime
 import httpx
 
 from config.config_fields import FIELDS
-from utils import logger
 from utils.utils import convert_date_jp_to_iso, normalize_brand_name
 
 
@@ -41,24 +41,24 @@ class NotionClient:
                 return r.json()
             except httpx.HTTPStatusError as e:
                 # 对于HTTP错误，记录更详细的响应信息, 这种错误通常不应该重试
-                logger.error(f"Notion API 请求失败: {e}. 响应: {e.response.text}")
+                logging.error(f"❌ Notion API 请求失败: {e}. 响应: {e.response.text}")
                 return None
             except (httpx.ReadError, httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError) as e:
                 # 对于这些可恢复的网络错误，进行重试
-                logger.warn(f"Notion API 网络错误 (尝试 {attempt + 1}/{max_retries}): {e.__class__.__name__}")
+                logging.warning(f"⚠️ Notion API 网络错误 (尝试 {attempt + 1}/{max_retries}): {e.__class__.__name__}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2 * (attempt + 1))  # 逐渐增加等待时间
                     continue
                 else:
-                    logger.error(f"Notion API 请求在 {max_retries} 次尝试后最终失败。")
+                    logging.error(f"❌ Notion API 请求在 {max_retries} 次尝试后最终失败。")
                     raise  # 在最后一次尝试失败后，重新引发异常
             except httpx.RequestError as e:
                 # 对于其他网络层面的错误, 记录并重新抛出
-                logger.error(f"Notion API 网络请求失败: {e.__class__.__name__} - {e}. 请求: {e.request.method} {e.request.url}")
+                logging.error(f"❌ Notion API 网络请求失败: {e.__class__.__name__} - {e}. 请求: {e.request.method} {e.request.url}")
                 raise
             except Exception as e:
                 # 其他未知异常
-                logger.error(f"Notion API 未知错误: {e}")
+                logging.error(f"❌ Notion API 未知错误: {e}")
                 return None
         return None
 
@@ -80,7 +80,7 @@ class NotionClient:
 
             return "[无法获取标题：未找到 title 类型的属性]"
         except Exception as e:
-            logger.error(f"get_page_title error: {e}")
+            logging.error(f"❌ get_page_title error: {e}")
             return "[无法获取标题]"
 
     async def search_game(self, title):
@@ -110,7 +110,7 @@ class NotionClient:
             return self._all_brands_cache
 
         if not silent:
-            logger.info("正在从 Notion 获取所有品牌信息用于预热缓存...")
+            logging.info("🔍 正在从 Notion 获取所有品牌信息用于预热缓存...")
             
         all_pages = await self.get_all_pages_from_db(self.brand_db_id)
         brands = []
@@ -137,7 +137,7 @@ class NotionClient:
         
         self._all_brands_cache = brands
         if not silent:
-            logger.success(f"品牌缓存预热：成功获取到 {len(brands)} 个品牌的信息。")
+            logging.info(f"✅ 品牌缓存预热：成功获取到 {len(brands)} 个品牌的信息。")
         return brands
 
     async def get_brand_details_by_name(self, name: str) -> dict | None:
@@ -242,25 +242,25 @@ class NotionClient:
 
         payload = {"properties": {prop_name: prop_payload}}
 
-        logger.system(
-            f"正在尝试向 Notion 数据库 ({db_id[-5:]}) 添加新属性 '{prop_name}' (类型: {prop_type})..."
+        logging.info(
+            f"🔧 正在尝试向 Notion 数据库 ({db_id[-5:]}) 添加新属性 '{prop_name}' (类型: {prop_type})..."
         )
         response = await self._request("PATCH", url, payload)
         if response:
-            logger.success(f"成功向 Notion 添加了新属性: '{prop_name}'")
+            logging.info(f"✅ 成功向 Notion 添加了新属性: '{prop_name}'")
             return True
         else:
-            logger.error(f"向 Notion 添加新属性 '{prop_name}' 失败。请检查 API Token 权限。")
+            logging.error(f"❌ 向 Notion 添加新属性 '{prop_name}' 失败。请检查 API Token 权限。")
             return False
 
     async def create_or_update_game(self, properties_schema: dict, page_id=None, **info):
         if not properties_schema:
-            logger.error("游戏库的结构信息无效，无法创建或更新游戏。")
+            logging.error("❌ 游戏库的结构信息无效，无法创建或更新游戏。")
             return None
 
         title = info.get("title")
         if not title:
-            logger.error("游戏标题为空,无法创建或更新.")
+            logging.error("❌ 游戏标题为空,无法创建或更新.")
             return None
 
         if not page_id:
@@ -338,7 +338,7 @@ class NotionClient:
 
             prop_info = properties_schema.get(notion_prop_name)
             if not prop_info:
-                logger.warn(f"属性 '{notion_prop_name}' 在游戏库中不存在,已跳过.")
+                logging.warning(f"⚠️ 属性 '{notion_prop_name}' 在游戏库中不存在,已跳过.")
                 continue
             prop_type = prop_info.get("type")
 
@@ -470,10 +470,10 @@ class NotionClient:
 
         resp = await self._request(method, url, payload)
         if resp:
-            logger.success(f"{ '已更新' if page_id else '已创建'}游戏: {title}")
+            logging.info(f"✅ {'已更新' if page_id else '已创建'}游戏: {title}")
             return resp.get("id")
         else:
-            logger.error(f"提交游戏失败: {title}")
+            logging.error(f"❌ 提交游戏失败: {title}")
             return None
 
     async def create_or_update_brand(self, brand_name, page_id=None, **info):
@@ -484,7 +484,7 @@ class NotionClient:
 
         schema_data = await self.get_database_schema(self.brand_db_id)
         if not schema_data:
-            logger.error("无法获取厂商数据库结构，无法更新品牌信息。")
+            logging.error("❌ 无法获取厂商数据库结构，无法更新品牌信息。")
             return None
         properties_schema = schema_data.get("properties", {})
 
@@ -514,7 +514,7 @@ class NotionClient:
         for notion_prop_name, value in data_to_build.items():
             if value is None or notion_prop_name not in properties_schema:
                 if notion_prop_name not in properties_schema:
-                    logger.warn(f"属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
+                    logging.warning(f"⚠️ 属性 '{notion_prop_name}' 在厂商库中不存在，已跳过。")
                 continue
 
             prop_type = properties_schema.get(notion_prop_name, {}).get("type")
@@ -547,7 +547,7 @@ class NotionClient:
                     props[notion_prop_name] = {"select": {"name": str(value)}}
 
         if not props:
-            logger.warn(f"没有可为品牌 '{brand_name}' 更新的数据，跳过。")
+            logging.warning(f"⚠️ 没有可为品牌 '{brand_name}' 更新的数据，跳过。")
             return page_id if page_id else None
 
         if page_id:
@@ -555,11 +555,11 @@ class NotionClient:
                 "PATCH", f"https://api.notion.com/v1/pages/{page_id}", {"properties": props}
             )
             if resp:
-                logger.info(f"已更新品牌页面: {brand_name}")
+                logging.info(f"✅ 已更新品牌页面: {brand_name}")
             return page_id if resp else None
         else:
             payload = {"parent": {"database_id": self.brand_db_id}, "properties": props}
             resp = await self._request("POST", "https://api.notion.com/v1/pages", payload)
             if resp:
-                logger.success(f"新建品牌: {brand_name}")
+                logging.info(f"✅ 新建品牌: {brand_name}")
             return resp.get("id") if resp else None

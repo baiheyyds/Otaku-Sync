@@ -1,14 +1,37 @@
 # utils/driver.py
 import os
 import subprocess
+import logging
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
+# 定义驱动程序缓存路径
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+driver_path = os.path.join(project_root, ".drivers")
+os.environ['WDM_LOCAL'] = driver_path  # 设置webdriver-manager的下载路径
 
-def create_driver():
+def prepare_driver_executable() -> str:
+    """
+    检查、下载并返回 ChromeDriver 的可执行文件路径。
+    这是一个阻塞IO操作，且应该串行执行以避免 webdriver-manager 的并发问题。
+    """
+    try:
+        logging.info("🔧 [WebDriver] 正在检查并准备 ChromeDriver...")
+        executable_path = ChromeDriverManager().install()
+        logging.info(f"✅ [WebDriver] ChromeDriver 已就绪，路径: {executable_path}")
+        return executable_path
+    except Exception as e:
+        logging.error(f"❌ [WebDriver] 准备 ChromeDriver 时发生严重错误: {e}")
+        raise
+
+def create_driver_instance(executable_path: str):
+    """
+    使用给定的可执行文件路径创建一个 WebDriver 实例。
+    这个过程可以安全地并行执行。
+    """
     options = Options()
     options.add_argument("--headless=new")
     options.add_argument("--disable-gpu")
@@ -23,17 +46,10 @@ def create_driver():
 
     # 彻底屏蔽日志的关键
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
-
     options.add_experimental_option("useAutomationExtension", False)
 
-    # --- 核心改动：创建服务时彻底重定向所有输出 ---
-    # 定义驱动程序缓存路径
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    driver_path = os.path.join(project_root, ".drivers")
-    os.environ['WDM_LOCAL'] = driver_path  # 设置webdriver-manager的下载路径
-
     service = Service(
-        ChromeDriverManager().install(),
+        executable_path,
         log_output=subprocess.DEVNULL,
         # 在 Windows 上，这个标志位可以防止弹出黑色的 cmd 窗口
         creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,

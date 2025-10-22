@@ -3,6 +3,7 @@ import logging
 import threading
 
 from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QSplitter,
     QTabWidget,
@@ -98,6 +100,24 @@ class MainWindow(QMainWindow):
         main_splitter.setSizes([int(self.width() * 0.5), int(self.width() * 0.5)])
         main_layout.addWidget(main_splitter)
 
+        # --- Progress and Status Bar Widgets ---
+        self.statusBar() # Ensure status bar exists
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setTextVisible(False) # Text will be in progress_label
+        self.progress_bar.setFixedWidth(200) # Fixed width for aesthetics
+        self.progress_bar.setVisible(False)
+
+        self.progress_label = QLabel("准备就绪")
+        self.progress_label.setVisible(False)
+
+        self.time_label = QLabel("耗时: 0.00秒")
+        self.time_label.setVisible(False)
+
+        self.statusBar().addPermanentWidget(self.progress_label)
+        self.statusBar().addPermanentWidget(self.progress_bar)
+        self.statusBar().addPermanentWidget(self.time_label)
+        # --- End Progress and Status Bar Widgets ---
+
         # Setup logging
         log_bridge.log_received.connect(self.log_console.appendPlainText)
         # Connect the mapping editor's log signal
@@ -119,6 +139,43 @@ class MainWindow(QMainWindow):
         if is_dirty:
             title += " *"
         self.setWindowTitle(title)
+
+    # --- New Slots for Progress and Timing ---
+    def handle_progress_start(self, max_value):
+        self.progress_bar.setMaximum(max_value)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(True)
+        self.progress_label.setText("正在准备...")
+        self.progress_label.setVisible(True)
+        self.time_label.setText("耗时: 0.00秒")
+        self.time_label.setVisible(True)
+        self.start_time = self.current_time_in_seconds() # Initialize start time
+
+    def handle_progress_update(self, current_value, text):
+        self.progress_bar.setValue(current_value)
+        self.progress_label.setText(text)
+        elapsed = self.current_time_in_seconds() - self.start_time
+        self.time_label.setText(f"耗时: {elapsed:.2f}秒")
+
+    def handle_time_update(self, elapsed_time_string):
+        self.time_label.setText(elapsed_time_string)
+
+    def handle_progress_finish(self):
+        self.progress_bar.setValue(self.progress_bar.maximum()) # Ensure it shows 100%
+        self.progress_label.setText("任务完成")
+        elapsed = self.current_time_in_seconds() - self.start_time
+        self.time_label.setText(f"总耗时: {elapsed:.2f}秒")
+        # Hide after a short delay for better UX
+        QTimer.singleShot(3000, self._hide_progress_widgets)
+
+    def _hide_progress_widgets(self):
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
+        self.time_label.setVisible(False)
+
+    def current_time_in_seconds(self):
+        import time
+        return time.time()
 
     def init_shared_context(self):
         logging.info("🔧 正在初始化应用程序级共享上下文...")
@@ -206,6 +263,12 @@ class MainWindow(QMainWindow):
         worker.confirm_brand_merge_requested.connect(self.handle_brand_merge_requested)
         worker.finished.connect(self.cleanup_worker)
 
+        # Connect progress and timing signals
+        worker.progress_start.connect(self.handle_progress_start)
+        worker.progress_update.connect(self.handle_progress_update)
+        worker.time_update.connect(self.handle_time_update)
+        worker.progress_finish.connect(self.handle_progress_finish)
+
     def connect_script_signals(self, worker):
         """Connects signals for a generic ScriptWorker."""
         self._connect_common_signals(worker)
@@ -237,10 +300,10 @@ class MainWindow(QMainWindow):
                         f.write(name + "\n")
                 QMessageBox.information(self, "导出成功",
                                         f"已成功导出 {len(result)} 个品牌名到项目根目录下的\n"
-                                        f"{output_filename} 文件中。 সন")
+                                        f"{output_filename} 文件中。 ")
             except IOError as e:
                 logging.error(f"❌ 写入文件 {output_filename} 时出错: {e}")
-                QMessageBox.critical(self, "文件写入失败", f"无法写入品牌列表到 {output_filename} সন")
+                QMessageBox.critical(self, "文件写入失败", f"无法写入品牌列表到 {output_filename} ")
 
     def set_all_buttons_enabled(self, enabled):
         self.search_button.setEnabled(enabled)

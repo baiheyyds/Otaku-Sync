@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time # Added to fix NameError
 import traceback
 
 from PySide6.QtCore import QThread, Signal
@@ -17,6 +18,13 @@ from utils.similarity_check import (
 
 class GameSyncWorker(QThread):
     process_completed = Signal(bool)
+
+    # --- Signals for progress and timing ---
+    progress_start = Signal(int)  # max_steps
+    progress_update = Signal(int, str)  # current_step, text
+    time_update = Signal(str)  # elapsed_time_string
+    progress_finish = Signal()
+
     # --- Signals to MainWindow to request showing a dialog ---
     selection_required = Signal(list, str, str)
     duplicate_check_required = Signal(list)
@@ -284,8 +292,15 @@ class GameSyncWorker(QThread):
             return {}
 
     async def game_flow(self) -> bool:
+        start_time = time.time()
+        self.progress_start.emit(4) # Total 4 main steps
+        current_step = 0
+
         try:
             # 阶段一：搜索与选择
+            current_step += 1
+            self.progress_update.emit(current_step, f"步骤 {current_step}/4: 正在搜索游戏 '{self.keyword}'...")
+            self.time_update.emit(f"耗时: {time.time() - start_time:.2f}秒")
             results, source = await search_all_sites(self.context["dlsite"], self.context["fanza"], self.keyword)
             game, source = await self._select_game_from_results(results, source)
             if not game:
@@ -294,12 +309,18 @@ class GameSyncWorker(QThread):
             logging.info(f"🚀 已选择来源: {source.upper()}, 游戏: {game['title']}")
 
             # 阶段二：重复项检查
+            current_step += 1
+            self.progress_update.emit(current_step, f"步骤 {current_step}/4: 正在检查游戏 '{game['title']}' 是否重复...")
+            self.time_update.emit(f"耗时: {time.time() - start_time:.2f}秒")
             selected_similar_page_id = await self._check_for_duplicates(game['title'])
             if selected_similar_page_id == 'skip':
                 self.process_completed.emit(True)
                 return True
 
             # 阶段三：极致并发I/O操作
+            current_step += 1
+            self.progress_update.emit(current_step, f"步骤 {current_step}/4: 正在并发获取游戏 '{game['title']}' 的详细信息...")
+            self.time_update.emit(f"耗时: {time.time() - start_time:.2f}秒")
             logging.info("🚀 启动极致并发I/O任务...")
 
             # 1. 立即启动所有不互相依赖的任务
@@ -340,6 +361,9 @@ class GameSyncWorker(QThread):
             bangumi_id = bangumi_result.get("bangumi_id")
 
             # 阶段四：数据处理与同步
+            current_step += 1
+            self.progress_update.emit(current_step, f"步骤 {current_step}/4: 正在处理并同步游戏 '{game['title']}' 数据到 Notion...")
+            self.time_update.emit(f"耗时: {time.time() - start_time:.2f}秒")
             logging.info("🚀 所有数据已获取, 开始进行最终处理与同步...")
             created_page_id = await process_and_sync_game(
                 game=game, detail=detail, notion_client=self.context["notion"], brand_id=brand_data.get("brand_id"),
@@ -378,10 +402,18 @@ class GameSyncWorker(QThread):
             logging.error(traceback.format_exc())
             self.process_completed.emit(False)
             return False
+        finally:
+            self.progress_finish.emit()
 
 class ScriptWorker(QThread):
     script_completed = Signal(str, bool, object)
     context_created = Signal(dict)
+
+    # --- Signals for progress and timing ---
+    progress_start = Signal(int)  # max_value
+    progress_update = Signal(int, str)  # current_value, text
+    time_update = Signal(str)  # elapsed_time_string
+    progress_finish = Signal()
 
     # Define signals to be proxied to the main window
     bangumi_mapping_required = Signal(dict)
@@ -440,7 +472,8 @@ class ScriptWorker(QThread):
 
             logging.info(f"🚀 后台线程开始执行脚本: {self.script_name}")
             # Pass the entire context, which now includes the interaction_provider
-            awaitable_func = self.script_function(self.context)
+            # Also pass a progress callback for scripts to report progress
+            awaitable_func = self.script_function(self.context, self._script_progress_callback)
             result = self.loop.run_until_complete(awaitable_func)
             logging.info(f"✅ 脚本 {self.script_name} 执行完毕。")
             self.script_completed.emit(self.script_name, True, result)
@@ -481,6 +514,16 @@ class ScriptWorker(QThread):
                 self.loop.run_until_complete(cleanup_tasks())
 
             self.loop.close()
+
+    def _script_progress_callback(self, type, **kwargs):
+        """Callback method for scripts to report progress to the worker."""
+        if type == "start":
+            self.progress_start.emit(kwargs.get("total", 0))
+        elif type == "update":
+            self.progress_update.emit(kwargs.get("current", 0), kwargs.get("text", ""))
+            self.time_update.emit(kwargs.get("elapsed_time_string", ""))
+        elif type == "finish":
+            self.progress_finish.emit()
 
     # --- Internal slots to proxy signals safely across threads ---
     def _on_bangumi_mapping_requested(self, request_data):

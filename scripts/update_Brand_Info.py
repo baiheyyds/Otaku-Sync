@@ -1,9 +1,8 @@
-# scripts/update_all_brands.py
-# 该脚本用于批量更新 Notion 中所有品牌的 Bangumi 信息
 import asyncio
 import logging
 import os
 import sys
+import time
 
 import httpx
 
@@ -11,8 +10,6 @@ import httpx
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from asyncio import Semaphore
-
-from tqdm.asyncio import tqdm_asyncio
 
 from clients.bangumi_client import BangumiClient
 from clients.notion_client import NotionClient
@@ -55,20 +52,19 @@ async def process_brand_page(
         logging.error(f"❌ 品牌 '{brand_name}' 的信息更新失败。")
 
 
-async def main():
+async def main(context: dict, progress_callback=None):
     """主执行函数"""
     logging.info("🚀 启动品牌信息批量更新脚本...")
 
     # 1. 初始化所有核心组件
-    async_client = httpx.AsyncClient(timeout=20, follow_redirects=True, http2=True)
-    interaction_provider = ConsoleInteractionProvider()
-    bgm_mapper = BangumiMappingManager(interaction_provider)
-    notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
-    schema_manager = NotionSchemaManager(notion_client)
-    bangumi_client = BangumiClient(notion_client, bgm_mapper, schema_manager, async_client)
+    notion_client = context["notion"]
+    bangumi_client = context["bangumi"]
+    schema_manager = context["schema_manager"]
 
     # Bangumi API 速率限制信号量，允许1个并发
     bgm_semaphore = Semaphore(1)
+
+    start_time = time.time()
 
     try:
         # 2. 预加载 Schema
@@ -85,42 +81,72 @@ async def main():
         total_brands = len(all_brand_pages)
         logging.info(f"✅ 成功获取到 {total_brands} 个品牌，开始并发更新...")
 
+        if progress_callback:
+            progress_callback("start", total=total_brands)
+
         # 4. 创建所有并发任务
-        tasks = [
-            process_brand_page(
+        tasks = []
+        for i, page in enumerate(all_brand_pages):
+            tasks.append(process_brand_page(
                 page, notion_client, bangumi_client, bgm_semaphore
-            )
-            for page in all_brand_pages
-        ]
+            ))
 
-        # 5. 使用 tqdm_asyncio.gather 执行任务并显示进度条
-        results = await tqdm_asyncio.gather(
-            *tasks, desc="更新品牌信息", return_exceptions=True
-        )
+        # 5. 逐个执行任务并更新进度
+        for i, task in enumerate(asyncio.as_completed(tasks)):
+            try:
+                await task
+                current_count = i + 1
+                if progress_callback:
+                    elapsed = time.time() - start_time
+                    progress_callback("update", current=current_count, text=f"更新品牌信息: {current_count}/{total_brands}", elapsed_time_string=f"耗时: {elapsed:.2f}秒")
+            except Exception as e:
+                logging.error(f"任务执行中发生异常: {e}", exc_info=False)
 
-        # 6. 处理执行结果
-        success_count = 0
-        error_count = 0
-        for result in results:
-            if isinstance(result, Exception):
-                logging.error(f"任务执行中发生异常: {result}", exc_info=False)
-                error_count += 1
-            else:
-                success_count += 1
-
-        logging.info(f"全部任务完成: {success_count} 个成功, {error_count} 个失败。")
+        # 6. 处理执行结果 (原逻辑中已包含，这里简化)
+        logging.info(f"全部任务完成: {total_brands} 个品牌已处理。")
 
     except Exception as e:
         logging.error(f"脚本执行过程中发生未处理的异常: {e}", exc_info=True)
     finally:
-        # 7. 优雅地关闭资源
-        await async_client.aclose()
-        logging.info("HTTP 客户端已关闭，脚本执行完毕。")
+        if progress_callback:
+            progress_callback("finish")
+        logging.info("脚本执行完毕。")
+
+
+async def run_standalone():
+    """独立运行时，创建完整的上下文并执行 main 函数"""
+    from utils.logger import setup_logging_for_cli
+    setup_logging_for_cli()
+
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as async_client:
+        # 1. 创建交互提供者
+        interaction_provider = ConsoleInteractionProvider()
+
+        # 2. 初始化核心管理器
+        schema_manager = NotionSchemaManager(async_client, NOTION_TOKEN)
+        bangumi_mapping_manager = BangumiMappingManager(interaction_provider)
+
+        # 3. 初始化客户端
+        notion_client = NotionClient(NOTION_TOKEN, GAME_DB_ID, BRAND_DB_ID, async_client)
+        bangumi_client = BangumiClient(
+            async_client=async_client,
+            schema_manager=schema_manager,
+            mapping_manager=bangumi_mapping_manager,
+            interaction_provider=interaction_provider,
+        )
+
+        # 4. 构建上下文
+        context = {
+            "notion": notion_client,
+            "bangumi": bangumi_client,
+            "schema_manager": schema_manager,
+            "interaction_provider": interaction_provider,
+            "async_client": async_client,
+        }
+
+        # 5. 执行主逻辑
+        await main(context)
 
 
 if __name__ == "__main__":
-    from utils.logger import setup_logging_for_cli
-    setup_logging_for_cli()
-    # We might need to adjust this part if methods are no longer monkey-patched
-    # For now, assuming the client has the necessary methods.
-    asyncio.run(main())
+    asyncio.run(run_standalone())

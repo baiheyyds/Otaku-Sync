@@ -46,7 +46,7 @@
 
 - **`main_window.py` (`MainWindow`)**: 
     - **作用**: GUI 应用的入口和主容器。
-    - **核心职责**: 初始化并管理 Worker 线程；包含所有 `handle_*` 槽函数，作为后台请求的UI响应中心；使用 `QSplitter` 和 `QTabWidget` 构建主界面的左右布局。
+    - **核心职责**: 初始化并管理 Worker 线程；包含所有 `handle_*` 槽函数，作为后台请求的UI响应中心；使用 `QSplitter` 和 `QTabWidget` 构建主界面的左右布局。**现在，它还在状态栏中集成了 `QProgressBar` 和 `QLabel`，用于连接 `GameSyncWorker` 和 `ScriptWorker` 发出的进度信号，从而实时显示任务进度和耗时。**
 
 - **`dialogs.py`**: 
     - **作用**: 包含了应用中所有自定义的 `QDialog` 对话框。

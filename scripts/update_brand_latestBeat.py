@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+import time
 
 import httpx
 from tqdm.asyncio import tqdm_asyncio
@@ -83,7 +84,13 @@ def _process_game_data(games: list) -> tuple:
     return brand_latest, latest_clear, latest_release, duration_map
 
 
-async def _update_brand_pages(notion_client: NotionClient, brand_map: dict, cache: dict) -> dict:
+async def _update_brand_pages(
+    notion_client: NotionClient,
+    brand_map: dict,
+    cache: dict,
+    progress_callback=None,
+    start_time=None,
+) -> dict:
     """根据最新的通关游戏数据并发更新品牌页面。"""
     to_update = {
         brand_id: info
@@ -93,15 +100,19 @@ async def _update_brand_pages(notion_client: NotionClient, brand_map: dict, cach
 
     if not to_update:
         logging.info("⚡ 所有厂商通关记录均为最新，无需更新。")
+        if progress_callback:
+            progress_callback("update", current=90, text="所有厂商通关记录均为最新")
         return cache
 
     logging.info(f"🚀 检测到 {len(to_update)} 个品牌需要更新，开始并发处理...")
 
-    # Notion API 速率限制信号量，允许3个并发请求
     notion_semaphore = asyncio.Semaphore(3)
     updated_cache = cache.copy()
+    total_to_update = len(to_update)
+    updated_count = 0
 
     async def update_single_brand(brand_id, info):
+        nonlocal updated_count
         async with notion_semaphore:
             try:
                 payload = {
@@ -117,23 +128,31 @@ async def _update_brand_pages(notion_client: NotionClient, brand_map: dict, cach
                     "PATCH", f"https://api.notion.com/v1/pages/{brand_id}", payload
                 )
                 updated_cache[brand_id] = info["title"]
-                return brand_id, info["title"], None  # Success
+                updated_count += 1
+                if progress_callback:
+                    progress = 40 + int((updated_count / total_to_update) * 50)
+                    elapsed_time = f"耗时: {time.time() - start_time:.2f}秒"
+                    progress_callback(
+                        "update",
+                        current=progress,
+                        text=f"更新品牌记录: {updated_count}/{total_to_update}",
+                        elapsed_time_string=elapsed_time,
+                    )
+                return brand_id, info["title"], None
             except Exception as e:
-                return brand_id, info["title"], e  # Failure
+                return brand_id, info["title"], e
 
     tasks = [update_single_brand(brand_id, info) for brand_id, info in to_update.items()]
-
     results = await tqdm_asyncio.gather(*tasks, desc="更新品牌页面")
 
-    updated_count = 0
-    for brand_id, title, error in results:
-        if error:
-            logging.error(f"  ❌ 更新品牌 {brand_id} ({title}) 失败: {error}")
+    success_count = 0
+    for _, _, error in results:
+        if not error:
+            success_count += 1
         else:
-            updated_count += 1
-            # 成功日志可以省略，因为进度条已经提供了反馈
+            logging.error(f"  ❌ 更新品牌失败: {error}")
 
-    logging.info(f"✨ 本次共更新了 {updated_count} 个品牌记录。")
+    logging.info(f"✨ 本次共更新了 {success_count} 个品牌记录。")
     return updated_cache
 
 
@@ -168,30 +187,60 @@ async def _update_statistics_page(notion_client: NotionClient, clear: dict, rele
         logging.error(f"❌ 更新统计页失败: {e}")
 
 
-async def update_brand_and_game_stats(context: dict):
-    notion_client = context["notion"]
+async def update_brand_and_game_stats(context: dict, progress_callback=None):
     """完整执行更新品牌最新通关和全局游戏统计的整个流程。"""
+    start_time = time.time()
+    notion_client = context["notion"]
     logging.info("🚀 开始执行品牌及游戏统计数据更新流程...")
+    if progress_callback:
+        progress_callback("start", total=100)
+        progress_callback("update", current=0, text="开始执行...")
+
     cache = load_cache()
+    if progress_callback:
+        progress_callback("update", current=10, text="缓存加载完毕")
 
     logging.info("📥 正在获取所有游戏记录...")
     all_games = await notion_client.get_all_pages_from_db(GAME_DB_ID)
     if not all_games:
         logging.error("未能获取任何游戏数据，脚本终止。")
+        if progress_callback:
+            progress_callback("update", current=100, text="未能获取任何游戏数据", is_error=True)
+            progress_callback("finish")
         return
     logging.info(f"✅ 获取到 {len(all_games)} 条游戏记录。")
+    if progress_callback:
+        progress_callback("update", current=20, text=f"获取到 {len(all_games)} 条游戏记录")
 
-    brand_latest_map, latest_clear, latest_release, duration_map = _process_game_data(all_games)
+    brand_latest_map, latest_clear, latest_release, duration_map = _process_game_data(
+        all_games
+    )
+    if progress_callback:
+        progress_callback("update", current=30, text="游戏数据处理完毕")
 
     total = len(brand_latest_map)
-    unchanged = sum(1 for k in brand_latest_map if cache.get(k) == brand_latest_map[k]["title"])
+    unchanged = sum(
+        1 for k in brand_latest_map if cache.get(k) == brand_latest_map[k]["title"]
+    )
     if total > 0:
         logging.info(f"📊 品牌缓存命中率: {unchanged}/{total} ({round(unchanged/total*100, 2)}%)")
 
-    new_cache = await _update_brand_pages(notion_client, brand_latest_map, cache)
+    if progress_callback:
+        progress_callback("update", current=40, text="开始更新品牌页面...")
+    new_cache = await _update_brand_pages(
+        notion_client, brand_latest_map, cache, progress_callback, start_time
+    )
     save_cache(new_cache)
+    if progress_callback:
+        progress_callback("update", current=90, text="品牌页面更新完毕")
 
-    await _update_statistics_page(notion_client, latest_clear, latest_release, duration_map)
+    await _update_statistics_page(
+        notion_client, latest_clear, latest_release, duration_map
+    )
+    if progress_callback:
+        progress_callback("update", current=100, text="统计页面更新完毕")
+        progress_callback("finish")
+
     logging.info("流程执行完毕。")
 
 

@@ -34,6 +34,7 @@
         2.  **实例化交互提供者**: 在其管理的事件循环中，实例化 `GuiInteractionProvider`。
         3.  **充当信号代理 (Signal Proxy)**: 这是理解其工作模式的**关键**。`GameSyncWorker` 和 `ScriptWorker` 都会监听其内部 `GuiInteractionProvider` 实例发出的“内部”信号，然后**转发**一个由 Worker 自身定义的、名称相同的“外部”信号给 `MainWindow`。这确保了交互请求可以被线程安全地传递到主GUI线程进行处理。
         4.  **提供响应入口**: 为了接收 `MainWindow` 的响应，两个 Worker 都提供了公共方法。这些方法通过 `loop.call_soon_threadsafe` 来保证响应被安全地传递回后台的 `asyncio` 事件循环。
+        5.  **报告进度与耗时**: Worker 现在会发出 `progress_start`, `progress_update`, `time_update`, 和 `progress_finish` 信号，用于驱动 GUI 界面上的进度条和耗时标签，为用户提供实时的任务反馈。
 
     - **架构说明**:
         交互完全基于 `asyncio.Future` 和 `InteractionProvider` 接口实现，确保了后台与前台之间通信模式的统一和线程安全。

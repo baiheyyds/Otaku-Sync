@@ -10,22 +10,33 @@
 
 ## 2. 关键组件概览
 
-- **`init.py`**: 初始化 `core` 模块，使其成为一个 Python 包。
-- **`context_factory.py`**: 应用的“组装车间”，负责实例化所有必要的对象（如 `NotionClient`, `TagManager`）并注入到 `context` 中。
-- **`driver_factory.py`**: 管理 Selenium WebDriver 的创建和配置。
-- **`selector.py`**: 提供用于从搜索结果中选择正确游戏的功能。
-- **`name_splitter.py`**: 负责将游戏名称拆分为品牌和游戏标题。
-- **`schema_manager.py`**: 管理 Notion 数据库的结构。
-- **`cache_warmer.py`**: 在程序启动时预热缓存。
+- **`init.py`**: **[已修正]** 项目的资源管理核心。它提供 `init_context` 和 `close_context` 两个关键函数，负责在程序启动时安全地初始化所有必要的服务（如 HTTP 客户端、驱动程序工厂），并在程序退出时优雅地关闭它们、保存缓存，确保数据的一致性和资源的正确释放。
+
+- **`context_factory.py`**: **[已重构]** 应用的“组装车间”，现在采用更先进的分层上下文设计：
+    - **`create_shared_context`**: 创建在整个应用生命周期内共享的单例对象，如缓存 (`BrandCache`)、管理器 (`TagManager`, `BrandMappingManager`) 和驱动程序工厂 (`driver_factory`)。
+    - **`create_loop_specific_context`**: 为每个独立的事件循环（例如，每个后台工作线程）创建专属的、非共享的对象，主要是 `httpx.AsyncClient` 和所有依赖它的 API 客户端（如 `DlsiteClient`, `NotionClient`）。这种设计确保了网络请求等操作在多线程环境下的线程安全。
+
+- **`driver_factory.py`**: **[已重构]** 一个高度优化的、线程安全的 Selenium WebDriver 管理器。它不再简单地创建驱动，而是：
+    1.  在独立的后台线程中运行一个自己的 `asyncio` 事件循环。
+    2.  接收到创建请求后（如 `start_background_creation`），它会在此后台线程中**并发地**准备和实例化多个 WebDriver（例如，为 Dlsite 和 GGBases 分别创建）。
+    3.  主线程可以通过 `await get_driver(...)` 安全地获取驱动，如果驱动正在后台创建，它会异步等待，而不会阻塞主线程或 GUI。
+    这种设计极大地优化了程序的启动性能和响应速度。
+
+- **`selector.py`**: **[新]** 游戏选择器。负责实现“跨站搜索”和“智能选择”的核心逻辑。
+    - **`search_all_sites`**: 根据用户输入，依次在 DLsite 和 Fanza 等网站上搜索，直到找到结果为止。
+    - **`_find_best_match`**: 对搜索结果列表，使用 `rapidfuzz` 库和加权的评分算法，计算每个候选项与用户输入关键词的相似度，并找出最可能的匹配项，以实现非手动模式下的自动选择。
+
+- **`name_splitter.py`**: 负责将包含多个创作者的字符串（如 “A/B/C”）智能地拆分为独立的名称列表。它包含一个例外列表 `name_split_exceptions.json` 以处理特殊情况。
+
+- **`brand_handler.py`**: **[新]** 专门处理与“品牌”相关的所有逻辑。它会检查一个新品牌是否已存在于 Notion 或缓存中，如果不存在，则使用 `rapidfuzz` 进行模糊匹配，查找相似的现有品牌，并通过 `InteractionProvider` 询问用户是希望“合并”到现有品牌还是“创建”为新品牌。
+
+- **`game_processor.py`**: **[新]** 数据的“最终整合者”。在从所有来源（DLsite, Fanza, GGBases, Bangumi）获取到零散的数据后，此模块负责根据预设的优先级规则，将这些数据合并、去重、处理，最终组装成一个准备写入 Notion 的、结构完整的字典。
+
+- **`schema_manager.py`**: 管理 Notion 数据库的结构（Schema）。它会在启动时从 Notion API 获取结构信息，并将其缓存到本地，避免了每次运行时都重复请求。
+
+- **`cache_warmer.py`**: 在程序启动时，在后台线程中“预热”品牌缓存，即提前从 Notion 中获取所有品牌信息，以加速后续的品牌处理流程。
+
 - **`interaction.py` (`InteractionProvider`)**: 定义了核心业务逻辑与用户界面之间“契约”的抽象基类。所有需要用户输入的场景都必须通过此接口的实现来完成。
-
-- **`game_processor.py`**: 负责将从各个来源收集到的零散数据进行合并、处理，并最终组装成符合 Notion 数据库结构的格式。
-
-- **`brand_handler.py`**: 专门处理与“品牌”相关的所有逻辑。
-
-- **`mapping_manager.py`**: 管理 `mapping/` 目录下的各种映射关系，是实现数据规范化的关键。
-
-- **`data_manager.py`**: 在程序启动时加载 `mapping/` 目录下的所有 JSON 文件到内存中。
 
 - **`gui_worker.py` (`GameSyncWorker`, `ScriptWorker`)**: 
     - **定位**: 这是**专门为GUI模式设计**的后台工作线程 (`QThread`)，是连接 `core` 纯逻辑与 `gui` 界面的桥梁。
@@ -38,19 +49,3 @@
 
     - **架构说明**:
         交互完全基于 `asyncio.Future` 和 `InteractionProvider` 接口实现，确保了后台与前台之间通信模式的统一和线程安全。
-
-## 3. 核心工作流（GUI模式）
-
-GUI 模式下的工作流与CLI模式在核心逻辑上相似，但在交互处理上完全不同。
-
-1.  `MainWindow` 创建一个 `GameSyncWorker` (或 `ScriptWorker`) 实例并启动它。
-2.  Worker 在其 `run()` 方法中创建 `asyncio` 循环和 `GuiInteractionProvider`。
-3.  Worker 开始执行其核心异步函数（如 `game_flow()`）。
-4.  当业务逻辑需要用户输入时，它会调用 `GuiInteractionProvider` 的方法（例如 `get_tag_translation`）。
-5.  `GuiInteractionProvider` 发出一个**内部信号**。
-6.  Worker 监听到此内部信号，并立即发出一个**同名的外部信号**。
-7.  `MainWindow` 的对应槽函数被触发。
-8.  `MainWindow` 显示对话框，等待用户操作。
-9.  用户操作完毕后，`MainWindow` 调用 `worker.set_interaction_response(...)` 将结果返回给 Worker。
-10. Worker 通过线程安全的方式将结果传递给 `GuiInteractionProvider`，解除 `await` 阻塞。
-11. 核心业务逻辑继续执行。

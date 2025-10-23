@@ -16,11 +16,17 @@
 
 - **`brand_cache.py`**: 维护一个品牌信息的本地缓存。
 
-- **`dlsite_client.py` & `fanza_client.py`**: 负责从 DLsite 和 Fanza 网站搜索和抓取游戏信息。
+- **`dlsite_client.py`**: 负责从 DLsite 网站搜索和抓取游戏信息。
+
+- **`fanza_client.py`**: **[功能增强]** 负责从 Fanza (DMM) 网站搜索和抓取游戏信息。该客户端具有以下特性：
+    - **双重搜索机制**: 优先使用 `dlsoft.dmm.co.jp` 接口进行搜索。如果无结果，它会自动**后备**到 `dmm.co.jp/mono/` 接口进行再次搜索，提高了搜索的成功率。
+    - **智能解析器**: 在获取游戏详情时，它能根据 URL 的结构 (`/mono/` 或 `dlsoft`) 自动选择对应的 HTML 解析逻辑，以适应 DMM 不同时期和类型的页面布局。
 
 - **`ggbases_client.py`**: 负责与 GGBases 网站交互，主要用于获取游戏资源信息。该客户端在解析 HTML 时，会利用 BeautifulSoup 的特性，根据页面 `meta` 标签智能判断编码（如 UTF-8, GBK 等），以保证标题等信息的正确显示。
 
-- **`bangumi_client.py`**: 负责与 Bangumi API (bgm.tv) 交互，是获取规范化数据（特别是角色和制作人员信息）的关键。
+- **`bangumi_client.py`**: **[功能增强]** 负责与 Bangumi API (bgm.tv) 交互，是获取规范化数据（特别是角色和制作人员信息）的关键。它内置了复杂的匹配逻辑：
+    - **智能标题处理**: 在搜索前，会对关键词进行多次处理（如 `normalize_title`, `clean_title`），以应对不同网站对标题的细微差异。
+    - **模糊匹配**: 使用 `rapidfuzz` 库计算候选项与关键词的相似度，以找出最准确的匹配结果。
 
 ## 3. 客户端使用须知 (重要)
 

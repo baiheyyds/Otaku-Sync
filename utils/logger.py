@@ -60,6 +60,10 @@ def setup_logging_for_cli(level=None):
     rich_handler.setFormatter(cli_formatter)
     log.addHandler(rich_handler)
 
+    # Set httpx logger to a higher level to avoid verbose request/response logging
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
     logging.debug("日志系统已初始化 (CLI 模式)。")
 
 def setup_logging_for_gui(qt_signal_emitter, level=logging.INFO):
@@ -76,4 +80,9 @@ def setup_logging_for_gui(qt_signal_emitter, level=logging.INFO):
     qt_handler = QtLogHandler(signal_emitter=qt_signal_emitter)
     qt_handler.setFormatter(gui_formatter)
     log.addHandler(qt_handler)
+
+    # Set httpx logger to a higher level to avoid verbose request/response logging
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    
     logging.info("🔧 日志系统已成功接入GUI。")

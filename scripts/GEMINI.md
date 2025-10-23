@@ -31,11 +31,8 @@
     - **功能**: 标签系统维护工具。它首先根据 `mapping/tag_replace_map.py` 中的规则，批量替换所有游戏页面中的旧标签。完成替换后，它会统计所有“在用”的标签，并与数据库中定义的全部标签选项进行对比，最后生成一个 `unused_tags.txt` 报告，列出所有已无人使用、可以被安全删除的标签。
     - **模式**: 支持 `dry_run` 模式，可以只报告将要发生的变更而不实际执行。
 
-- **`export_all_tags.py` / `export_brand_names.py`**: 
+- **`export_all_tags.py` / `extract_brands.py`**: 
     - **功能**: 数据导出工具。分别用于从 Notion 数据库中提取所有唯一的标签或品牌名，并将其保存为 `all_tags.txt` 或 `brand_names.txt` 文件。
-
-- **`extract_brands.py`**: 
-    - **功能**: 从游戏标题中提取品牌名称，并将其填充到“品牌”字段中。
 
 - **`inspect_notion_fields.py`**: 
     - **功能**: 交互式诊断工具。它会列出在 `config/config_token.py` 中配置的所有数据库，让用户选择一个。然后，它会连接到该数据库，并打印出其所有的字段名称和类型。这对于用户排查“字段名不匹配”的配置问题非常有用。

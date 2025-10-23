@@ -1,12 +1,12 @@
-
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QRect, QSize, Qt, Slot
+from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QGroupBox,
+    QHBoxLayout,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QVBoxLayout,
+    QWidget,
 )
 
 from core.interaction import TYPE_SELECTION_MAP
+from .image_loader import ImageLoader, get_placeholder_icon
 
 
 class NameSplitterDialog(QDialog):
@@ -285,38 +287,163 @@ class PropertyTypeDialog(QDialog):
         return self.combo.currentData()
 
 
-class SelectionDialog(QDialog):
+class GameListItemWidget(QWidget):
+    def __init__(self, image_loader, candidate_data, index, source, parent=None):
+        super().__init__(parent)
+        self.image_loader = image_loader
+        self.thumbnail_url = None
 
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(15)
+
+        # 1. Image Label
+        self.image_label = QLabel()
+        self.image_size = QSize(150, 200)
+        self.image_label.setFixedSize(self.image_size)
+        self.image_label.setPixmap(get_placeholder_icon().pixmap(self.image_size))
+        self.image_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.image_label)
+
+        # 2. Info Section (Right side)
+        info_widget = QWidget()
+        info_layout = QVBoxLayout(info_widget)
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(5)
+
+        title_font = QFont("Microsoft YaHei", 11)
+        title_font.setBold(True)
+        title_label = QLabel(f"{index}. {candidate_data.get('title', 'No Title')}")
+        title_label.setFont(title_font)
+        title_label.setWordWrap(True)
+
+        if source == 'ggbases':
+            size_info = candidate_data.get('容量', '未知')
+            popularity = candidate_data.get('popularity', 0)
+            info_text = f"热度: {popularity}<br>大小: {size_info}"
+        else:
+            price = candidate_data.get("价格") or candidate_data.get("price", "未知")
+            price_display = f"{price}円" if str(price).isdigit() else price
+            item_type = candidate_data.get("类型", "未知")
+            info_text = f"💴 {price_display}<br>🏷️ {item_type}"
+        
+        info_label = QLabel(info_text)
+        info_label.setWordWrap(True)
+        info_label.setAlignment(Qt.AlignTop)
+
+        # Add widgets to info_layout with stretches for vertical vertical centering
+        info_layout.addStretch(1)
+        info_layout.addWidget(title_label)
+        info_layout.addWidget(info_label)
+        info_layout.addStretch(1)
+
+        main_layout.addWidget(info_widget, 1)
+
+        # 3. Load image
+        thumbnail_url = candidate_data.get('thumbnail_url')
+        if thumbnail_url:
+            if thumbnail_url.startswith('//'):
+                thumbnail_url = 'https:' + thumbnail_url
+            self.thumbnail_url = thumbnail_url
+            self.image_loader.load_image(thumbnail_url, self.on_image_loaded)
+
+    @Slot(str, QPixmap)
+    def on_image_loaded(self, url, pixmap):
+        if self.thumbnail_url == url and not pixmap.isNull():
+            # Create a new empty pixmap to draw on, with a transparent background
+            scaled_pixmap = QPixmap(self.image_size)
+            scaled_pixmap.fill(Qt.transparent)
+
+            # Paint the downloaded pixmap onto the new one with high quality rendering
+            painter = QPainter(scaled_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing, True)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+            # Calculate the target rectangle to maintain aspect ratio and center the image
+            new_size = pixmap.size().scaled(self.image_size, Qt.KeepAspectRatio)
+            x = (self.image_size.width() - new_size.width()) / 2
+            y = (self.image_size.height() - new_size.height()) / 2
+            
+            target_rect = QRect(int(x), int(y), new_size.width(), new_size.height())
+            
+            painter.drawPixmap(target_rect, pixmap)
+            painter.end()
+
+            self.image_label.setPixmap(scaled_pixmap)
+
+    def sizeHint(self):
+        return QSize(super().sizeHint().width(), self.image_size.height() + 20) # Add padding
+
+
+class SelectionDialog(QDialog):
     SEARCH_FANZA_ROLE = QDialogButtonBox.ActionRole
-    def __init__(self, items, title="请选择", source="dlsite", parent=None):
+
+    def __init__(self, candidates, title="请选择", source="dlsite", parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setMinimumWidth(700)
+
+        self.image_loader = ImageLoader(self)
+
         layout = QVBoxLayout(self)
         self.list_widget = QListWidget()
-
-        # Set a font that supports a wide range of CJK characters
-        font = QFont("Microsoft YaHei")
+        
+        self.list_widget.setViewMode(QListWidget.ListMode)
+        self.list_widget.setSpacing(5)
+        self.list_widget.setMovement(QListWidget.Static)
+        
+        font = QFont("Microsoft YaHei", 10)
         self.list_widget.setFont(font)
 
-        for item_text in items:
-            self.list_widget.addItem(item_text)
+        for i, candidate in enumerate(candidates):
+            item_widget = GameListItemWidget(self.image_loader, candidate, i + 1, source)
+            list_item = QListWidgetItem(self.list_widget)
+            list_item.setSizeHint(item_widget.sizeHint())
+            list_item.setData(Qt.UserRole, i)
+            self.list_widget.addItem(list_item)
+            self.list_widget.setItemWidget(list_item, item_widget)
+
         self.list_widget.setCurrentRow(0)
         self.list_widget.itemDoubleClicked.connect(self.accept)
         layout.addWidget(self.list_widget)
+
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         if source == "dlsite":
             self.fanza_button = self.buttons.addButton("换用Fanza搜索", self.SEARCH_FANZA_ROLE)
+
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         self.buttons.clicked.connect(self.handle_button_click)
         layout.addWidget(self.buttons)
+
+        # Adjust dialog size to content
+        width = 800
+        max_height = 800
+        buttons_height = self.buttons.sizeHint().height()
+        
+        items_height = 0
+        if self.list_widget.count() > 0:
+            row_height = self.list_widget.sizeHintForRow(0)
+            spacing = self.list_widget.spacing()
+            items_height = (row_height * self.list_widget.count()) + (spacing * (self.list_widget.count() - 1))
+
+        margins = layout.contentsMargins()
+        total_content_height = items_height + buttons_height + margins.top() + margins.bottom() + 20
+
+        final_height = min(max_height, total_content_height)
+        min_height = 300
+        final_height = max(min_height, final_height)
+
+        self.resize(width, int(final_height))
+
     def handle_button_click(self, button):
         role = self.buttons.buttonRole(button)
         if role == self.SEARCH_FANZA_ROLE:
             self.done(2)
+
     def selected_index(self):
-        return self.list_widget.currentRow()
+        if not self.list_widget.currentItem():
+            return -1
+        return self.list_widget.currentItem().data(Qt.UserRole)
 
 class DuplicateConfirmationDialog(QDialog):
     def __init__(self, candidates, parent=None):

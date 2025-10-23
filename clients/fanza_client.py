@@ -48,9 +48,15 @@ class FanzaClient(BaseClient):
                         price = price_text.split("円")[0].replace(",", "").strip()
                         full_url = urljoin(self.base_url, href)
 
+                        thumbnail_url = None
+                        img_tag = li.select_one(".component-legacy-productTile__thumbnail img")
+                        if img_tag:
+                            thumbnail_url = img_tag.get('data-src') or img_tag.get('src')
+
                         results.append({
                             "title": title, "url": full_url,
                             "价格": price or "未知", "类型": item_type,
+                            "thumbnail_url": thumbnail_url,
                         })
 
             # --- 筛选主搜索结果 ---
@@ -105,9 +111,15 @@ class FanzaClient(BaseClient):
                 price = price_text.split("円")[0].replace(",", "").strip()
                 full_url = urljoin(fallback_base_url, href)
 
+                thumbnail_url = None
+                img_tag = url_tag.select_one("img")
+                if img_tag:
+                    thumbnail_url = img_tag.get('data-src') or img_tag.get('src')
+
                 results_fallback.append({
                     "title": title, "url": full_url,
                     "价格": price or "未知", "类型": "未知(后备)",
+                    "thumbnail_url": thumbnail_url,
                 })
 
             initial_count_fallback = len(results_fallback)

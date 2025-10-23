@@ -2,8 +2,7 @@ import asyncio
 import logging
 import threading
 
-from PySide6.QtCore import QEvent, Qt
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QEvent, QTime, QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -56,6 +55,8 @@ class MainWindow(QMainWindow):
         self.game_sync_worker = None
         self.script_worker = None
         self.shared_context = None
+        self.task_start_time = None  # To store QTime of task start
+        self.elapsed_timer = QTimer(self)  # Timer for live elapsed time update
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
@@ -130,6 +131,7 @@ class MainWindow(QMainWindow):
         logging.info("✅ 初始化完成，可以开始使用.\n")
 
         # Connect signals
+        self.elapsed_timer.timeout.connect(self.update_elapsed_time_display)
         self.search_button.clicked.connect(self.start_search_process)
         self.keyword_input.returnPressed.connect(self.start_search_process)
         self.batch_tools_widget.script_triggered.connect(self.start_script_execution)
@@ -147,35 +149,36 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(True)
         self.progress_label.setText("正在准备...")
         self.progress_label.setVisible(True)
-        self.time_label.setText("耗时: 0.00秒")
+        self.time_label.setText("耗时: 0 秒")
         self.time_label.setVisible(True)
-        self.start_time = self.current_time_in_seconds() # Initialize start time
+        self.task_start_time = QTime.currentTime()
+        self.elapsed_timer.start(1000)  # Update every second
 
     def handle_progress_update(self, current_value, text):
         self.progress_bar.setValue(current_value)
         self.progress_label.setText(text)
-        elapsed = self.current_time_in_seconds() - self.start_time
-        self.time_label.setText(f"耗时: {elapsed:.2f}秒")
-
-    def handle_time_update(self, elapsed_time_string):
-        self.time_label.setText(elapsed_time_string)
+        # Time label is now updated by the QTimer, so we don't do it here.
 
     def handle_progress_finish(self):
-        self.progress_bar.setValue(self.progress_bar.maximum()) # Ensure it shows 100%
+        self.elapsed_timer.stop()
+        self.progress_bar.setValue(self.progress_bar.maximum())  # Ensure it shows 100%
         self.progress_label.setText("任务完成")
-        elapsed = self.current_time_in_seconds() - self.start_time
-        self.time_label.setText(f"总耗时: {elapsed:.2f}秒")
+        if self.task_start_time:
+            elapsed = self.task_start_time.secsTo(QTime.currentTime())
+            self.time_label.setText(f"总耗时: {elapsed} 秒")
         # Hide after a short delay for better UX
         QTimer.singleShot(3000, self._hide_progress_widgets)
+
+    def update_elapsed_time_display(self):
+        if self.task_start_time:
+            elapsed_secs = self.task_start_time.secsTo(QTime.currentTime())
+            # Use f-string for consistency
+            self.time_label.setText(f"耗时: {elapsed_secs} 秒")
 
     def _hide_progress_widgets(self):
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.time_label.setVisible(False)
-
-    def current_time_in_seconds(self):
-        import time
-        return time.time()
 
     def init_shared_context(self):
         logging.info("🔧 正在初始化应用程序级共享上下文...")
@@ -266,7 +269,6 @@ class MainWindow(QMainWindow):
         # Connect progress and timing signals
         worker.progress_start.connect(self.handle_progress_start)
         worker.progress_update.connect(self.handle_progress_update)
-        worker.time_update.connect(self.handle_time_update)
         worker.progress_finish.connect(self.handle_progress_finish)
 
     def connect_script_signals(self, worker):
@@ -392,20 +394,7 @@ class MainWindow(QMainWindow):
             return
 
         logging.info(f"🔍 接收到 {len(choices)} 个选项，请在弹出对话框中选择...\n")
-        display_items = []
-        if source == 'ggbases':
-            for item in choices:
-                size_info = item.get('容量', '未知')
-                popularity = item.get('popularity', 0)
-                display_items.append(f"{item.get('title', 'No Title')} (热度: {popularity}) (大小: {size_info})")
-        else:
-            for item in choices:
-                price = item.get("价格") or item.get("price", "未知")
-                price_display = f"{price}円" if str(price).isdigit() else price
-                item_type = item.get("类型", "未知")
-                display_items.append(f"[{source.upper()}] {item.get('title', 'No Title')} | 💴 {price_display} | 🏷️ {item_type}")
-
-        dialog = SelectionDialog(display_items, title=title, source=source, parent=self)
+        dialog = SelectionDialog(choices, title=title, source=source, parent=self)
         result = dialog.exec()
 
         if result == QDialog.Accepted:

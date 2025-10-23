@@ -56,43 +56,50 @@ class DlsiteClient(BaseClient):
         soup = BeautifulSoup(resp.text, "html.parser")
         results = []
         seen = set()
-        for a in soup.select("a[href*='/work/=/product_id/']"):
-            container = a.find_parent()
-            for _ in range(3):
-                if container is None:
-                    break
-                price_tag = container.select_one(".price, .work_price, .price_display")
-                if price_tag:
-                    break
-                container = container.parent
-            price = price_tag.get_text(strip=True) if price_tag else "无"
-            # Prioritize visible text, as it's often more complete than the title attribute.
-            visible_text = a.get_text(strip=True)
-            attribute_title = a.get("title", "").strip()
-            title = visible_text or attribute_title
-            href = a["href"]
-            full_url = href if href.startswith("http") else self.base_url + href
-            li_tag = a.find_parent("li", class_="search_result_img_box_inner")
-            work_type_tag = li_tag.select_one(".work_category a") if li_tag else None
-            work_type = work_type_tag.get_text(strip=True) if work_type_tag else None
-            if title and full_url and full_url not in seen:
-                results.append(
-                    {"title": title, "url": full_url, "price": price, "类型": work_type}
-                )
-                seen.add(full_url)
+
+        for li in soup.select("li.search_result_img_box_inner"):
             if len(results) >= limit:
                 break
+
+            title_a = li.select_one(".work_name a")
+            if not title_a:
+                continue
+
+            href = title_a.get("href")
+            if not href:
+                continue
+            
+            full_url = href if href.startswith("http") else self.base_url + href
+            if full_url in seen:
+                continue
+            
+            title = title_a.get("title", "").strip()
+            if not title:
+                continue
+
+            price_tag = li.select_one(".work_price, .price_display")
+            price = price_tag.get_text(strip=True) if price_tag else "无"
+
+            work_type_tag = li.select_one(".work_category a")
+            work_type = work_type_tag.get_text(strip=True) if work_type_tag else None
+
+            thumbnail_url = None
+            img_tag = li.select_one("img.lazy")
+            if img_tag:
+                thumbnail_url = img_tag.get('data-src') or img_tag.get('src')
+
+            results.append({
+                "title": title,
+                "url": full_url,
+                "price": price,
+                "类型": work_type,
+                "thumbnail_url": thumbnail_url
+            })
+            seen.add(full_url)
+
         exclude_keywords = [
-            "単行本",
-            "マンガ",
-            "小説",
-            "書籍",
-            "雑誌/アンソロ",
-            "ボイス・ASMR",
-            "音楽",
-            "動画",
-            "CG・イラスト",
-            "単話",
+            "単行本", "マンガ", "小説", "書籍", "雑誌/アンソロ",
+            "ボイス・ASMR", "音楽", "動画", "CG・イラスト", "単話",
         ]
         filtered_results = [
             item

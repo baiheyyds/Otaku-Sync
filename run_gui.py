@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 
 from PySide6.QtCore import QLibraryInfo, QTranslator
 from PySide6.QtWidgets import QApplication
@@ -9,6 +10,11 @@ from utils.gui_bridge import log_bridge
 from utils.logger import setup_logging_for_gui
 
 if __name__ == "__main__":
+    # 0. Suppress webdriver-manager logs
+    # These environment variables must be set before webdriver-manager is imported.
+    os.environ['WDM_LOG'] = '0'
+    os.environ['WDM_LOG_LEVEL'] = '0'
+
     # 1. Setup logging for GUI
     # This must be done before any logging calls are made.
     setup_logging_for_gui(log_bridge.log_received)

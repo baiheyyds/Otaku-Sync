@@ -63,6 +63,8 @@ def setup_logging_for_cli(level=None):
     # Set httpx logger to a higher level to avoid verbose request/response logging
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    # Suppress verbose logs from webdriver_manager
+    logging.getLogger("webdriver_manager").setLevel(logging.ERROR)
 
     logging.debug("日志系统已初始化 (CLI 模式)。")
 
@@ -84,5 +86,7 @@ def setup_logging_for_gui(qt_signal_emitter, level=logging.INFO):
     # Set httpx logger to a higher level to avoid verbose request/response logging
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    # Suppress verbose logs from webdriver_manager
+    logging.getLogger("webdriver_manager").setLevel(logging.ERROR)
     
     logging.info("🔧 日志系统已成功接入GUI。")

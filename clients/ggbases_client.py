@@ -21,7 +21,7 @@ class GGBasesClient(BaseClient):
     def __init__(self, client):
         super().__init__(client, base_url="https://www.ggbases.com/")
         self.driver = None
-        self.selenium_timeout = 5
+        self.selenium_timeout = 10
 
     def set_driver(self, driver):
         self.driver = driver
@@ -111,9 +111,7 @@ class GGBasesClient(BaseClient):
                 self.driver.get(detail_url)
                 wait = WebDriverWait(self.driver, self.selenium_timeout)
                 wait.until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, 'a[href*="tags.so?target=female"]')
-                    )
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
                 soup = BeautifulSoup(self.driver.page_source, "lxml")
                 info = {

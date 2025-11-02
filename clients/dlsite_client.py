@@ -26,7 +26,7 @@ class DlsiteClient(BaseClient):
             "Referer": "https://www.dlsite.com/maniax/",
         })
         self.driver = None
-        self.selenium_timeout = 5
+        self.selenium_timeout = 10
 
     def set_driver(self, driver):
         self.driver = driver
@@ -205,7 +205,7 @@ class DlsiteClient(BaseClient):
                     yes_button.click()
                     logging.info("🔍 [Dlsite] (Selenium) 已自动通过年龄验证。")
                 except Exception:
-                    pass # 年龄验证不是每次都有，忽略失败
+                    pass  # 年龄验证不是每次都有，忽略失败
 
                 # 主要内容等待
                 wait = WebDriverWait(self.driver, self.selenium_timeout)

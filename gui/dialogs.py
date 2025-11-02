@@ -1,10 +1,11 @@
 from PySide6.QtCore import QRect, QSize, Qt, Slot
-from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter
+from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QGraphicsDropShadowEffect,
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
@@ -304,6 +305,13 @@ class GameListItemWidget(QWidget):
         self.image_label.setPixmap(get_placeholder_icon().pixmap(self.image_size))
         self.image_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.image_label)
+
+        # Add a shadow effect to the cover image for depth
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(15)
+        shadow.setColor(QColor(0, 0, 0, 60))
+        shadow.setOffset(2, 2)
+        self.image_label.setGraphicsEffect(shadow)
 
         # 2. Info Section (Right side)
         info_widget = QWidget()

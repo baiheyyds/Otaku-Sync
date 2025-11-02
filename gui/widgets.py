@@ -73,14 +73,21 @@ class BatchToolsWidget(QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__("批处理工具", parent)
-        # Use the new FlowLayout
-        layout = FlowLayout(self)
+        
+        # Main vertical layout for the group box
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(10)
 
         # Add experimental features warning
-        warning_label = QLabel("注意：此处的批处理功能尚处于实验阶段，部分功能可能不稳定或有预期外的行为。使用前建议备份您的 Notion 数据库。")
+        warning_label = QLabel("注意：此处的批处理功能尚处于实验阶段，使用前建议备份您的 Notion 数据库。")
         warning_label.setWordWrap(True)
-        warning_label.setStyleSheet("color: #D35400; font-size: 12px; background-color: #FFF3E0; border: 1px solid #FFE0B2; border-radius: 4px; padding: 8px;")
-        layout.addWidget(warning_label)
+        warning_label.setStyleSheet("color: #D35400; font-weight: bold;")
+        # Add with stretch factor 0, so it only takes the space it needs
+        main_layout.addWidget(warning_label, 0)
+
+        # Create a container widget for the buttons with a FlowLayout
+        button_container = QWidget()
+        layout = FlowLayout(button_container) # Use FlowLayout for the container
 
         buttons_to_create = [
             ("补全Bangumi链接", fill_missing_bangumi_links),
@@ -99,6 +106,10 @@ class BatchToolsWidget(QGroupBox):
             button.clicked.connect(partial(self.trigger_script, func, name))
             layout.addWidget(button)
             self.buttons.append(button)
+        
+        # Add the button container to the main vertical layout with stretch factor 1
+        # This makes it take up all available extra space
+        main_layout.addWidget(button_container, 1)
 
     def trigger_script(self, func, name):
         """Emits the signal to the main window to run the script."""

@@ -125,3 +125,24 @@ QGroupBox::title {
 QListWidget[alternatingRowColors="true"]::item:alternate {
     background-color: #F7F9FC;
 }
+
+/* --- List Widget Item States (for SelectionDialog) --- */
+QListWidget::item {
+    border-radius: 8px; /* Match other widgets */
+    padding: 5px;
+    border: 1px solid transparent; /* Add transparent border to prevent layout shift on selection */
+}
+
+QListWidget::item:hover {
+    background-color: #EDFDF8; /* Very light mint for hover */
+}
+
+QListWidget::item:selected {
+    background-color: #D6F5EC; /* Light mint for selection */
+    border: 1px solid #AEE9D9; /* Soft mint border */
+    color: #2c3e50; /* Ensure text is readable */
+}
+
+QListWidget::item:selected:hover {
+    background-color: #C5F2E3; /* Slightly darker on selected hover */
+}

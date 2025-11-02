@@ -76,6 +76,12 @@ class BatchToolsWidget(QGroupBox):
         # Use the new FlowLayout
         layout = FlowLayout(self)
 
+        # Add experimental features warning
+        warning_label = QLabel("注意：此处的批处理功能尚处于实验阶段，部分功能可能不稳定或有预期外的行为。使用前建议备份您的 Notion 数据库。")
+        warning_label.setWordWrap(True)
+        warning_label.setStyleSheet("color: #D35400; font-size: 12px; background-color: #FFF3E0; border: 1px solid #FFE0B2; border-radius: 4px; padding: 8px;")
+        layout.addWidget(warning_label)
+
         buttons_to_create = [
             ("补全Bangumi链接", fill_missing_bangumi_links),
             ("补全角色字段", fill_missing_character_fields),

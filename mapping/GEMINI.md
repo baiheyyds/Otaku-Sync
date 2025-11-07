@@ -38,8 +38,8 @@
 - **`tag_replace_map.py`**: 
     - **作用**: **标签替换规则**。定义了在 `scripts/replace_and_clean_tags.py` 脚本中使用的标签替换规则。
 
-- **`*_ignore_list.json`**: 
-    - **作用**: **忽略列表**。用于记录那些应该被程序永久忽略的标签或 Bangumi 属性（例如，无意义的 “开发”、“发行” 等字段）。
+- **`bangumi_ignore_list.json` / `tag_ignore_list.json`**: 
+    - **作用**: **忽略列表**。分别用于记录那些应该被程序永久忽略的 Bangumi 属性（例如，无意义的 “开发”、“发行” 等字段）和原始标签（例如，DLsite上与促销活动相关的临时标签）。
 
 ## 3. 工作流程
 

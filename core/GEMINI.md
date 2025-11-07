@@ -38,6 +38,12 @@
 
 - **`interaction.py` (`InteractionProvider`)**: 定义了核心业务逻辑与用户界面之间“契约”的抽象基类。所有需要用户输入的场景都必须通过此接口的实现来完成。
 
+- **`mapping_manager.py`**: **[新]** 数据映射的核心管理器。
+    - **`BrandMappingManager`**: 负责处理品牌（厂商）名称的归一化。它维护一个 `brand_mapping.json` 文件，能将 "ゆずソフト"、"YuzuSoft" 等别名统一映射到规范名称 "YUZUSOFT" 上。
+    - **`BangumiMappingManager`**: 负责动态处理 Bangumi 属性到 Notion 字段的映射。当从 Bangumi API 获取到一个未知的属性（如一个新的制作人员角色）时，它会通过 `InteractionProvider` 接口询问用户应如何映射（是映射到现有字段还是创建新字段），并将用户的选择持久化到 `bangumi_prop_mapping.json` 中。
+
+- **`data_manager.py`**: **[新]** 一个全局数据加载器。它在程序启动时自动读取 `mapping/` 目录下的所有 `.json` 文件，并将它们加载到内存中，为 `TagManager` 等其他模块提供一个统一、便捷的数据访问接口。
+
 - **`gui_worker.py` (`GameSyncWorker`, `ScriptWorker`)**: 
     - **定位**: 这是**专门为GUI模式设计**的后台工作线程 (`QThread`)，是连接 `core` 纯逻辑与 `gui` 界面的桥梁。
     - **核心职责**: 

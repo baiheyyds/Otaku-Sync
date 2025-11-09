@@ -46,19 +46,15 @@ class DriverFactory:
         # 阶段1: 在后台事件循环中串行准备驱动文件
         logging.info(f"🚀 [后台] 开始串行准备 {driver_keys} 的驱动文件...")
         driver_paths = {}
-        for key in driver_keys:
-            try:
+        try:
+            for key in driver_keys:
                 # prepare_driver_executable 是阻塞的，用 to_thread 运行
                 path = await asyncio.to_thread(prepare_driver_executable)
                 driver_paths[key] = path
-            except Exception as e:
-                logging.error(f"❌ [后台] 准备 {key} 的驱动文件失败，中止创建过程: {e}")
-                # 将异常存入 future，以便 get_driver 可以捕获
-                with self._lock:
-                    future = self._creation_futures.get(key)
-                    if future and not future.done():
-                        future.set_exception(e)
-                return # 准备失败，则不继续
+        except Exception as e:
+            logging.error(f"❌ [后台] 准备驱动文件时失败，中止创建过程: {e}")
+            # 让异常自然冒泡，由 run_coroutine_threadsafe 的 future 捕获
+            raise
 
         logging.info("✅ [后台] 所有驱动文件已准备就绪。")
 
@@ -73,11 +69,8 @@ class DriverFactory:
                 logging.info(f"✅ [后台] {key} 已成功实例化。")
             except Exception as e:
                 logging.error(f"❌ [后台] 实例化 {key} 失败: {e}")
-                # 再次将异常存入 future
-                with self._lock:
-                    future = self._creation_futures.get(key)
-                    if future and not future.done():
-                        future.set_exception(e)
+                # 让 gather 捕获异常并最终由 run_coroutine_threadsafe 的 future 捕获
+                raise
 
         tasks = [create_instance_task(key, path) for key, path in driver_paths.items()]
         await asyncio.gather(*tasks)

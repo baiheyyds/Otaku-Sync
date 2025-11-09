@@ -1,7 +1,8 @@
 # utils/driver.py
+import logging
 import os
 import subprocess
-import logging
+import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -15,17 +16,38 @@ os.environ['WDM_LOCAL'] = driver_path  # 设置webdriver-manager的下载路径
 
 def prepare_driver_executable() -> str:
     """
-    检查、下载并返回 ChromeDriver 的可执行文件路径。
+    检查、下载并返回 ChromeDriver 的可执行文件路径，包含重试机制。
     这是一个阻塞IO操作，且应该串行执行以避免 webdriver-manager 的并发问题。
     """
-    try:
-        logging.info("🔧 [WebDriver] 正在检查并准备 ChromeDriver...")
-        executable_path = ChromeDriverManager().install()
-        logging.info(f"✅ [WebDriver] ChromeDriver 已就绪，路径: {executable_path}")
-        return executable_path
-    except Exception as e:
-        logging.error(f"❌ [WebDriver] 准备 ChromeDriver 时发生严重错误: {e}")
-        raise
+    max_retries = 3
+    retry_delay = 1  # seconds
+
+    for attempt in range(max_retries):
+        try:
+            logging.info(f"🔧 [WebDriver] 正在检查并准备 ChromeDriver (尝试 {attempt + 1}/{max_retries})...")
+            executable_path = ChromeDriverManager().install()
+            logging.info(f"✅ [WebDriver] ChromeDriver 已就绪，路径: {executable_path}")
+            return executable_path
+        except Exception as e:
+            error_str = str(e).lower()
+            # 仅在网络相关错误时重试
+            is_network_error = "could not reach host" in error_str or "timed out" in error_str or "connection error" in error_str
+
+            if is_network_error and attempt < max_retries - 1:
+                logging.warning(
+                    f"⚠️ [WebDriver] 准备驱动时遇到网络错误 (尝试 {attempt + 1}/{max_retries})。 "
+                    f"将在 {retry_delay} 秒后重试..."
+                )
+                time.sleep(retry_delay)
+            else:
+                if is_network_error:
+                    logging.error(f"❌ [WebDriver] 经过 {max_retries} 次尝试后，准备驱动仍然失败: {e}")
+                else:
+                    logging.error(f"❌ [WebDriver] 准备 ChromeDriver 时发生非网络相关的严重错误: {e}")
+                raise
+
+    raise RuntimeError("未能成功准备 WebDriver，已达到最大重试次数。")
+
 
 def create_driver_instance(executable_path: str):
     """

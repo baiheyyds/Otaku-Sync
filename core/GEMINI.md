@@ -10,7 +10,7 @@
 
 ## 2. 关键组件概览
 
-- **`init.py`**: **[已修正]** 项目的资源管理核心。它提供 `init_context` 和 `close_context` 两个关键函数，负责在程序启动时安全地初始化所有必要的服务（如 HTTP 客户端、驱动程序工厂），并在程序退出时优雅地关闭它们、保存缓存，确保数据的一致性和资源的正确释放。
+- **`init.py`**: **[已修正]** 项目的资源管理核心。它提供 `init_context` 和 `close_context` 两个关键函数。`init_context` 负责在程序启动时安全地初始化所有服务，而 `close_context` 则在程序退出时优雅地关闭它们。**特别地，关闭流程经过优化，会并发地（`asyncio.to_thread`）保存所有缓存和映射文件，以缩短退出时间。**
 
 - **`context_factory.py`**: **[已重构]** 应用的“组装车间”，现在采用更先进的分层上下文设计：
     - **`create_shared_context`**: 创建在整个应用生命周期内共享的单例对象，如缓存 (`BrandCache`)、管理器 (`TagManager`, `BrandMappingManager`) 和驱动程序工厂 (`driver_factory`)。

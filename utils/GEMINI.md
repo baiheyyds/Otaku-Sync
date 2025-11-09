@@ -21,7 +21,7 @@
 - **`driver.py`**: 
     - **作用**: 封装了创建和配置 Selenium WebDriver 的复杂过程。
     - **核心函数**: `create_driver()`，它负责：
-        - 使用 `webdriver-manager` 自动下载和管理 ChromeDriver。
+        - 使用 `webdriver-manager` 自动下载和管理 ChromeDriver。**此过程内置了网络错误重试机制，以提高在不稳定网络下的成功率。**
         - 设置一系列 Chrome 选项以实现无头运行、禁用日志、反爬虫检测等。
         - 在 Windows 上隐藏弹出的 `cmd` 窗口。
 

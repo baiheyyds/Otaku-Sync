@@ -2,8 +2,9 @@ import json
 import os
 from functools import partial
 
-from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+import qtawesome as qta
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -17,7 +18,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
-    QStyle,
     QVBoxLayout,
     QWidget,
 )
@@ -44,28 +44,6 @@ def apply_glow_effect(widget, color="#888888", blur_radius=10, x_offset=2, y_off
     shadow.setOffset(x_offset, y_offset)
     widget.setGraphicsEffect(shadow)
 
-def create_plus_icon(color, size=QSize(14, 14)):
-    """程序化绘制一个清晰的 '+' 号图标。"""
-    pixmap = QPixmap(size)
-    pixmap.fill(Qt.transparent)
-    painter = QPainter(pixmap)
-    pen = QPen(QColor(color), 2) # 笔刷宽度为2px
-    pen.setCapStyle(Qt.RoundCap) # 圆润的笔端
-    painter.setPen(pen)
-    painter.setRenderHint(QPainter.Antialiasing) # 抗锯齿
-
-    # 绘制两条线组成 '+'
-    center = size.width() / 2
-    line_len = size.width() * 0.7
-    start_pos = center - line_len / 2
-    end_pos = center + line_len / 2
-
-    painter.drawLine(start_pos, center, end_pos, center) # 水平线
-    painter.drawLine(center, start_pos, center, end_pos) # 垂直线
-
-    painter.end()
-    return QIcon(pixmap)
-
 class BatchToolsWidget(QGroupBox):
     """A widget group for all batch script execution buttons."""
     # Signal: script_function, script_name
@@ -73,7 +51,7 @@ class BatchToolsWidget(QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__("批处理工具", parent)
-        
+
         # Main vertical layout for the group box
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(10)
@@ -106,7 +84,7 @@ class BatchToolsWidget(QGroupBox):
             button.clicked.connect(partial(self.trigger_script, func, name))
             layout.addWidget(button)
             self.buttons.append(button)
-        
+
         # Add the button container to the main vertical layout with stretch factor 1
         # This makes it take up all available extra space
         main_layout.addWidget(button_container, 1)
@@ -169,9 +147,10 @@ class MappingEditorWidget(QGroupBox):
         master_title_layout.addWidget(QLabel("原始值 (Keys)"))
         master_title_layout.addStretch()
 
-        # Create high-quality icons programmatically
-        add_icon = create_plus_icon("#333333")
-        delete_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon)
+        # --- [核心修改] 使用 qtawesome 创建图标 ---
+        add_icon = qta.icon('fa5s.plus', color='#2c3e50')
+        delete_icon = qta.icon('fa5s.trash-alt', color='#c0392b')
+        # --- [修改结束] ---
 
         self.add_key_button = QPushButton()
         self.add_key_button.setIcon(add_icon)

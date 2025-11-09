@@ -1,11 +1,12 @@
-from PySide6.QtCore import QRect, QSize, Qt, Slot
-from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
+from PySide6.QtCore import QPropertyAnimation, QRect, QSize, Qt, Slot
+from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QGraphicsDropShadowEffect,
+    QGraphicsOpacityEffect,
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.interaction import TYPE_SELECTION_MAP
+
 from .image_loader import ImageLoader, get_placeholder_icon
 
 
@@ -334,7 +336,7 @@ class GameListItemWidget(QWidget):
             price_display = f"{price}円" if str(price).isdigit() else price
             item_type = candidate_data.get("类型", "未知")
             info_text = f"💴 {price_display}<br>🏷️ {item_type}"
-        
+
         info_label = QLabel(info_text)
         info_label.setWordWrap(True)
         info_label.setAlignment(Qt.AlignTop)
@@ -371,9 +373,9 @@ class GameListItemWidget(QWidget):
             new_size = pixmap.size().scaled(self.image_size, Qt.KeepAspectRatio)
             x = (self.image_size.width() - new_size.width()) / 2
             y = (self.image_size.height() - new_size.height()) / 2
-            
+
             target_rect = QRect(int(x), int(y), new_size.width(), new_size.height())
-            
+
             painter.drawPixmap(target_rect, pixmap)
             painter.end()
 
@@ -390,15 +392,24 @@ class SelectionDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
 
+        # --- [新增] 淡入动画 ---
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self.opacity_effect)
+        self.animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.animation.setDuration(250)
+        self.animation.setStartValue(0.0)
+        self.animation.setEndValue(1.0)
+        # --- [新增结束] ---
+
         self.image_loader = ImageLoader(self)
 
         layout = QVBoxLayout(self)
         self.list_widget = QListWidget()
-        
+
         self.list_widget.setViewMode(QListWidget.ListMode)
         self.list_widget.setSpacing(5)
         self.list_widget.setMovement(QListWidget.Static)
-        
+
         font = QFont("Microsoft YaHei", 10)
         self.list_widget.setFont(font)
 
@@ -427,7 +438,7 @@ class SelectionDialog(QDialog):
         width = 800
         max_height = 800
         buttons_height = self.buttons.sizeHint().height()
-        
+
         items_height = 0
         if self.list_widget.count() > 0:
             row_height = self.list_widget.sizeHintForRow(0)
@@ -442,6 +453,14 @@ class SelectionDialog(QDialog):
         final_height = max(min_height, final_height)
 
         self.resize(width, int(final_height))
+
+    def showEvent(self, event):
+        # --- [新增] 在显示时触发淡入动画 ---
+        super().showEvent(event)
+        # Set initial opacity to 0, otherwise it might flash
+        self.opacity_effect.setOpacity(0)
+        self.animation.start()
+        # --- [新增结束] ---
 
     def handle_button_click(self, button):
         role = self.buttons.buttonRole(button)

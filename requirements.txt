@@ -16,4 +16,4 @@ rich==13.7.1
 # Development dependencies
 pytest
 ruff
-mypy
+qtawesome

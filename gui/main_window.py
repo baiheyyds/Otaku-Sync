@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 
-from PySide6.QtCore import QEvent, QTime, QTimer, Qt
+from PySide6.QtCore import QEvent, Qt, QTime, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -225,6 +225,7 @@ class MainWindow(QMainWindow):
             logging.warning("⚠️ 请输入游戏名/关键词后再开始搜索.\n")
             return
 
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         self.set_all_buttons_enabled(False)
         self.search_button.setText("正在运行...")
         self.log_console.clear()
@@ -239,6 +240,7 @@ class MainWindow(QMainWindow):
             return
 
         logging.info(f"🚀 即将执行脚本: {script_name}")
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         self.log_console.clear()
         self.set_all_buttons_enabled(False)
 
@@ -286,12 +288,14 @@ class MainWindow(QMainWindow):
 
     def on_script_completed(self, script_name, success, result):
         logging.info(f'✅ 脚本 "{script_name}" 执行结束，结果: {"成功" if success else "失败"}\n')
+        QApplication.restoreOverrideCursor()
         # Only re-enable all buttons if it was a user-initiated script
         # The initial stats load runs in the background and shouldn't affect button state.
         if self.sender() and self.sender().parent() == self: # Check if it's a main worker
             self.set_all_buttons_enabled(True)
 
         if not success:
+            QMessageBox.critical(self, "脚本执行失败", f"脚本 '{script_name}' 在执行过程中遇到错误。\n\n请检查日志以获取详细信息。")
             return
 
         elif script_name == "导出所有品牌名" and isinstance(result, list):
@@ -311,7 +315,6 @@ class MainWindow(QMainWindow):
         self.search_button.setEnabled(enabled)
         self.search_button.setText("🔍 开始搜索" if enabled else "正在运行...")
         self.batch_tools_widget.set_buttons_enabled(enabled)
-        # self.statistics_widget.refresh_button.setEnabled(enabled)
 
     # --- All handler methods for dialogs --- #
 
@@ -322,7 +325,9 @@ class MainWindow(QMainWindow):
             return
 
         dialog = BrandMergeDialog(new_brand_name, suggested_brand, self)
+        QApplication.restoreOverrideCursor()
         dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
 
         # The dialog's result property holds the user's choice
         worker.set_interaction_response(dialog.result)
@@ -331,7 +336,11 @@ class MainWindow(QMainWindow):
         logging.info(f"🔍 需要为名称 '{text}' 的分割方式 '{parts}' 做出决策...")
         dialog = NameSplitterDialog(text, parts, self)
         worker = self.sender()
-        if dialog.exec() == QDialog.Accepted:
+        QApplication.restoreOverrideCursor()
+        result = dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        if result == QDialog.Accepted:
             worker.set_interaction_response(dialog.result)
         else:
             worker.set_interaction_response({"action": "keep", "save_exception": False})
@@ -340,7 +349,11 @@ class MainWindow(QMainWindow):
         logging.info(f"🔍 需要为新标签 '{tag}' ({source_name}) 提供翻译...")
         dialog = TagTranslationDialog(tag, source_name, self)
         worker = self.sender()
-        if dialog.exec() == QDialog.Accepted:
+        QApplication.restoreOverrideCursor()
+        result = dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        if result == QDialog.Accepted:
             worker.set_interaction_response(dialog.result)
         else:
             worker.set_interaction_response("s") # Treat cancel as skip
@@ -352,7 +365,9 @@ class MainWindow(QMainWindow):
             return
 
         dialog = ConceptMergeDialog(concept, candidate, self)
+        QApplication.restoreOverrideCursor()
         dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         worker.set_interaction_response(dialog.result)
 
     def handle_bangumi_selection_required(self, game_name, candidates):
@@ -360,7 +375,9 @@ class MainWindow(QMainWindow):
         dialog = BangumiSelectionDialog(game_name, candidates, self)
         worker = self.sender()
 
+        QApplication.restoreOverrideCursor()
         result = dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
 
         if result == QDialog.Accepted:
             worker.set_interaction_response(dialog.selected_id)
@@ -370,14 +387,20 @@ class MainWindow(QMainWindow):
     def handle_bangumi_mapping(self, request_data):
         logging.info("🔧 需要进行 Bangumi 属性映射，等待用户操作...\n")
         dialog = BangumiMappingDialog(request_data, self)
+        QApplication.restoreOverrideCursor()
         dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         self.sender().set_interaction_response(dialog.result)
 
     def handle_property_type(self, request_data):
         logging.info(f"🔧 需要为新属性 '{request_data['prop_name']}' 选择类型...\n")
         dialog = PropertyTypeDialog(request_data['prop_name'], self)
         worker = self.sender()
-        if dialog.exec() == QDialog.Accepted:
+        QApplication.restoreOverrideCursor()
+        result = dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        if result == QDialog.Accepted:
             selected_type = dialog.selected_type()
             worker.set_interaction_response(selected_type)
         else:
@@ -395,7 +418,9 @@ class MainWindow(QMainWindow):
 
         logging.info(f"🔍 接收到 {len(choices)} 个选项，请在弹出对话框中选择...\n")
         dialog = SelectionDialog(choices, title=title, source=source, parent=self)
+        QApplication.restoreOverrideCursor()
         result = dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
 
         if result == QDialog.Accepted:
             choice_index = dialog.selected_index()
@@ -415,14 +440,19 @@ class MainWindow(QMainWindow):
 
         logging.info("🔍 发现可能重复的游戏，等待用户确认...\n")
         dialog = DuplicateConfirmationDialog(candidates, self)
+        QApplication.restoreOverrideCursor()
         dialog.exec()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         choice = dialog.result
         logging.info(f"🔍 用户对重复游戏的操作是: {choice}\n")
         worker.set_interaction_response(choice)
 
     def process_finished(self, success):
         logging.info(f'✅ 任务完成，结果: {"成功" if success else "失败"}\n')
+        QApplication.restoreOverrideCursor()
         self.set_all_buttons_enabled(True)
+        if not success:
+            QMessageBox.critical(self, "任务失败", "游戏同步任务在执行过程中遇到错误。\n\n请检查日志以获取详细信息。")
 
     def cleanup_worker(self):
         logging.info("🔧 后台线程已退出，正在清理...\n")

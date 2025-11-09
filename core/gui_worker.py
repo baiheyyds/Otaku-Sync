@@ -1,6 +1,6 @@
 import asyncio
 import logging
-import time # Added to fix NameError
+import time  # Added to fix NameError
 import traceback
 
 from PySide6.QtCore import QThread, Signal

@@ -156,7 +156,7 @@ class GGBasesClient(BaseClient):
         for tr in soup.find_all("tr"):
             if not isinstance(tr, Tag):
                 continue
-            
+
             # Check for the specific link first
             if tr.find("a", href=lambda x: x and "tags.so?target=female" in x):
                 # If the link exists, find all the spans

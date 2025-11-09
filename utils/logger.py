@@ -88,5 +88,5 @@ def setup_logging_for_gui(qt_signal_emitter, level=logging.INFO):
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     # Suppress verbose logs from webdriver_manager
     logging.getLogger("webdriver_manager").setLevel(logging.ERROR)
-    
+
     logging.info("🔧 日志系统已成功接入GUI。")

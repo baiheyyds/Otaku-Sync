@@ -68,11 +68,11 @@ class DlsiteClient(BaseClient):
             href = title_a.get("href")
             if not href:
                 continue
-            
+
             full_url = href if href.startswith("http") else self.base_url + href
             if full_url in seen:
                 continue
-            
+
             title = title_a.get("title", "").strip()
             if not title:
                 continue

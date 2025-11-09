@@ -1,6 +1,6 @@
 
-import json
 import asyncio
+import json
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -8,6 +8,7 @@ import pytest
 
 from core.interaction import InteractionProvider
 from utils.tag_manager import TagManager
+
 
 # 1. 假的“用户”
 class MockInteractionProvider(InteractionProvider):

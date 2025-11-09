@@ -162,8 +162,10 @@ async def run_single_game_flow(context: dict) -> bool:
     try:
         # 阶段一：搜索与选择
         selection_result = await prompt_and_select_game(context)
-        if selection_result is None: return False
-        if selection_result == "retry": return True
+        if selection_result is None:
+            return False
+        if selection_result == "retry":
+            return True
         game, source, keyword, manual_mode = selection_result
 
         # 阶段二：重复项检查

@@ -136,6 +136,7 @@ class FanzaClient(BaseClient):
             return []
 
     async def get_game_detail(self, url: str) -> dict:
+        logging.info(f"⏳ [Fanza] 正在抓取游戏详情页面，请稍候... URL: {url}")
         resp = await self.get(url, timeout=15, cookies=self.cookies)
         if not resp:
             return {}

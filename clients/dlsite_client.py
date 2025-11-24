@@ -215,7 +215,7 @@ class DlsiteClient(BaseClient):
                 try:
                     # 策略1: 直接、独立地等待每个目标元素加载完成
                     cien_link_element = wait.until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='ci-en.dlsite.com']"))
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, ".link_cien a"))
                     )
                     cien_url = cien_link_element.get_attribute("href").strip()
                 except TimeoutException:
@@ -223,7 +223,7 @@ class DlsiteClient(BaseClient):
 
                 try:
                     icon_img_element = wait.until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, ".creator_icon img[src]"))
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, ".creator_icon img[src]"))
                     )
                     icon_url = icon_img_element.get_attribute("src").strip()
                 except TimeoutException:
